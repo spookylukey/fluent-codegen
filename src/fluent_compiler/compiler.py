@@ -1080,7 +1080,7 @@ def compile_expr_function_reference(
 # Compiler utilities and common code:
 
 
-def add_msg_error_with_expr(block: codegen.Block, exception_expr: codegen.CodeGenAst):
+def add_msg_error_with_expr(block: codegen.Block, exception_expr: codegen.Expression):
     block.add_statement(codegen.MethodCall(block.scope.variable(ERRORS_NAME), "append", [exception_expr]))
 
 
