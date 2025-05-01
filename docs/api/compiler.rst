@@ -74,7 +74,7 @@ interface for compiling Fluent messages.
 
       .. code-block:: python
 
-         def a_message(args, errors):
+         def a_message(args: dict, errors: list) -> str:
              return "The message"
 
       Each function takes a dictionary of external arguments and an errors list
