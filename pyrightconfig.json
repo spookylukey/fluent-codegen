@@ -1,0 +1,13 @@
+{
+  "include": [
+    "src",
+    "tests"
+  ],
+
+  "exclude": [
+    "**/node_modules",
+    "**/__pycache__",
+  ],
+  "venv": ".venv",
+  "pythonVersion": "3.13"
+}
