@@ -130,13 +130,13 @@ def args_match(
     positional_arg_count, allowed_kwargs = arg_spec
     match = True
     for kwarg_name, kwarg_val in kwargs.items():
-        if (allowed_kwargs is AnyArg and allowable_keyword_arg_name(kwarg_name)) or (
-            allowed_kwargs is not AnyArg and kwarg_name in allowed_kwargs
+        if (isinstance(allowed_kwargs, AnyArgType) and allowable_keyword_arg_name(kwarg_name)) or (
+            not isinstance(allowed_kwargs, AnyArgType) and kwarg_name in allowed_kwargs
         ):
             sanitized_kwargs[kwarg_name] = kwarg_val
         else:
             errors.append(TypeError(f"{function_name}() got an unexpected keyword argument '{kwarg_name}'"))
-    if positional_arg_count is AnyArg:
+    if isinstance(positional_arg_count, AnyArgType):
         sanitized_args = args
     else:
         sanitized_args = tuple(args[0:positional_arg_count])
