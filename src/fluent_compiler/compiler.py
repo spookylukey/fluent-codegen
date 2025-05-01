@@ -939,6 +939,9 @@ def compile_expr_variable_reference(
 
     # Otherwise we are in a message, lookup at runtime.
 
+    arg_handled_tmp_name: str | None = None
+    handle_argument_func_call: codegen.Expression | None = None
+
     # We might have already looked it up:
     existing = block.scope.find_names_by_property(PROPERTY_EXTERNAL_ARG, name)
     # Name reservation is done at scope level. We also need to check that it has
@@ -1019,6 +1022,10 @@ def compile_expr_variable_reference(
 
     if not wrap_with_handle_argument:
         return block.scope.variable(arg_tmp_name)
+
+    # These are defined if wrap_with_handle_argument is True:
+    assert arg_handled_tmp_name is not None
+    assert handle_argument_func_call is not None
 
     # We can use except/else blocks to do wrapping.
     # Except block:
