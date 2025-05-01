@@ -256,21 +256,23 @@ def _parse_resources(
                         None,
                         FluentJunkFound(
                             "Junk found:\n"
-                            + "\n".join(
-                                "  {}: {}".format(
-                                    display_location(
-                                        ftl_resource.filename,
-                                        span_to_position(a.span, ftl_resource.text),
-                                    ),
-                                    a.message,
-                                )
-                                for a in item.annotations
-                            ),
+                            + "\n".join(_format_junk_annotation(ftl_resource, a) for a in item.annotations),
                             item.annotations,
                         ),
                     )
                 )
     return output_dict, parsing_issues
+
+
+def _format_junk_annotation(ftl_resource: FtlResource, annotation: fl_ast.Annotation) -> str:
+    assert annotation.span is not None
+    return "  {}: {}".format(
+        display_location(
+            ftl_resource.filename,
+            span_to_position(annotation.span, ftl_resource.text),
+        ),
+        annotation.message,
+    )
 
 
 TermOrMessage: TypeAlias = Union[fl_ast.Message, fl_ast.Term]
@@ -1355,6 +1357,7 @@ def unknown_reference(
 
 def display_ast_location(ast_node: fl_ast.SyntaxNode, compiler_env: CompilerEnvironment) -> str:
     ftl_resource = compiler_env.current.ftl_resource
+    assert ast_node.span is not None
     return display_location(ftl_resource.filename, span_to_position(ast_node.span, ftl_resource.text))
 
 
