@@ -247,7 +247,7 @@ def merge_options(
 
     # Use the options_class constructor because it might
     # have validators defined for the fields.
-    kwarg_options = options_class(**kwargs)
+    kwarg_options = options_class(**kwargs)  # type: ignore[reportArgumenType]
     # Then merge, using only the ones explicitly given as keyword params.
     for k in kwargs.keys():
         setattr(retval, k, getattr(kwarg_options, k))

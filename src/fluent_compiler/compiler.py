@@ -287,10 +287,10 @@ def messages_to_module(
     use_isolating: bool = True,
     functions: Mapping[str, Callable] | None = None,
     escapers: Sequence[IsEscaper] | None = None,
-) -> tuple:
+) -> tuple[codegen.Module, dict[str, str], dict[str, object], list[CompilationErrorItem]]:
     """
     Compile a set of {id: Message/Term objects} to a Python module, returning a tuple:
-    (codegen.Module object, dictionary mapping message IDs to Python functions,
+    (codegen.Module object, dictionary mapping message IDs to Python function names,
      module globals dictionary, errors list)
     """
     if functions is None:
@@ -405,7 +405,7 @@ def messages_to_module(
             function = compile_message(msg, msg_id, function_name, module, compiler_env)
             module.add_function(function_name, function)
 
-    module = codegen.simplify(module, Simplifier(compiler_env))
+    module = checked_cast(codegen.Module, codegen.simplify(module, Simplifier(compiler_env)))
     return (module, compiler_env.message_mapping, module_globals, compiler_env.errors)
 
 
