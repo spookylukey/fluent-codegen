@@ -4,7 +4,7 @@ import builtins
 import inspect
 import keyword
 import re
-from typing import TYPE_CHECKING, Any, Callable, List, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, List, Tuple, TypeVar, Union
 
 from fluent.syntax.ast import Attribute, Message, MessageReference, Span, Term, TermReference
 
@@ -208,3 +208,11 @@ def span_to_position(span: Span, source_text: str) -> tuple[int, int]:
 def display_location(filename: str | None, position: tuple[int, int]) -> str:
     row, col = position
     return f"{filename if filename else '<string>'}:{row}:{col}"
+
+
+T = TypeVar("T")
+
+
+def checked_cast(expected_type: type[T], value: object) -> T:
+    assert isinstance(value, expected_type), f"Object is of type {type(value)} not {expected_type}"
+    return value

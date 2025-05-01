@@ -48,6 +48,7 @@ from .utils import (
     args_match,
     ast_to_id,
     attribute_ast_to_id,
+    checked_cast,
     display_location,
     inspect_function_args,
     reference_to_id,
@@ -794,7 +795,7 @@ def compile_term(
 ) -> codegen.CodeGenAst:
     current_escaper = compiler_env.current.escaper
     if not escapers_compatible(current_escaper, new_escaper):
-        # TODO bug here when attribute is passed
+        assert isinstance(term, fl_ast.Term), f"Object of type {type(term)}, expected Term"
         term_id = ast_to_id(term)
         error = TypeError(
             f"Escaper {new_escaper.name} for term {term_id} cannot be used from calling context with {current_escaper.name} escaper"
@@ -882,14 +883,14 @@ def compile_expr_select_expression(
             # > $key_tmp_name == $variant.key
             condition1 = codegen.Equals(
                 block.scope.variable(key_tmp_name),
-                compile_expr(variant.key, block, compiler_env),
+                checked_cast(codegen.Expression, compile_expr(variant.key, block, compiler_env)),
             )
 
             if is_cldr_plural_form_key(variant.key):
                 # > $plural_form_tmp_name == $variant.key
                 condition2 = codegen.Equals(
                     block.scope.variable(plural_form_tmp_name),
-                    compile_expr(variant.key, block, compiler_env),
+                    checked_cast(codegen.Expression, compile_expr(variant.key, block, compiler_env)),
                 )
                 condition = codegen.Or(condition1, condition2)
             else:
@@ -1256,7 +1257,7 @@ def numeric_to_native(val: str) -> float | int:
     return int(val)
 
 
-def reserve_and_assign_name(block: codegen.Block, suggested_name: str, value: codegen.CodeGenAst) -> str:
+def reserve_and_assign_name(block: codegen.Block, suggested_name: str, value: codegen.Expression) -> str:
     """
     Reserves a name for the value in the scope block and adds assignment if
     necessary, returning the name reserved.
