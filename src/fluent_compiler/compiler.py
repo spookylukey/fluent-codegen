@@ -86,9 +86,12 @@ PROPERTY_EXTERNAL_ARG = "PROPERTY_EXTERNAL_ARG"
 
 @dataclass
 class CurrentEnvironment:
-    # TODO make fields not optional, and the whole of `CurrentEnvironment` optional instead
     # The parts of CompilerEnvironment that we want to mutate (and restore)
     # temporarily for some parts of a call chain.
+
+    # MAYBE we shold make fields not optional, and the whole of
+    # `CurrentEnvironment` optional instead
+
     message_id: str
     ftl_resource: FtlResource
     term_args: dict | None = None
