@@ -1283,20 +1283,19 @@ def resolve_select_expression_statically(
     Resolve a select expression statically, given a codegen.CodeGenAst object
     `key_ast` representing the key value, or return None if not possible.
     """
-    key_is_fluent_none = is_fluent_none(key_ast)
-    key_is_number = isinstance(key_ast, codegen.Number) or (
-        is_NUMBER_function_call(key_ast) and isinstance(key_ast.args[0], codegen.Number)
-    )
-    key_is_string = isinstance(key_ast, codegen.String)
-    if not (key_is_string or key_is_number or key_is_fluent_none):
-        return None
+    if isinstance(key_ast, codegen.Number):
+        key_number_value = key_ast.number
+    elif is_NUMBER_function_call(key_ast) and isinstance(key_ast.args[0], codegen.Number):
+        # peek into the number literal inside the `NUMBER` call.
+        key_number_value = key_ast.args[0].number
+    else:
+        key_number_value = None  # not a numeric key
 
-    if key_is_number:
-        if isinstance(key_ast, codegen.Number):
-            key_number_value = key_ast.number
-        else:
-            # peek into the number literal inside the `NUMBER` call.
-            key_number_value = key_ast.args[0].number
+    key_is_fluent_none = is_fluent_none(key_ast)
+
+    key_is_string = isinstance(key_ast, codegen.String)
+    if not (key_is_string or (key_number_value is not None) or key_is_fluent_none):
+        return None
 
     default_variant = None
     found = None
@@ -1310,7 +1309,7 @@ def resolve_select_expression_statically(
             if isinstance(variant.key, fl_ast.Identifier) and key_ast.string_value == variant.key.name:
                 found = variant
                 break
-        elif key_is_number:
+        elif key_number_value is not None:
             if isinstance(variant.key, fl_ast.NumberLiteral) and key_number_value == numeric_to_native(
                 variant.key.value
             ):
@@ -1323,6 +1322,7 @@ def resolve_select_expression_statically(
                 found = variant
                 break
     if found is None:
+        assert default_variant is not None, "All select expressions must have a default"
         found = default_variant
 
     return compile_expr(found.value, block, compiler_env)
