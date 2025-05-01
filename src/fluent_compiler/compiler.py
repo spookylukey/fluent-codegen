@@ -851,8 +851,13 @@ def compile_expr_select_expression(
 
     return_tmp_name = block.scope.reserve_name("_ret")
 
-    need_plural_form = any(is_cldr_plural_form_key(variant.key) for variant in select_expr.variants)
-    if need_plural_form:
+    plural_form_tmp_name: str | None = None
+
+    def get_plural_form_var_name() -> str:
+        nonlocal plural_form_tmp_name
+        if plural_form_tmp_name is not None:
+            return plural_form_tmp_name
+
         plural_form_value = codegen.FunctionCall(
             PLURAL_FORM_FOR_NUMBER_NAME,
             [block.scope.variable(key_tmp_name)],
@@ -861,6 +866,7 @@ def compile_expr_select_expression(
         )
         # > $plural_form_tmp_name = plural_form_for_number($key_tmp_name)
         plural_form_tmp_name = reserve_and_assign_name(block, "_plural_form", plural_form_value)
+        return plural_form_tmp_name
 
     assigned_types = []
     first = True
@@ -889,7 +895,7 @@ def compile_expr_select_expression(
             if is_cldr_plural_form_key(variant.key):
                 # > $plural_form_tmp_name == $variant.key
                 condition2 = codegen.Equals(
-                    block.scope.variable(plural_form_tmp_name),
+                    block.scope.variable(get_plural_form_var_name()),
                     checked_cast(codegen.Expression, compile_expr(variant.key, block, compiler_env)),
                 )
                 condition = codegen.Or(condition1, condition2)

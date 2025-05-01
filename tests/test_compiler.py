@@ -1162,12 +1162,10 @@ class TestCompiler(CompilerTestMixin, UseConcatJoinMixin, unittest.TestCase):
                 except (LookupError, TypeError):
                     errors.append(FluentReferenceError('<string>:2:24: Unknown external: name'))
                     _arg = FluentNone('name')
-                _plural_form = plural_form_for_number(_arg)
                 if _arg == 'Peter':
                     _ret = 'Peter11'
                 else:
                     _ret = 'Jane11'
-                _plural_form2 = plural_form_for_number(_arg)
                 if _arg == 'Peter':
                     _ret2 = 'Male'
                 else:
@@ -1176,27 +1174,32 @@ class TestCompiler(CompilerTestMixin, UseConcatJoinMixin, unittest.TestCase):
         """,
         )
 
-    # TODO - eliminate unused assignments e.g. `_plural_form = plural_form_for_number(_arg)` is unneeded
-    # def test_unused_assignments(self):
-    #     code, errs = compile_messages_to_python("""
-    #         foo = { $arg ->
-    #            [0]     Zero
-    #           *[other] Other
-    #          }
-    #     """, self.locale)
-    #     self.assertCodeEqual(code, """
-    #         def foo(message_args, errors):
-    #             try:
-    #                 _arg = message_args['arg']
-    #             except (LookupError, TypeError):
-    #                 errors.append(FluentReferenceError('Unknown external: arg'))
-    #                 _arg = FluentNone('arg')
-    #             if _arg == 0:
-    #                 _ret = 'Zero'
-    #             else:
-    #                 _ret = 'Other'
-    #             return _ret
-    #     """)
+    def test_unused_assignments(self):
+        code, errs = compile_messages_to_python(
+            """
+            foo = { $arg ->
+               [0]     Zero
+              *[other] Other
+             }
+        """,
+            self.locale,
+        )
+        self.assertCodeEqual(
+            code,
+            """
+            def foo(message_args, errors):
+                try:
+                    _arg = message_args['arg']
+                except (LookupError, TypeError):
+                    errors.append(FluentReferenceError('<string>:2:9: Unknown external: arg'))
+                    _arg = FluentNone('arg')
+                if _arg == 0:
+                    _ret = 'Zero'
+                else:
+                    _ret = 'Other'
+                return _ret
+        """,
+        )
 
 
 empty_markup = Markup("")
