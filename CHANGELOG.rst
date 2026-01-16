@@ -9,6 +9,7 @@ fluent_compiler 1.2 (unreleased)
 * Switched from `attrs <https://www.attrs.org/en/stable/index.html>`_ to stdlib
   `dataclasses <https://docs.python.org/3/library/dataclasses.html>`_, and added
   lots of type signatures and cleaned up internally.
+
   * The documented API is still exactly the same as it was. However, if you were
     depending on implementation details, like the fact that ``CompiledFtl`` was
     an attrs dataclass when it is now a stdlib dataclass, there may be some
