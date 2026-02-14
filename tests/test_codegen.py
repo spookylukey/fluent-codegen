@@ -622,3 +622,340 @@ def test_cleanup_name_allowed_identifier(t):
     assert (
         allowable_name(cleaned) or (cleaned in dir(builtins)) or keyword.iskeyword(cleaned)
     ), f" for t = {t!r}"
+
+
+# --- Additional coverage tests ---
+
+
+def test_get_name_properties_not_found():
+    scope = codegen.Scope()
+    with pytest.raises(LookupError):
+        scope.get_name_properties("nonexistent")
+
+
+def test_get_name_properties_from_parent():
+    parent = codegen.Scope()
+    parent.reserve_name("name", properties={"FOO": True})
+    child = codegen.Scope(parent_scope=parent)
+    assert child.get_name_properties("name") == {"FOO": True}
+
+
+def test_set_name_properties():
+    scope = codegen.Scope()
+    scope.reserve_name("name", properties={"FOO": True})
+    scope.set_name_properties("name", {"BAR": False})
+    assert scope.get_name_properties("name") == {"FOO": True, "BAR": False}
+
+
+def test_set_name_properties_in_parent():
+    parent = codegen.Scope()
+    parent.reserve_name("name", properties={"FOO": True})
+    child = codegen.Scope(parent_scope=parent)
+    child.set_name_properties("name", {"BAR": False})
+    assert parent.get_name_properties("name") == {"FOO": True, "BAR": False}
+
+
+def test_set_name_properties_not_found():
+    scope = codegen.Scope()
+    with pytest.raises(LookupError):
+        scope.set_name_properties("nonexistent", {"FOO": True})
+
+
+def test_find_names_by_property():
+    scope = codegen.Scope()
+    scope.reserve_name("a", properties={"type": "string"})
+    scope.reserve_name("b", properties={"type": "int"})
+    scope.reserve_name("c", properties={"type": "string"})
+    assert scope.find_names_by_property("type", "string") == ["a", "c"]
+    assert scope.find_names_by_property("type", "int") == ["b"]
+    assert scope.find_names_by_property("type", "float") == []
+
+
+def test_reserve_name_keyword_avoidance():
+    scope = codegen.Scope()
+    # 'class' is a keyword, so reserve_name should avoid it
+    name = scope.reserve_name("class")
+    assert name == "class2"  # skips 'class' because it's a keyword
+
+
+def test_block_add_statement_bare_expression():
+    """Test that bare expressions (e.g. method calls) get wrapped in Expr."""
+    module = codegen.Module()
+    module.scope.reserve_name("a_function")
+    func_call = codegen.FunctionCall("a_function", [], {}, module.scope)
+    module.add_statement(func_call)
+    assert_code_equal(as_source_code(module), "a_function()")
+
+
+def test_block_add_statement_reassign_parent():
+    """Test that adding a block with a different parent raises."""
+    module1 = codegen.Module()
+    module2 = codegen.Module()
+    scope = codegen.Scope()
+    block = codegen.Block(scope, parent_block=module1)
+    with pytest.raises(AssertionError):
+        module2.add_statement(block)
+
+
+def test_block_has_assignment_from_parent():
+    """Test has_assignment_for_name delegation to parent block."""
+    module = codegen.Module()
+    name = module.scope.reserve_name("x")
+    module.add_assignment(name, codegen.String("hello"))
+    child = codegen.Block(module.scope, parent_block=module)
+    assert child.has_assignment_for_name(name)
+
+
+def test_return_repr():
+    ret = codegen.Return(codegen.String("hello"))
+    assert "Return" in repr(ret)
+
+
+def test_string_repr():
+    s = codegen.String("hello")
+    assert repr(s) == "String('hello')"
+
+
+def test_string_equality():
+    assert codegen.String("a") == codegen.String("a")
+    assert codegen.String("a") != codegen.String("b")
+    assert codegen.String("a") != "a"
+
+
+def test_number_repr():
+    n = codegen.Number(42)
+    assert repr(n) == "Number(42)"
+
+
+def test_list_expression():
+    lst = codegen.List([codegen.Number(1), codegen.String("two")])
+    assert lst.type == list
+    assert_code_equal(as_source_code(lst), "[1, 'two']")
+
+
+def test_dict_expression():
+    d = codegen.Dict([(codegen.String("a"), codegen.Number(1))])
+    assert d.type == dict
+    assert_code_equal(as_source_code(d), "{'a': 1}")
+
+
+def test_none_expr():
+    n = codegen.NoneExpr()
+    assert n.type == type(None)
+    assert_code_equal(as_source_code(n), "None")
+
+
+def test_method_call_repr():
+    s = codegen.String("x")
+    mc = codegen.MethodCall(s, "upper", [])
+    assert "MethodCall" in repr(mc)
+
+
+def test_function_call_repr():
+    module = codegen.Module()
+    module.scope.reserve_name("f")
+    fc = codegen.FunctionCall("f", [], {}, module.scope)
+    assert "FunctionCall" in repr(fc)
+
+
+def test_variable_reference_repr():
+    scope = codegen.Scope()
+    scope.reserve_name("x")
+    ref = scope.variable("x")
+    assert repr(ref) == "VariableReference('x')"
+
+
+def test_variable_reference_equality():
+    scope = codegen.Scope()
+    scope.reserve_name("x")
+    ref1 = scope.variable("x")
+    ref2 = scope.variable("x")
+    assert ref1 == ref2
+    assert ref1 != "x"
+
+
+def test_string_join_repr():
+    scope = codegen.Scope()
+    scope.reserve_name("tmp", properties={codegen.PROPERTY_TYPE: str})
+    var = scope.variable("tmp")
+    join = codegen.ConcatJoin([codegen.String("hello "), var])
+    assert "ConcatJoin" in repr(join)
+
+
+def test_if_finalize_returns_self():
+    scope = codegen.Module()
+    if_statement = codegen.If(scope)
+    if_statement.add_if(codegen.Number(1))
+    result = if_statement.finalize()
+    assert result is if_statement
+
+
+def test_if_unfinalized_as_ast_raises():
+    """If with no if blocks should raise when calling as_ast without finalize."""
+    scope = codegen.Module()
+    if_statement = codegen.If(scope)
+    with pytest.raises(AssertionError, match="finalize"):
+        if_statement.as_ast()
+
+
+def test_function_call_return_type_property():
+    module = codegen.Module()
+    module.scope.reserve_name("a_function", properties={codegen.PROPERTY_RETURN_TYPE: str})
+    fc = codegen.FunctionCall("a_function", [], {}, module.scope)
+    assert fc.type == str
+
+
+def test_traverse():
+    """Test traverse function on Python AST nodes."""
+    import ast
+    module = ast.parse("x = 1")
+    nodes = []
+    codegen.traverse(module, lambda n: nodes.append(type(n).__name__))
+    assert "Module" in nodes
+    assert "Assign" in nodes
+
+
+def test_simplify():
+    """Test simplify replaces nodes using a simplifier function."""
+    scope = codegen.Scope()
+    scope.reserve_name("x", properties={codegen.PROPERTY_TYPE: str})
+    var = scope.variable("x")
+    join = codegen.ConcatJoin([codegen.String("a"), codegen.String("b"), var])
+
+    def simplifier(node, changes):
+        # Replace ConcatJoin with a simplified version collapsing strings
+        if isinstance(node, codegen.ConcatJoin):
+            new_parts = []
+            for part in node.parts:
+                if new_parts and isinstance(new_parts[-1], codegen.String) and isinstance(part, codegen.String):
+                    new_parts[-1] = codegen.String(new_parts[-1].string_value + part.string_value)
+                    changes.append(True)
+                else:
+                    new_parts.append(part)
+            if changes:
+                return codegen.ConcatJoin(new_parts)
+        return node
+
+    result = codegen.simplify(join, simplifier)
+    assert_code_equal(as_source_code(result), "'ab' + x")
+
+
+def test_rewriting_traverse_list():
+    """Test rewriting_traverse with list inputs."""
+    scope = codegen.Scope()
+    scope.reserve_name("x")
+    items = [scope.variable("x")]
+    # Should not raise
+    codegen.rewriting_traverse(items, lambda n: n)
+
+
+def test_rewriting_traverse_dict():
+    """Test rewriting_traverse with dict inputs."""
+    scope = codegen.Scope()
+    scope.reserve_name("x")
+    scope.reserve_name("y")
+    d = {"key": scope.variable("y")}
+    codegen.rewriting_traverse(d, lambda n: n)
+
+
+def test_morph_into():
+    """Test morph_into changes class and dict."""
+    s1 = codegen.String("hello")
+    s2 = codegen.Number(42)
+    codegen.morph_into(s1, s2)
+    assert isinstance(s1, codegen.Number)
+    assert s1.number == 42
+
+
+def test_codegen_ast_not_implemented():
+    """Test that abstract methods raise NotImplementedError."""
+    class DummyAst(codegen.CodeGenAst):
+        child_elements = []
+        def as_ast(self):
+            raise NotImplementedError(f"{self.__class__!r}.as_ast()")
+
+    d = DummyAst()
+    with pytest.raises(NotImplementedError):
+        d.as_ast()
+
+
+def test_codegen_ast_list_not_implemented():
+    class DummyAstList(codegen.CodeGenAstList):
+        child_elements = []
+        def as_ast_list(self, allow_empty=True):
+            raise NotImplementedError(f"{self.__class__!r}.as_ast_list()")
+
+    d = DummyAstList()
+    with pytest.raises(NotImplementedError):
+        d.as_ast_list()
+
+
+def test_block_as_ast_list_with_codegen_ast_list():
+    """Test that Block handles CodeGenAstList sub-statements."""
+    module = codegen.Module()
+    scope = codegen.Scope()
+    inner_block = codegen.Block(scope)
+    name = scope.reserve_name("x")
+    inner_block.add_assignment(name, codegen.String("hello"))
+    module.add_statement(inner_block)
+    source = as_source_code(module)
+    assert "x = 'hello'" in source
+
+
+def test_dict_lookup_type():
+    scope = codegen.Scope()
+    scope.reserve_name("tmp")
+    var = scope.variable("tmp")
+    lookup = codegen.DictLookup(var, codegen.String("x"), expr_type=str)
+    assert lookup.type == str
+
+
+def test_method_call_type():
+    s = codegen.String("x")
+    mc = codegen.MethodCall(s, "upper", [], expr_type=str)
+    assert mc.type == str
+    assert_code_equal(as_source_code(mc), "'x'.upper()")
+
+
+def test_expression_abstract():
+    """Expression.as_ast is abstract."""
+    class DummyExpr(codegen.Expression):
+        child_elements = []
+        def as_ast(self):
+            raise NotImplementedError()
+
+    d = DummyExpr()
+    with pytest.raises(NotImplementedError):
+        d.as_ast()
+
+
+def test_block_add_statement_sets_parent():
+    """Test that add_statement sets parent_block when None."""
+    module = codegen.Module()
+    scope = codegen.Scope()
+    block = codegen.Block(scope)  # parent_block is None
+    module.add_statement(block)
+    assert block.parent_block is module
+
+
+def test_rewriting_traverse_replaces_node():
+    """Test that rewriting_traverse actually replaces nodes via morph_into."""
+    scope = codegen.Scope()
+    scope.reserve_name("x", properties={codegen.PROPERTY_TYPE: str})
+    var = scope.variable("x")
+    join = codegen.ConcatJoin([codegen.String("hello"), var])
+
+    def replace_hello(node):
+        if isinstance(node, codegen.String) and node.string_value == "hello":
+            return codegen.String("world")
+        return node
+
+    codegen.rewriting_traverse(join, replace_hello)
+    assert_code_equal(as_source_code(join), "'world' + x")
+
+
+def test_rewriting_traverse_tuple():
+    """Test rewriting_traverse with tuple input."""
+    s = codegen.String("hello")
+    t = (s,)
+    codegen.rewriting_traverse(t, lambda n: n)
