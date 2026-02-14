@@ -1,13 +1,15 @@
 """
 Utilities for doing Python code generation
 """
+
 from __future__ import annotations
 
 import keyword
 import platform
 import re
 from abc import ABC, abstractmethod
-from typing import Callable, Iterable, Protocol, Sequence, Union, runtime_checkable
+from collections.abc import Callable, Sequence
+from typing import Protocol, runtime_checkable
 
 from . import ast_compat as py_ast
 from .ast_compat import DEFAULT_AST_ARGS, DEFAULT_AST_ARGS_ADD, DEFAULT_AST_ARGS_ARGUMENTS, DEFAULT_AST_ARGS_MODULE
@@ -111,7 +113,7 @@ class CodeGenAstList(ABC):
     child_elements: list[str] = NotImplemented
 
 
-CodeGenAstType = Union[CodeGenAst, CodeGenAstList]
+CodeGenAstType = CodeGenAst | CodeGenAstList
 
 
 class Scope:
@@ -275,8 +277,7 @@ class Statement(CodeGenAst):
 
 @runtime_checkable
 class SupportsNameAssignment(Protocol):
-    def has_assignment_for_name(self, name: str) -> bool:
-        ...
+    def has_assignment_for_name(self, name: str) -> bool: ...
 
 
 class _Assignment(Statement):
@@ -378,7 +379,6 @@ class Module(Block, CodeGenAst):
 
     def as_ast(self) -> py_ast.Module:
         return py_ast.Module(body=self.as_ast_list(), type_ignores=[], **DEFAULT_AST_ARGS_MODULE)
-
 
 
 class Function(Scope, Statement):

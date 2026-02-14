@@ -2,8 +2,9 @@
 
 Provides a curated subset of the stdlib `ast` module used by the codegen module.
 """
+
 import ast
-from typing import TypedDict, TypeVar
+from typing import TypedDict
 
 # This is a very limited subset of Python AST:
 # - only the things needed by codegen.py
@@ -59,8 +60,6 @@ DEFAULT_AST_ARGS_MODULE = dict()
 DEFAULT_AST_ARGS_ADD = dict()
 DEFAULT_AST_ARGS_ARGUMENTS = dict()
 
-T = TypeVar("T")
 
-
-def subscript_slice_object(value: T) -> T:
+def subscript_slice_object[T](value: T) -> T:
     return value
