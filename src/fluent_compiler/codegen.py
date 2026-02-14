@@ -3,7 +3,6 @@ Utilities for doing Python code generation
 """
 from __future__ import annotations
 
-import decimal
 import keyword
 import platform
 import re
@@ -12,8 +11,6 @@ from typing import Callable, Iterable, Protocol, Sequence, Union, runtime_checka
 
 from . import ast_compat as py_ast
 from .ast_compat import DEFAULT_AST_ARGS, DEFAULT_AST_ARGS_ADD, DEFAULT_AST_ARGS_ARGUMENTS, DEFAULT_AST_ARGS_MODULE
-from .compat import TypeAlias
-from .source import FtlSource
 from .utils import allowable_keyword_arg_name, allowable_name
 
 # This module provides simple utilities for building up Python source code. It
@@ -114,7 +111,7 @@ class CodeGenAstList(ABC):
     child_elements: list[str] = NotImplemented
 
 
-CodeGenAstType: TypeAlias = Union[CodeGenAst, CodeGenAstList]
+CodeGenAstType = Union[CodeGenAst, CodeGenAstList]
 
 
 class Scope:
@@ -382,15 +379,6 @@ class Module(Block, CodeGenAst):
     def as_ast(self) -> py_ast.Module:
         return py_ast.Module(body=self.as_ast_list(), type_ignores=[], **DEFAULT_AST_ARGS_MODULE)
 
-    def as_multiple_module_ast(self) -> Iterable[py_ast.Module]:
-        retval: list[py_ast.Module] = []
-        for item in self.as_ast_list():
-            mod = py_ast.Module(body=[item], type_ignores=[], **DEFAULT_AST_ARGS_MODULE)
-            if hasattr(item, "filename"):
-                # For use by compile_messages
-                mod.filename = item.filename
-            retval.append(mod)
-        return retval
 
 
 class Function(Scope, Statement):
@@ -401,7 +389,6 @@ class Function(Scope, Statement):
         name: str,
         args: Sequence[str] | None = None,
         parent_scope: Scope | None = None,
-        source: FtlSource | None = None,
     ):
         super().__init__(parent_scope=parent_scope)
         self.body = Block(self)
@@ -413,7 +400,6 @@ class Function(Scope, Statement):
                 raise AssertionError(f"Can't use '{arg}' as function argument name because it shadows other names")
             self.reserve_name(arg, function_arg=True)
         self.args = args
-        self.source = source
 
     def as_ast(self) -> py_ast.stmt:
         if not allowable_name(self.func_name):
@@ -422,7 +408,7 @@ class Function(Scope, Statement):
             if not allowable_name(arg):
                 raise AssertionError(f"Expected '{arg}' to be a valid Python identifier")
 
-        func_def = py_ast.FunctionDef(
+        return py_ast.FunctionDef(
             name=self.func_name,
             args=py_ast.arguments(
                 posonlyargs=[],
@@ -440,17 +426,6 @@ class Function(Scope, Statement):
             returns=None,  # ast_decompiler compat
             **DEFAULT_AST_ARGS,
         )
-        if (source := self.source) is not None and source.filename is not None:
-            func_def.filename = source.filename  # See Module.as_multiple_module_ast
-
-            # It's hard to get good line numbers for all AST objects, but
-            # if we put the FTL line number of the main message on all nodes
-            # this gets us a lot of the benefit for a smallish cost
-            def add_lineno(node: py_ast.AST):
-                node.lineno = source.row
-
-            traverse(func_def, add_lineno)
-        return func_def
 
     def add_return(self, value: Expression):
         self.body.add_return(value)
@@ -595,7 +570,7 @@ class String(Expression):
 class Number(Expression):
     child_elements = []
 
-    def __init__(self, number: int | float | decimal.Decimal):
+    def __init__(self, number: int | float):
         self.number = number
         self.type = type(number)
 

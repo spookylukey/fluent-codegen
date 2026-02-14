@@ -1,35 +1,12 @@
-"""
-Compatibility module for generating Python AST.
+"""Compatibility module for generating Python AST.
 
-The interface mocks the stdlib 'ast' module of the most recent Python version
-we support. Our codegen module then is written as if it targets that version.
-When necessary for older Python versions, this module can provide wrappers that
-convert the new-style AST used by codegen.py into the old-style AST used by the
-Python version.
-
-If a new Python version changes/breaks the AST for existing features, the process is:
-
-- change this module and codegen.py to use the new AST, get it working on
-  latest version of Python.
-
-- add blocks something like the following as necessary to get it working on older
-  versions of Python:
-
-  if sys.version_info < (...):
-      def NewAst(...):
-          return ast.OldAst(...)
-
-  else:
-      NewAst = ast.NewAst
-
+Provides a curated subset of the stdlib `ast` module used by the codegen module.
 """
 import ast
-import sys
 from typing import TypedDict, TypeVar
 
 # This is a very limited subset of Python AST:
 # - only the things needed by codegen.py
-# - only syntax features provided by the oldest Python version we support
 
 Add = ast.Add
 Assign = ast.Assign
@@ -41,7 +18,6 @@ Eq = ast.Eq
 ExceptHandler = ast.ExceptHandler
 Expr = ast.Expr
 If = ast.If
-Index = ast.Index
 List = ast.List
 Load = ast.Load
 Module = ast.Module
@@ -86,12 +62,5 @@ DEFAULT_AST_ARGS_ARGUMENTS = dict()
 T = TypeVar("T")
 
 
-if sys.version_info < (3, 9):
-    # Old versions need an `Index` object here:
-    def subscript_slice_object(value: T) -> T:
-        return ast.Index(value, **DEFAULT_AST_ARGS)
-
-else:
-    # New versions need nothing.
-    def subscript_slice_object(value: T) -> T:
-        return value
+def subscript_slice_object(value: T) -> T:
+    return value
