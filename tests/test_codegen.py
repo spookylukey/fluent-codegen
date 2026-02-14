@@ -8,8 +8,8 @@ from ast_decompiler.decompiler import Decompiler
 from hypothesis import example, given
 from hypothesis.strategies import text
 
-from fluent_compiler import codegen
-from fluent_compiler.utils import allowable_name
+from fluent_codegen import codegen
+from fluent_codegen.utils import allowable_name
 
 
 def normalize_python(txt):

@@ -31,7 +31,7 @@ Requires Python 3.12+.
 ## Quick example
 
 ```python
-from fluent_compiler import codegen
+from fluent_codegen import codegen
 
 # Create a module with a function
 module = codegen.Module()
