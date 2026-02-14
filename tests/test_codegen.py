@@ -619,9 +619,7 @@ def test_cleanup_name_not_empty(t):
 @example(":id")
 def test_cleanup_name_allowed_identifier(t):
     cleaned = codegen.cleanup_name(t)
-    assert (
-        allowable_name(cleaned) or (cleaned in dir(builtins)) or keyword.iskeyword(cleaned)
-    ), f" for t = {t!r}"
+    assert allowable_name(cleaned) or (cleaned in dir(builtins)) or keyword.iskeyword(cleaned), f" for t = {t!r}"
 
 
 # --- Additional coverage tests ---
@@ -729,19 +727,19 @@ def test_number_repr():
 
 def test_list_expression():
     lst = codegen.List([codegen.Number(1), codegen.String("two")])
-    assert lst.type == list
+    assert lst.type is list
     assert_code_equal(as_source_code(lst), "[1, 'two']")
 
 
 def test_dict_expression():
     d = codegen.Dict([(codegen.String("a"), codegen.Number(1))])
-    assert d.type == dict
+    assert d.type is dict
     assert_code_equal(as_source_code(d), "{'a': 1}")
 
 
 def test_none_expr():
     n = codegen.NoneExpr()
-    assert n.type == type(None)
+    assert n.type is type(None)
     assert_code_equal(as_source_code(n), "None")
 
 
@@ -802,12 +800,13 @@ def test_function_call_return_type_property():
     module = codegen.Module()
     module.scope.reserve_name("a_function", properties={codegen.PROPERTY_RETURN_TYPE: str})
     fc = codegen.FunctionCall("a_function", [], {}, module.scope)
-    assert fc.type == str
+    assert fc.type is str
 
 
 def test_traverse():
     """Test traverse function on Python AST nodes."""
     import ast
+
     module = ast.parse("x = 1")
     nodes = []
     codegen.traverse(module, lambda n: nodes.append(type(n).__name__))
@@ -869,8 +868,10 @@ def test_morph_into():
 
 def test_codegen_ast_not_implemented():
     """Test that abstract methods raise NotImplementedError."""
+
     class DummyAst(codegen.CodeGenAst):
         child_elements = []
+
         def as_ast(self):
             raise NotImplementedError(f"{self.__class__!r}.as_ast()")
 
@@ -882,6 +883,7 @@ def test_codegen_ast_not_implemented():
 def test_codegen_ast_list_not_implemented():
     class DummyAstList(codegen.CodeGenAstList):
         child_elements = []
+
         def as_ast_list(self, allow_empty=True):
             raise NotImplementedError(f"{self.__class__!r}.as_ast_list()")
 
@@ -907,20 +909,22 @@ def test_dict_lookup_type():
     scope.reserve_name("tmp")
     var = scope.variable("tmp")
     lookup = codegen.DictLookup(var, codegen.String("x"), expr_type=str)
-    assert lookup.type == str
+    assert lookup.type is str
 
 
 def test_method_call_type():
     s = codegen.String("x")
     mc = codegen.MethodCall(s, "upper", [], expr_type=str)
-    assert mc.type == str
+    assert mc.type is str
     assert_code_equal(as_source_code(mc), "'x'.upper()")
 
 
 def test_expression_abstract():
     """Expression.as_ast is abstract."""
+
     class DummyExpr(codegen.Expression):
         child_elements = []
+
         def as_ast(self):
             raise NotImplementedError()
 
