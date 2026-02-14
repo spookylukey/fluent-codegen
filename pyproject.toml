@@ -49,7 +49,7 @@ where = ["src"]
 namespaces = false
 
 [tool.setuptools.dynamic]
-version = {attr = "fluent_compiler.__version__"}
+version = {attr = "fluent_codegen.__version__"}
 
 [tool.ruff]
 line-length = 120
@@ -64,7 +64,7 @@ extend-select = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["fluent_compiler"]
+known-first-party = ["fluent_codegen"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
