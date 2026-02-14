@@ -1,13 +1,8 @@
 .tox
 *.pyc
-.eggs/
-*.pot
-*.mo
-*.po
-.pytest_cache
+__pycache__/
 *.egg-info/
-_build
-.benchmarks
+.pytest_cache
 .hypothesis
 .coverage
 .ruff_cache
