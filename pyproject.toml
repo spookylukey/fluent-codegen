@@ -30,11 +30,12 @@ dynamic = ["version"]
 dependencies = []
 
 [project.urls]
-Repository = "https://github.com/django-ftl/fluent-codegen"
+Repository = "https://github.com/spookylukey/fluent-codegen"
+
 
 [project.readme]
-file = "README.md"
-content-type = "text/markdown"
+file = "README.rst"
+content-type = "text/x-rst"
 
 [build-system]
 requires = ["setuptools>=61.2"]
