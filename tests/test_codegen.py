@@ -137,7 +137,7 @@ def test_function():
 
 def test_function_return():
     module = codegen.Module()
-    func = codegen.Function("myfunc", parent_scope=module)
+    func = codegen.Function("myfunc", parent_scope=module.scope)
     func.add_return(codegen.String("Hello"))
     assert_code_equal(
         as_source_code(func),
@@ -150,7 +150,7 @@ def test_function_return():
 
 def test_function_bad_name():
     module = codegen.Module()
-    func = codegen.Function("my func", args=[], parent_scope=module)
+    func = codegen.Function("my func", args=[], parent_scope=module.scope)
     with pytest.raises(AssertionError):
         as_source_code(func)
 
@@ -165,7 +165,7 @@ def test_function_bad_arg():
 def test_add_function():
     module = codegen.Module()
     func_name = module.scope.reserve_name("myfunc")
-    func = codegen.Function(func_name, parent_scope=module)
+    func = codegen.Function(func_name, parent_scope=module.scope)
     module.add_function(func_name, func)
     assert_code_equal(
         as_source_code(module),
@@ -261,7 +261,9 @@ def test_add_assignment_bad():
     module = codegen.Module()
     name = module.scope.reserve_name("x")
     module.add_assignment(name, codegen.String("a string"))
-    module.statements[0].name = "something with a space"
+    stmt = module.statements[0]
+    assert isinstance(stmt, codegen._Assignment)
+    stmt.name = "something with a space"
     with pytest.raises(AssertionError):
         as_source_code(module)
 
@@ -374,7 +376,7 @@ def test_function_call_sensitive():
 def test_method_call_bad_name():
     scope = codegen.Module()
     s = codegen.String("x")
-    method_call = codegen.MethodCall(s, "bad method name", [], scope)
+    method_call = codegen.MethodCall(s, "bad method name", [])
     with pytest.raises(AssertionError):
         as_source_code(method_call)
 
@@ -460,14 +462,14 @@ def test_try_catch_has_assignment_for_name_2():
 
 def test_if_empty():
     scope = codegen.Module()
-    if_statement = codegen.If(scope)
+    if_statement = codegen.If(scope.scope)
     if_statement = if_statement.finalize()
     assert_code_equal(as_source_code(if_statement), "")
 
 
 def test_if_one_if():
     scope = codegen.Module()
-    if_statement = codegen.If(scope)
+    if_statement = codegen.If(scope.scope)
     first_block = if_statement.add_if(codegen.Number(1))
     first_block.add_return(codegen.Number(2))
     assert_code_equal(
@@ -481,7 +483,7 @@ def test_if_one_if():
 
 def test_if_two_ifs():
     scope = codegen.Module()
-    if_statement = codegen.If(scope)
+    if_statement = codegen.If(scope.scope)
     first_block = if_statement.add_if(codegen.Number(1))
     first_block.add_return(codegen.Number(2))
     second_block = if_statement.add_if(codegen.Number(3))
@@ -499,7 +501,7 @@ def test_if_two_ifs():
 
 def test_if_with_else():
     scope = codegen.Module()
-    if_statement = codegen.If(scope)
+    if_statement = codegen.If(scope.scope)
     first_block = if_statement.add_if(codegen.Number(1))
     first_block.add_return(codegen.Number(2))
     if_statement.else_block.add_return(codegen.Number(3))
@@ -516,7 +518,7 @@ def test_if_with_else():
 
 def test_if_no_ifs():
     scope = codegen.Module()
-    if_statement = codegen.If(scope)
+    if_statement = codegen.If(scope.scope)
     if_statement.else_block.add_return(codegen.Number(3))
     if_statement = if_statement.finalize()
     assert_code_equal(
@@ -782,7 +784,7 @@ def test_string_join_repr():
 
 def test_if_finalize_returns_self():
     scope = codegen.Module()
-    if_statement = codegen.If(scope)
+    if_statement = codegen.If(scope.scope)
     if_statement.add_if(codegen.Number(1))
     result = if_statement.finalize()
     assert result is if_statement
@@ -791,7 +793,7 @@ def test_if_finalize_returns_self():
 def test_if_unfinalized_as_ast_raises():
     """If with no if blocks should raise when calling as_ast without finalize."""
     scope = codegen.Module()
-    if_statement = codegen.If(scope)
+    if_statement = codegen.If(scope.scope)
     with pytest.raises(AssertionError, match="finalize"):
         if_statement.as_ast()
 
