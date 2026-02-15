@@ -23,6 +23,7 @@ List = ast.List
 Load = ast.Load
 Module = ast.Module
 Or = ast.Or
+boolop = ast.boolop
 Pass = ast.Pass
 Return = ast.Return
 Store = ast.Store

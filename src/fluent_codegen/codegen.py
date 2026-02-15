@@ -9,7 +9,7 @@ import platform
 import re
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
-from typing import Protocol, runtime_checkable
+from typing import ClassVar, Protocol, runtime_checkable
 
 from . import ast_compat as py_ast
 from .ast_compat import DEFAULT_AST_ARGS, DEFAULT_AST_ARGS_ADD, DEFAULT_AST_ARGS_ARGUMENTS, DEFAULT_AST_ARGS_MODULE
@@ -97,7 +97,7 @@ class CodeGenAst(ABC):
     def as_ast(self) -> py_ast.AST:
         raise NotImplementedError(f"{self.__class__!r}.as_ast()")
 
-    child_elements: list[str] = NotImplemented
+    child_elements: ClassVar[list[str]]
 
 
 class CodeGenAstList(ABC):
@@ -110,7 +110,7 @@ class CodeGenAstList(ABC):
     def as_ast_list(self, allow_empty: bool = True) -> list[py_ast.stmt]:
         raise NotImplementedError(f"{self.__class__!r}.as_ast_list()")
 
-    child_elements: list[str] = NotImplemented
+    child_elements: ClassVar[list[str]]
 
 
 CodeGenAstType = CodeGenAst | CodeGenAstList
@@ -866,9 +866,9 @@ class Equals(BinaryOperator):
         )
 
 
-class BoolOp(BinaryOperator):
+class BoolOp(BinaryOperator, ABC):
     type = bool
-    op = NotImplemented
+    op: ClassVar[type[py_ast.boolop]]
 
     def as_ast(self) -> py_ast.expr:
         return py_ast.BoolOp(

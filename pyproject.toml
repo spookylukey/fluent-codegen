@@ -79,3 +79,6 @@ dev = [
     "ruff>=0.4.0",
     "ty>=0.0.17",
 ]
+
+[tool.ty.environment]
+root = ["src"]
