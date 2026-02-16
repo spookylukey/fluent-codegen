@@ -541,6 +541,9 @@ class Expression(CodeGenAst):
     # if we know it (UNKNOWN_TYPE otherwise).
     type: type = UNKNOWN_TYPE
 
+    @abstractmethod
+    def as_ast(self) -> py_ast.expr: ...
+
 
 class String(Expression):
     child_elements = []
