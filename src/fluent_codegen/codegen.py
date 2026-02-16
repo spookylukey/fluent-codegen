@@ -905,7 +905,7 @@ def simplify(codegen_ast: CodeGenAst, simplifier: Callable[[CodeGenAst, list[boo
 
 
 def rewriting_traverse(
-    node: CodeGenAstType | list | tuple | dict,
+    node: CodeGenAstType | list[CodeGenAstType] | tuple[CodeGenAstType],
     func: Callable[[CodeGenAstType], CodeGenAstType],
 ):
     """
@@ -920,10 +920,6 @@ def rewriting_traverse(
     elif isinstance(node, (list, tuple)):
         for i in node:
             rewriting_traverse(i, func)
-    elif isinstance(node, dict):
-        for k, v in node.items():
-            rewriting_traverse(k, func)
-            rewriting_traverse(v, func)
 
 
 def morph_into(item: object, new_item: object) -> None:
