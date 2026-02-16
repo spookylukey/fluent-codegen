@@ -1115,11 +1115,11 @@ def test_set_single():
     assert_code_equal(as_source_code(s), "{'a'}")
 
 
-def test_set_empty_not_allowed():
-    """Empty set literal is not valid Python syntax ({} is a dict), so we disallow it."""
+def test_set_empty():
+    """Empty set literal is not valid Python syntax ({} is a dict), so we emit set([])."""
     s = codegen.Set([])
-    with pytest.raises(AssertionError, match="empty"):
-        as_source_code(s)
+    assert_code_equal(as_source_code(s), "set([])")
+    assert s.type is set
 
 
 def test_auto_set():

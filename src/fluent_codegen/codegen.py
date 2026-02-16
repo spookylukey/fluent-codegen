@@ -645,7 +645,14 @@ class Set(Expression):
         self.type = set
 
     def as_ast(self) -> py_ast.expr:
-        assert len(self.items) > 0, "Cannot create an empty set literal (use set() call instead)"
+        if len(self.items) == 0:
+            # {} is a dict literal in Python, so empty sets must use set([])
+            return py_ast.Call(
+                func=py_ast.Name(id="set", ctx=py_ast.Load(), **DEFAULT_AST_ARGS),
+                args=[py_ast.List(elts=[], ctx=py_ast.Load(), **DEFAULT_AST_ARGS)],
+                keywords=[],
+                **DEFAULT_AST_ARGS,
+            )
         return py_ast.Set(elts=[i.as_ast() for i in self.items], **DEFAULT_AST_ARGS)
 
 
