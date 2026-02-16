@@ -253,7 +253,7 @@ class Scope:
         return Name(reserved, self)
 
     def name(self, name: str) -> Name:
-        # Convenience utility for returning a VariableReference
+        # Convenience utility for returning a Name
         return Name(name, self)
 
 
@@ -749,7 +749,7 @@ class Name(Expression):
 
     def __init__(self, name: str, scope: Scope):
         if not scope.is_name_in_use(name):
-            raise AssertionError(f"Cannot refer to undefined variable '{name}'")
+            raise AssertionError(f"Cannot refer to undefined name '{name}'")
         self.name = name
         looked_up_type = scope.get_name_properties(name).get(PROPERTY_TYPE, UNKNOWN_TYPE)
         assert isinstance(looked_up_type, type)
