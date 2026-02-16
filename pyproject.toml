@@ -74,11 +74,9 @@ testpaths = ["tests"]
 dev = [
     "ast-decompiler>=0.8",
     "hypothesis>=4.9.0",
+    "pyright==1.1.406",
     "pytest>=7.4.4",
     "pytest-cov>=7.0.0",
     "ruff>=0.4.0",
-    "ty>=0.0.17",
 ]
 
-[tool.ty.environment]
-root = ["src"]
