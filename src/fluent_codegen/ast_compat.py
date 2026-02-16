@@ -26,6 +26,7 @@ Or = ast.Or
 boolop = ast.boolop
 Pass = ast.Pass
 Return = ast.Return
+Set = ast.Set
 Store = ast.Store
 Subscript = ast.Subscript
 Tuple = ast.Tuple

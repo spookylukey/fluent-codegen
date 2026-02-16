@@ -1099,3 +1099,35 @@ def test_auto_tuple_empty():
     result = codegen.auto(())
     assert isinstance(result, codegen.Tuple)
     assert_code_equal(as_source_code(result), "()")
+
+
+# --- Set tests ---
+
+
+def test_set():
+    s = codegen.Set([codegen.Number(1), codegen.Number(2)])
+    assert s.type is set
+    assert_code_equal(as_source_code(s), "{1, 2}")
+
+
+def test_set_single():
+    s = codegen.Set([codegen.String("a")])
+    assert_code_equal(as_source_code(s), "{'a'}")
+
+
+def test_set_empty_not_allowed():
+    """Empty set literal is not valid Python syntax ({} is a dict), so we disallow it."""
+    s = codegen.Set([])
+    with pytest.raises(AssertionError, match="empty"):
+        as_source_code(s)
+
+
+def test_auto_set():
+    # Sets are unordered, so we test membership rather than exact output
+    result = codegen.auto({1, 2})
+    assert isinstance(result, codegen.Set)
+
+
+def test_auto_frozenset():
+    result = codegen.auto(frozenset({1}))
+    assert isinstance(result, codegen.Set)

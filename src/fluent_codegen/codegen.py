@@ -637,6 +637,18 @@ class Tuple(Expression):
         return py_ast.Tuple(elts=[i.as_ast() for i in self.items], ctx=py_ast.Load(), **DEFAULT_AST_ARGS)
 
 
+class Set(Expression):
+    child_elements = ["items"]
+
+    def __init__(self, items: Sequence[Expression]):
+        self.items = items
+        self.type = set
+
+    def as_ast(self) -> py_ast.expr:
+        assert len(self.items) > 0, "Cannot create an empty set literal (use set() call instead)"
+        return py_ast.Set(elts=[i.as_ast() for i in self.items], **DEFAULT_AST_ARGS)
+
+
 class Dict(Expression):
     child_elements = ["pairs"]
 
@@ -983,11 +995,12 @@ def empty_If() -> py_ast.If:
     return py_ast.If(test=None, orelse=[], **DEFAULT_AST_ARGS)  # type: ignore[reportArgumentType]
 
 
-def auto(value: bool | str | bytes | int | float | None | list | tuple | dict) -> Expression:
+def auto(value: bool | str | bytes | int | float | None | list | tuple | set | frozenset | dict) -> Expression:
     """
     Create a codegen Expression from a plain Python object.
 
-    Supports bool, str, bytes, int, float, None, and recursively list, tuple, and dict.
+    Supports bool, str, bytes, int, float, None, and recursively
+    list, tuple, set, frozenset, and dict.
     """
     if isinstance(value, bool):
         return Bool(value)
@@ -1003,6 +1016,8 @@ def auto(value: bool | str | bytes | int | float | None | list | tuple | dict) -
         return List([auto(item) for item in value])
     if isinstance(value, tuple):
         return Tuple([auto(item) for item in value])
+    if isinstance(value, (set, frozenset)):
+        return Set([auto(item) for item in sorted(value, key=repr)])
     if isinstance(value, dict):
         return Dict([(auto(k), auto(v)) for k, v in value.items()])
     raise TypeError(f"auto() does not support {type(value).__name__}")
