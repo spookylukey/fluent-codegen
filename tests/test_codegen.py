@@ -374,7 +374,6 @@ def test_function_call_sensitive():
 
 
 def test_method_call_bad_name():
-    scope = codegen.Module()
     s = codegen.String("x")
     method_call = codegen.MethodCall(s, "bad method name", [])
     with pytest.raises(AssertionError):
