@@ -1012,3 +1012,35 @@ def test_auto_nested():
 def test_auto_unsupported_type():
     with pytest.raises(TypeError, match="auto\\(\\) does not support"):
         codegen.auto(object())  # type: ignore[arg-type]
+
+
+# --- Bool tests ---
+
+
+def test_bool_true():
+    b = codegen.Bool(True)
+    assert b.type is bool
+    assert_code_equal(as_source_code(b), "True")
+
+
+def test_bool_false():
+    b = codegen.Bool(False)
+    assert b.type is bool
+    assert_code_equal(as_source_code(b), "False")
+
+
+def test_bool_repr():
+    assert repr(codegen.Bool(True)) == "Bool(True)"
+    assert repr(codegen.Bool(False)) == "Bool(False)"
+
+
+def test_auto_bool_true():
+    result = codegen.auto(True)
+    assert isinstance(result, codegen.Bool)
+    assert_code_equal(as_source_code(result), "True")
+
+
+def test_auto_bool_false():
+    result = codegen.auto(False)
+    assert isinstance(result, codegen.Bool)
+    assert_code_equal(as_source_code(result), "False")

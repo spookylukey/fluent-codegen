@@ -571,6 +571,21 @@ class String(Expression):
         return isinstance(other, String) and other.string_value == self.string_value
 
 
+class Bool(Expression):
+    child_elements = []
+
+    type = bool
+
+    def __init__(self, value: bool):
+        self.value = value
+
+    def as_ast(self) -> py_ast.expr:
+        return py_ast.Constant(self.value, **DEFAULT_AST_ARGS)
+
+    def __repr__(self):
+        return f"Bool({self.value!r})"
+
+
 class Number(Expression):
     child_elements = []
 
@@ -942,12 +957,14 @@ def empty_If() -> py_ast.If:
     return py_ast.If(test=None, orelse=[], **DEFAULT_AST_ARGS)  # type: ignore[reportArgumentType]
 
 
-def auto(value: str | int | float | None | list | dict) -> Expression:
+def auto(value: bool | str | int | float | None | list | dict) -> Expression:
     """
     Create a codegen Expression from a plain Python object.
 
-    Supports str, int, float, None, and recursively list and dict.
+    Supports bool, str, int, float, None, and recursively list and dict.
     """
+    if isinstance(value, bool):
+        return Bool(value)
     if isinstance(value, str):
         return String(value)
     if isinstance(value, (int, float)):
