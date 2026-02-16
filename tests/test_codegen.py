@@ -1044,3 +1044,27 @@ def test_auto_bool_false():
     result = codegen.auto(False)
     assert isinstance(result, codegen.Bool)
     assert_code_equal(as_source_code(result), "False")
+
+
+# --- Bytes tests ---
+
+
+def test_bytes():
+    b = codegen.Bytes(b"hello")
+    assert b.type is bytes
+    assert_code_equal(as_source_code(b), "b'hello'")
+
+
+def test_bytes_empty():
+    b = codegen.Bytes(b"")
+    assert_code_equal(as_source_code(b), "b''")
+
+
+def test_bytes_repr():
+    assert repr(codegen.Bytes(b"hi")) == "Bytes(b'hi')"
+
+
+def test_auto_bytes():
+    result = codegen.auto(b"hello")
+    assert isinstance(result, codegen.Bytes)
+    assert_code_equal(as_source_code(result), "b'hello'")
