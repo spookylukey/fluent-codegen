@@ -940,3 +940,22 @@ def empty_If() -> py_ast.If:
     must be added later.
     """
     return py_ast.If(test=None, orelse=[], **DEFAULT_AST_ARGS)  # type: ignore[reportArgumentType]
+
+
+def auto(value: str | int | float | None | list | dict) -> Expression:
+    """
+    Create a codegen Expression from a plain Python object.
+
+    Supports str, int, float, None, and recursively list and dict.
+    """
+    if isinstance(value, str):
+        return String(value)
+    if isinstance(value, (int, float)):
+        return Number(value)
+    if value is None:
+        return NoneExpr()
+    if isinstance(value, list):
+        return List([auto(item) for item in value])
+    if isinstance(value, dict):
+        return Dict([(auto(k), auto(v)) for k, v in value.items()])
+    raise TypeError(f"auto() does not support {type(value).__name__}")

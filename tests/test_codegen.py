@@ -946,3 +946,69 @@ def test_rewriting_traverse_tuple():
     s = codegen.String("hello")
     t = (s,)
     codegen.rewriting_traverse(t, lambda n: n)
+
+
+# --- auto() tests ---
+
+
+def test_auto_string():
+    result = codegen.auto("hello")
+    assert isinstance(result, codegen.String)
+    assert_code_equal(as_source_code(result), "'hello'")
+
+
+def test_auto_int():
+    result = codegen.auto(42)
+    assert isinstance(result, codegen.Number)
+    assert_code_equal(as_source_code(result), "42")
+
+
+def test_auto_float():
+    result = codegen.auto(3.14)
+    assert isinstance(result, codegen.Number)
+    assert_code_equal(as_source_code(result), "3.14")
+
+
+def test_auto_none():
+    result = codegen.auto(None)
+    assert isinstance(result, codegen.NoneExpr)
+    assert_code_equal(as_source_code(result), "None")
+
+
+def test_auto_list():
+    result = codegen.auto([1, "two", 3.0])
+    assert isinstance(result, codegen.List)
+    assert_code_equal(as_source_code(result), "[1, 'two', 3.0]")
+
+
+def test_auto_list_empty():
+    result = codegen.auto([])
+    assert isinstance(result, codegen.List)
+    assert_code_equal(as_source_code(result), "[]")
+
+
+def test_auto_dict():
+    result = codegen.auto({"a": 1})
+    assert isinstance(result, codegen.Dict)
+    assert_code_equal(as_source_code(result), "{'a': 1}")
+
+
+def test_auto_dict_empty():
+    result = codegen.auto({})
+    assert isinstance(result, codegen.Dict)
+    assert_code_equal(as_source_code(result), "{}")
+
+
+def test_auto_nested():
+    result = codegen.auto({"items": [1, 2], "name": "test"})
+    assert isinstance(result, codegen.Dict)
+    source = as_source_code(result)
+    assert "'items'" in source
+    assert "[1, 2]" in source
+    assert "'name'" in source
+    assert "'test'" in source
+
+
+def test_auto_unsupported_type():
+    with pytest.raises(TypeError, match="auto\\(\\) does not support"):
+        codegen.auto(object())  # type: ignore[arg-type]
