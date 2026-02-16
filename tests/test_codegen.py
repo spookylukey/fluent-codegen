@@ -1068,3 +1068,34 @@ def test_auto_bytes():
     result = codegen.auto(b"hello")
     assert isinstance(result, codegen.Bytes)
     assert_code_equal(as_source_code(result), "b'hello'")
+
+
+# --- Tuple tests ---
+
+
+def test_tuple():
+    t = codegen.Tuple([codegen.Number(1), codegen.String("two")])
+    assert t.type is tuple
+    assert_code_equal(as_source_code(t), "(1, 'two')")
+
+
+def test_tuple_empty():
+    t = codegen.Tuple([])
+    assert_code_equal(as_source_code(t), "()")
+
+
+def test_tuple_single():
+    t = codegen.Tuple([codegen.Number(1)])
+    assert_code_equal(as_source_code(t), "(1,)")
+
+
+def test_auto_tuple():
+    result = codegen.auto((1, "two", None))
+    assert isinstance(result, codegen.Tuple)
+    assert_code_equal(as_source_code(result), "(1, 'two', None)")
+
+
+def test_auto_tuple_empty():
+    result = codegen.auto(())
+    assert isinstance(result, codegen.Tuple)
+    assert_code_equal(as_source_code(result), "()")
