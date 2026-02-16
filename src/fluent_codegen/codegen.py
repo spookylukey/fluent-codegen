@@ -317,8 +317,10 @@ class Block(CodeGenAstList):
                 retval.extend(s.as_ast_list(allow_empty=True))
             else:
                 if isinstance(s, Statement):
-                    ast_obj =  s.as_ast()
-                    assert isinstance(ast_obj, py_ast.stmt), "Statement object return {ast_obj} which is not a subclass of py_ast.stmt"
+                    ast_obj = s.as_ast()
+                    assert isinstance(ast_obj, py_ast.stmt), (
+                        "Statement object return {ast_obj} which is not a subclass of py_ast.stmt"
+                    )
                     retval.append(ast_obj)
                 else:
                     # Things like bare function/method calls need to be wrapped

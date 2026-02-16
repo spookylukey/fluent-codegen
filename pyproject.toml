@@ -74,6 +74,7 @@ testpaths = ["tests"]
 dev = [
     "ast-decompiler>=0.8",
     "hypothesis>=4.9.0",
+    "pre-commit>=4.5.1",
     "pyright==1.1.406",
     "pytest>=7.4.4",
     "pytest-cov>=7.0.0",
