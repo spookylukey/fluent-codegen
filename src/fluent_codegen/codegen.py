@@ -5,7 +5,6 @@ Utilities for doing Python code generation
 from __future__ import annotations
 
 import keyword
-import platform
 import re
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
@@ -94,8 +93,7 @@ class CodeGenAst(ABC):
     """
 
     @abstractmethod
-    def as_ast(self) -> py_ast.AST:
-        raise NotImplementedError(f"{self.__class__!r}.as_ast()")
+    def as_ast(self) -> py_ast.AST: ...
 
     child_elements: ClassVar[list[str]]
 
@@ -107,8 +105,7 @@ class CodeGenAstList(ABC):
     """
 
     @abstractmethod
-    def as_ast_list(self, allow_empty: bool = True) -> list[py_ast.stmt]:
-        raise NotImplementedError(f"{self.__class__!r}.as_ast_list()")
+    def as_ast_list(self, allow_empty: bool = True) -> list[py_ast.stmt]: ...
 
     child_elements: ClassVar[list[str]]
 
@@ -544,10 +541,6 @@ class Expression(CodeGenAst):
     # if we know it (UNKNOWN_TYPE otherwise).
     type: type = UNKNOWN_TYPE
 
-    @abstractmethod
-    def as_ast(self) -> py_ast.expr:
-        raise NotImplementedError()
-
 
 class String(Expression):
     child_elements = []
@@ -738,15 +731,10 @@ class ConcatJoin(StringJoinBase):
         return left
 
 
-# For CPython, f-strings give a measurable improvement over concatenation
-# (about 5% for `test_single_interpolation_fluent_compiler` benchmark). For all
-# versions of PyPy tested it has significantly worse performance (more than
-# 10%). We'll assume other non-CPython implementations are like PyPy.
+# For CPython, f-strings give a measurable improvement over concatenation,
+# so make that default
 
-if platform.python_implementation() == "CPython":
-    StringJoin = FStringJoin
-else:
-    StringJoin = ConcatJoin
+StringJoin = FStringJoin
 
 
 class VariableReference(Expression):
