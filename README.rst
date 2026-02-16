@@ -53,15 +53,15 @@ Quick example
    func.add_return(
        codegen.StringJoin.build([
            codegen.String("Hello, "),
-           codegen.VariableReference("name", func),
+           codegen.Name("name", func),
            codegen.String("!"),
        ])
    )
    module.add_function(func_name, func)
 
    # Compile and execute
-   import ast, compile
-   code = compile(ast.fix_missing_locations(module.as_ast()), "<generated>", "exec")
+   import ast
+   code = compile(module.as_ast(), "<generated>", "exec")
    namespace = {}
    exec(code, namespace)
    print(namespace["greet"]("World"))  # Hello, World!
