@@ -1010,7 +1010,7 @@ def test_auto_nested():
 
 
 def test_auto_unsupported_type():
-    with pytest.raises(TypeError, match="auto\\(\\) does not support"):
+    with pytest.raises(AssertionError):
         codegen.auto(object())  # type: ignore[arg-type]
 
 

@@ -8,7 +8,7 @@ import keyword
 import re
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
-from typing import Any, ClassVar, Protocol, runtime_checkable
+from typing import ClassVar, Protocol, assert_never, runtime_checkable
 
 from . import ast_compat as py_ast
 from .ast_compat import DEFAULT_AST_ARGS, DEFAULT_AST_ARGS_ADD, DEFAULT_AST_ARGS_ARGUMENTS, DEFAULT_AST_ARGS_MODULE
@@ -993,19 +993,22 @@ def empty_If() -> py_ast.If:
     return py_ast.If(test=None, orelse=[], **DEFAULT_AST_ARGS)  # type: ignore[reportArgumentType]
 
 
-def auto(
-    value: bool
+type PythonObj = (
+    bool
     | str
     | bytes
     | int
     | float
     | None
-    | list[Any]
-    | tuple[Any, ...]
-    | set[Any]
-    | frozenset[Any]
-    | dict[Any, Any],
-) -> Expression:
+    | list[PythonObj]
+    | tuple[PythonObj, ...]
+    | set[PythonObj]
+    | frozenset[PythonObj]
+    | dict[PythonObj, PythonObj]
+)
+
+
+def auto(value: PythonObj) -> Expression:
     """
     Create a codegen Expression from a plain Python object.
 
@@ -1014,20 +1017,20 @@ def auto(
     """
     if isinstance(value, bool):
         return Bool(value)
-    if isinstance(value, str):
+    elif isinstance(value, str):
         return String(value)
-    if isinstance(value, bytes):
+    elif isinstance(value, bytes):
         return Bytes(value)
-    if isinstance(value, (int, float)):
+    elif isinstance(value, (int, float)):
         return Number(value)
-    if value is None:
+    elif value is None:
         return NoneExpr()
-    if isinstance(value, list):
+    elif isinstance(value, list):
         return List([auto(item) for item in value])
-    if isinstance(value, tuple):
+    elif isinstance(value, tuple):
         return Tuple([auto(item) for item in value])
-    if isinstance(value, (set, frozenset)):
+    elif isinstance(value, (set, frozenset)):
         return Set([auto(item) for item in sorted(value, key=repr)])
-    if isinstance(value, dict):  # pyright: ignore[reportUnnecessaryIsInstance]
+    elif isinstance(value, dict):  # type: ignore[reportUnnecessaryIsInstance]
         return Dict([(auto(k), auto(v)) for k, v in value.items()])
-    raise TypeError(f"auto() does not support {type(value).__name__}")
+    assert_never(value)
