@@ -2,7 +2,6 @@ import builtins
 import keyword
 import re
 
-
 # From spec:
 #    NamedArgument ::= Identifier blank? ":" blank? (StringLiteral | NumberLiteral)
 #    Identifier ::= [a-zA-Z] [a-zA-Z0-9_-]*
@@ -10,7 +9,7 @@ import re
 NAMED_ARG_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_-]*$")
 
 
-def allowable_keyword_arg_name(name: str) -> re.Match | None:
+def allowable_keyword_arg_name(name: str) -> re.Match[str] | None:
     return NAMED_ARG_RE.match(name)
 
 

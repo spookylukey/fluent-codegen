@@ -57,9 +57,9 @@ class DefaultAstArgs(TypedDict):
 
 DEFAULT_AST_ARGS: DefaultAstArgs = {"lineno": 1, "col_offset": 1}
 # Some AST types have different requirements:
-DEFAULT_AST_ARGS_MODULE = dict()
-DEFAULT_AST_ARGS_ADD = dict()
-DEFAULT_AST_ARGS_ARGUMENTS = dict()
+DEFAULT_AST_ARGS_MODULE: dict[str, object] = dict()
+DEFAULT_AST_ARGS_ADD: dict[str, object] = dict()
+DEFAULT_AST_ARGS_ARGUMENTS: dict[str, object] = dict()
 
 
 def subscript_slice_object[T](value: T) -> T:

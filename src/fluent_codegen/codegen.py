@@ -103,7 +103,7 @@ class CodeGenAst(ABC):
 class CodeGenAstList(ABC):
     """
     Alternative base class to CodeGenAst when we have code that wants to return a
-    list of AST objects.
+    list of AST objects. These must also be `stmt` objects.
     """
 
     @abstractmethod
@@ -119,10 +119,10 @@ CodeGenAstType = CodeGenAst | CodeGenAstList
 class Scope:
     def __init__(self, parent_scope: Scope | None = None):
         self.parent_scope = parent_scope
-        self.names = set()
-        self._function_arg_reserved_names = set()
+        self.names: set[str] = set()
+        self._function_arg_reserved_names: set[str] = set()
         self._properties: dict[str, dict[str, object]] = {}
-        self._assignments = {}
+        self._assignments: set[str] = set()
 
     def is_name_in_use(self, name: str) -> bool:
         if name in self.names:
@@ -208,7 +208,7 @@ class Scope:
             raise AssertionError(f"Can't reserve '{name}' as function arg name as it is already reserved")
         self._function_arg_reserved_names.add(name)
 
-    def get_name_properties(self, name) -> dict[str, object]:
+    def get_name_properties(self, name: str) -> dict[str, object]:
         """
         Gets a dictionary of properties for the name.
         Raises exception if the name is not reserved in this scope or parent
@@ -249,7 +249,7 @@ class Scope:
         return name in self._assignments
 
     def register_assignment(self, name: str) -> None:
-        self._assignments[name] = None
+        self._assignments.add(name)
 
     def variable(self, name: str) -> VariableReference:
         # Convenience utility for returning a VariableReference
@@ -311,13 +311,15 @@ class Block(CodeGenAstList):
         self.parent_block = parent_block
 
     def as_ast_list(self, allow_empty: bool = True) -> list[py_ast.stmt]:
-        retval = []
+        retval: list[py_ast.stmt] = []
         for s in self.statements:
             if isinstance(s, CodeGenAstList):
                 retval.extend(s.as_ast_list(allow_empty=True))
             else:
                 if isinstance(s, Statement):
-                    retval.append(s.as_ast())
+                    ast_obj =  s.as_ast()
+                    assert isinstance(ast_obj, py_ast.stmt), "Statement object return {ast_obj} which is not a subclass of py_ast.stmt"
+                    retval.append(ast_obj)
                 else:
                     # Things like bare function/method calls need to be wrapped
                     # in `Expr` to match the way Python parses.
@@ -458,7 +460,7 @@ class If(Statement):
         self.else_block = Block(parent_scope, parent_block=self._parent_block)
         self._parent_scope = parent_scope
 
-    def add_if(self, condition):
+    def add_if(self, condition: Expression):
         new_if = Block(self._parent_scope, parent_block=self._parent_block)
         self.if_blocks.append(new_if)
         self.conditions.append(condition)
@@ -584,7 +586,7 @@ class Number(Expression):
 class List(Expression):
     child_elements = ["items"]
 
-    def __init__(self, items):
+    def __init__(self, items: list[Expression]):
         self.items = items
         self.type = list
 
@@ -701,7 +703,7 @@ class VariableReference(Expression):
             raise AssertionError(f"Expected {self.name} to be a valid Python identifier")
         return py_ast.Name(id=self.name, ctx=py_ast.Load(), **DEFAULT_AST_ARGS)
 
-    def __eq__(self, other):
+    def __eq__(self, other: object):
         return type(other) is type(self) and other.name == self.name
 
     def __repr__(self):
@@ -890,12 +892,12 @@ def traverse(ast_node: py_ast.AST, func: Callable[[py_ast.AST], None]):
         func(node)
 
 
-def simplify(codegen_ast: CodeGenAst, simplifier: Callable[[CodeGenAst, list[bool]], CodeGenAst]):
+def simplify(codegen_ast: CodeGenAstType, simplifier: Callable[[CodeGenAstType, list[bool]], CodeGenAst]):
     changes = [True]
 
     # Wrap `simplifier` (which takes additional `changes` arg)
     # into function that take just `node`, as required by rewriting_traverse
-    def rewriter(node):
+    def rewriter(node: CodeGenAstType) -> CodeGenAstType:
         return simplifier(node, changes)
 
     while any(changes):
@@ -905,7 +907,7 @@ def simplify(codegen_ast: CodeGenAst, simplifier: Callable[[CodeGenAst, list[boo
 
 
 def rewriting_traverse(
-    node: CodeGenAstType | list[CodeGenAstType] | tuple[CodeGenAstType],
+    node: CodeGenAstType | Sequence[CodeGenAstType],
     func: Callable[[CodeGenAstType], CodeGenAstType],
 ):
     """
