@@ -248,9 +248,13 @@ class Scope:
     def register_assignment(self, name: str) -> None:
         self._assignments.add(name)
 
-    def variable(self, name: str) -> VariableReference:
+    def create_name(self, name: str) -> Name:
+        reserved = self.reserve_name(name)
+        return Name(reserved, self)
+
+    def name(self, name: str) -> Name:
         # Convenience utility for returning a VariableReference
-        return VariableReference(name, self)
+        return Name(name, self)
 
 
 _IDENTIFIER_SANITIZER_RE = re.compile("[^a-zA-Z0-9_]")
@@ -740,7 +744,7 @@ class ConcatJoin(StringJoinBase):
 StringJoin = FStringJoin
 
 
-class VariableReference(Expression):
+class Name(Expression):
     child_elements = []
 
     def __init__(self, name: str, scope: Scope):
@@ -760,7 +764,7 @@ class VariableReference(Expression):
         return type(other) is type(self) and other.name == self.name
 
     def __repr__(self):
-        return f"VariableReference({repr(self.name)})"
+        return f"Name({repr(self.name)})"
 
 
 class FunctionCall(Expression):

@@ -112,11 +112,11 @@ def test_name_properties():
     assert scope.get_name_properties("name") == {"FOO": True}
 
 
-def test_scope_variable_helper():
+def test_scope_name_helper():
     scope = codegen.Scope()
     name = scope.reserve_name("name")
-    ref1 = codegen.VariableReference(name, scope)
-    ref2 = scope.variable(name)
+    ref1 = codegen.Name(name, scope)
+    ref2 = scope.name(name)
     assert ref1 == ref2
 
 
@@ -189,7 +189,7 @@ def test_function_args_name_reserved_check():
     module.scope.reserve_function_arg_name("my_arg")
     func_name = module.scope.reserve_name("myfunc")
     func = codegen.Function(func_name, args=["my_arg"], parent_scope=module.scope)
-    func.add_return(func.variable("my_arg"))
+    func.add_return(func.name("my_arg"))
     assert_code_equal(
         as_source_code(func),
         """
@@ -199,41 +199,48 @@ def test_function_args_name_reserved_check():
     )
 
 
-# --- Variable reference tests ---
+# --- Name reference tests ---
 
 
-def test_variable_reference():
+def test_name():
     scope = codegen.Scope()
     name = scope.reserve_name("name")
-    ref = codegen.VariableReference(name, scope)
+    ref = codegen.Name(name, scope)
     assert as_source_code(ref) == "name"
 
 
-def test_variable_reference_check():
+def test_name_check():
     scope = codegen.Scope()
     with pytest.raises(AssertionError):
-        codegen.VariableReference("name", scope)
+        codegen.Name("name", scope)
 
 
-def test_variable_reference_function_arg_check():
+def test_name_function_arg_check():
     scope = codegen.Scope()
     func_name = scope.reserve_name("myfunc")
     func = codegen.Function(func_name, args=["my_arg"], parent_scope=scope)
     # Can't use undefined 'some_name'
     with pytest.raises(AssertionError):
-        codegen.VariableReference("some_name", func)
+        codegen.Name("some_name", func)
     # But can use function argument 'my_arg'
-    ref = codegen.VariableReference("my_arg", func)
+    ref = codegen.Name("my_arg", func)
     assert_code_equal(as_source_code(ref), "my_arg")
 
 
-def test_variable_reference_bad():
+def test_name_bad():
     module = codegen.Module()
     name = module.scope.reserve_name("name")
-    ref = codegen.VariableReference(name, module.scope)
+    ref = codegen.Name(name, module.scope)
     ref.name = "bad name"
     with pytest.raises(AssertionError):
         as_source_code(ref)
+
+
+def test_create_name():
+    module = codegen.Module()
+    var = module.scope.create_name("myname")
+    assert isinstance(var, codegen.Name)
+    assert module.scope.is_name_in_use("myname")
 
 
 # --- Assignment tests ---
@@ -386,7 +393,7 @@ def test_method_call_bad_name():
 def test_try_catch():
     scope = codegen.Scope()
     scope.reserve_name("MyError")
-    try_ = codegen.Try([scope.variable("MyError")], scope)
+    try_ = codegen.Try([scope.name("MyError")], scope)
     assert_code_equal(
         as_source_code(try_),
         """
@@ -419,7 +426,7 @@ def test_try_catch_multiple_exceptions():
     scope = codegen.Scope()
     scope.reserve_name("MyError")
     scope.reserve_name("OtherError")
-    try_ = codegen.Try([scope.variable("MyError"), scope.variable("OtherError")], scope)
+    try_ = codegen.Try([scope.name("MyError"), scope.name("OtherError")], scope)
     assert_code_equal(
         as_source_code(try_),
         """
@@ -549,7 +556,7 @@ def test_string_join_one():
 def test_concat_string_join_two():
     module = codegen.Module()
     module.scope.reserve_name("tmp", properties={codegen.PROPERTY_TYPE: str})
-    var = module.scope.variable("tmp")
+    var = module.scope.name("tmp")
     join = codegen.ConcatJoin([codegen.String("hello "), var])
     assert_code_equal(as_source_code(join), "'hello ' + tmp")
 
@@ -557,7 +564,7 @@ def test_concat_string_join_two():
 def test_f_string_join_two():
     module = codegen.Module()
     module.scope.reserve_name("tmp", properties={codegen.PROPERTY_TYPE: str})
-    var = module.scope.variable("tmp")
+    var = module.scope.name("tmp")
     join = codegen.FStringJoin([codegen.String("hello "), var])
     assert_code_equal(as_source_code(join), "f'hello {tmp}'")
 
@@ -565,7 +572,7 @@ def test_f_string_join_two():
 def test_string_join_collapse_strings():
     scope = codegen.Scope()
     scope.reserve_name("tmp", properties={codegen.PROPERTY_TYPE: str})
-    var = scope.variable("tmp")
+    var = scope.name("tmp")
     join1 = codegen.ConcatJoin.build(
         [
             codegen.String("hello "),
@@ -581,7 +588,7 @@ def test_string_join_collapse_strings():
 def test_dict_lookup():
     scope = codegen.Scope()
     scope.reserve_name("tmp")
-    var = scope.variable("tmp")
+    var = scope.name("tmp")
     lookup = codegen.DictLookup(var, codegen.String("x"))
     assert_code_equal(as_source_code(lookup), "tmp['x']")
 
@@ -757,18 +764,18 @@ def test_function_call_repr():
     assert "FunctionCall" in repr(fc)
 
 
-def test_variable_reference_repr():
+def test_name_repr():
     scope = codegen.Scope()
     scope.reserve_name("x")
-    ref = scope.variable("x")
-    assert repr(ref) == "VariableReference('x')"
+    ref = scope.name("x")
+    assert repr(ref) == "Name('x')"
 
 
-def test_variable_reference_equality():
+def test_name_equality():
     scope = codegen.Scope()
     scope.reserve_name("x")
-    ref1 = scope.variable("x")
-    ref2 = scope.variable("x")
+    ref1 = scope.name("x")
+    ref2 = scope.name("x")
     assert ref1 == ref2
     assert ref1 != "x"
 
@@ -776,7 +783,7 @@ def test_variable_reference_equality():
 def test_string_join_repr():
     scope = codegen.Scope()
     scope.reserve_name("tmp", properties={codegen.PROPERTY_TYPE: str})
-    var = scope.variable("tmp")
+    var = scope.name("tmp")
     join = codegen.ConcatJoin([codegen.String("hello "), var])
     assert "ConcatJoin" in repr(join)
 
@@ -819,7 +826,7 @@ def test_simplify():
     """Test simplify replaces nodes using a simplifier function."""
     scope = codegen.Scope()
     scope.reserve_name("x", properties={codegen.PROPERTY_TYPE: str})
-    var = scope.variable("x")
+    var = scope.name("x")
     join = codegen.ConcatJoin([codegen.String("a"), codegen.String("b"), var])
 
     def simplifier(node, changes):
@@ -890,7 +897,7 @@ def test_block_as_ast_list_with_codegen_ast_list():
 def test_dict_lookup_type():
     scope = codegen.Scope()
     scope.reserve_name("tmp")
-    var = scope.variable("tmp")
+    var = scope.name("tmp")
     lookup = codegen.DictLookup(var, codegen.String("x"), expr_type=str)
     assert lookup.type is str
 
@@ -929,7 +936,7 @@ def test_rewriting_traverse_replaces_node():
     """Test that rewriting_traverse actually replaces nodes via morph_into."""
     scope = codegen.Scope()
     scope.reserve_name("x", properties={codegen.PROPERTY_TYPE: str})
-    var = scope.variable("x")
+    var = scope.name("x")
     join = codegen.ConcatJoin([codegen.String("hello"), var])
 
     def replace_hello(node):
