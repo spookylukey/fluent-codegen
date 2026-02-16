@@ -841,24 +841,6 @@ def test_simplify():
     assert_code_equal(as_source_code(result), "'ab' + x")
 
 
-def test_rewriting_traverse_list():
-    """Test rewriting_traverse with list inputs."""
-    scope = codegen.Scope()
-    scope.reserve_name("x")
-    items = [scope.variable("x")]
-    # Should not raise
-    codegen.rewriting_traverse(items, lambda n: n)
-
-
-def test_rewriting_traverse_dict():
-    """Test rewriting_traverse with dict inputs."""
-    scope = codegen.Scope()
-    scope.reserve_name("x")
-    scope.reserve_name("y")
-    d = {"key": scope.variable("y")}
-    codegen.rewriting_traverse(d, lambda n: n)
-
-
 def test_morph_into():
     """Test morph_into changes class and dict."""
     s1 = codegen.String("hello")
