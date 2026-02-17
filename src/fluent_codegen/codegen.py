@@ -419,6 +419,21 @@ class Block(CodeGenAstList):
         self.add_statement(func)
         return func, name_obj
 
+    def create_class(
+        self,
+        name: str,
+        bases: Sequence[Expression] | None = None,
+        decorators: Sequence[Expression] | None = None,
+    ) -> tuple[Class, Name]:
+        """
+        Reserve a name for a class, create the Class and add the class statement
+        to the block.
+        """
+        name_obj = self.scope.create_name(name)
+        cls = Class(name_obj.name, parent_scope=self.scope, bases=bases, decorators=decorators)
+        self.add_statement(cls)
+        return cls, name_obj
+
     def add_return(self, value: Expression) -> None:
         self.add_statement(Return(value))
 
@@ -585,6 +600,36 @@ class Function(Scope, Statement):
 
     def add_return(self, value: Expression):
         self.body.add_return(value)
+
+
+class Class(Scope, Statement):
+    child_elements = ["body"]
+
+    def __init__(
+        self,
+        name: str,
+        parent_scope: Scope | None = None,
+        bases: Sequence[Expression] | None = None,
+        decorators: Sequence[Expression] | None = None,
+    ):
+        super().__init__(parent_scope=parent_scope)
+        self.body = Block(self)
+        self.class_name = name
+        self.bases: list[Expression] = list(bases) if bases else []
+        self.decorators: list[Expression] = list(decorators) if decorators else []
+
+    def as_ast(self) -> py_ast.stmt:
+        if not allowable_name(self.class_name):
+            raise AssertionError(f"Expected '{self.class_name}' to be a valid Python identifier")
+        return py_ast.ClassDef(
+            name=self.class_name,
+            bases=[b.as_ast() for b in self.bases],
+            keywords=[],
+            body=self.body.as_ast_list(allow_empty=False),
+            decorator_list=[d.as_ast() for d in self.decorators],
+            type_params=[],
+            **DEFAULT_AST_ARGS,
+        )
 
 
 class Return(Statement):

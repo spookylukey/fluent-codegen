@@ -1715,6 +1715,222 @@ def test_function_arg_complex_defaults():
     )
 
 
+# --- Class tests ---
+
+
+def test_class_empty():
+    module = codegen.Module()
+    cls = codegen.Class("MyClass", parent_scope=module.scope)
+    assert_code_equal(
+        cls,
+        """
+        class MyClass:
+            pass
+        """,
+    )
+
+
+def test_class_with_base():
+    module = codegen.Module()
+    module.scope.reserve_name("BaseClass")
+    cls = codegen.Class(
+        "MyClass",
+        parent_scope=module.scope,
+        bases=[module.scope.name("BaseClass")],
+    )
+    assert_code_equal(
+        cls,
+        """
+        class MyClass(BaseClass):
+            pass
+        """,
+    )
+
+
+def test_class_with_multiple_bases():
+    module = codegen.Module()
+    module.scope.reserve_name("Base1")
+    module.scope.reserve_name("Base2")
+    cls = codegen.Class(
+        "MyClass",
+        parent_scope=module.scope,
+        bases=[module.scope.name("Base1"), module.scope.name("Base2")],
+    )
+    assert_code_equal(
+        cls,
+        """
+        class MyClass(Base1, Base2):
+            pass
+        """,
+    )
+
+
+def test_class_with_decorator():
+    module = codegen.Module()
+    module.scope.reserve_name("my_decorator")
+    cls = codegen.Class(
+        "MyClass",
+        parent_scope=module.scope,
+        decorators=[module.scope.name("my_decorator")],
+    )
+    assert_code_equal(
+        cls,
+        """
+        @my_decorator
+        class MyClass:
+            pass
+        """,
+    )
+
+
+def test_class_with_multiple_decorators():
+    module = codegen.Module()
+    module.scope.reserve_name("deco1")
+    module.scope.reserve_name("deco2")
+    cls = codegen.Class(
+        "MyClass",
+        parent_scope=module.scope,
+        decorators=[module.scope.name("deco1"), module.scope.name("deco2")],
+    )
+    assert_code_equal(
+        cls,
+        """
+        @deco1
+        @deco2
+        class MyClass:
+            pass
+        """,
+    )
+
+
+def test_class_with_body():
+    module = codegen.Module()
+    cls = codegen.Class("MyClass", parent_scope=module.scope)
+    name = cls.reserve_name("x")
+    cls.body.add_assignment(name, codegen.Number(42))
+    assert_code_equal(
+        cls,
+        """
+        class MyClass:
+            x = 42
+        """,
+    )
+
+
+def test_class_with_method():
+    module = codegen.Module()
+    cls = codegen.Class("MyClass", parent_scope=module.scope)
+    func, _ = cls.body.create_function("my_method", args=["self"])
+    func.add_return(codegen.Number(1))
+    source = as_source_code(cls)
+    assert "class MyClass:" in source
+    assert "def my_method(self):" in source
+    assert "return 1" in source
+
+
+def test_class_with_decorator_and_base_and_body():
+    module = codegen.Module()
+    module.scope.reserve_name("dataclass")
+    module.scope.reserve_name("Base")
+    cls = codegen.Class(
+        "MyClass",
+        parent_scope=module.scope,
+        bases=[module.scope.name("Base")],
+        decorators=[module.scope.name("dataclass")],
+    )
+    name = cls.reserve_name("value")
+    cls.body.add_assignment(name, codegen.Number(0))
+    source = as_source_code(cls)
+    assert "@dataclass" in source
+    assert "class MyClass(Base):" in source
+    assert "value = 0" in source
+
+
+def test_class_bad_name():
+    module = codegen.Module()
+    cls = codegen.Class("bad name", parent_scope=module.scope)
+    with pytest.raises(AssertionError):
+        as_source_code(cls)
+
+
+def test_class_defaults():
+    module = codegen.Module()
+    cls = codegen.Class("MyClass", parent_scope=module.scope)
+    assert cls.bases == []
+    assert cls.decorators == []
+
+
+def test_create_class():
+    module = codegen.Module()
+    cls, cls_name = module.create_class("MyClass")
+    assert_code_equal(
+        module,
+        """
+        class MyClass:
+            pass
+        """,
+    )
+    assert_code_equal(cls_name, "MyClass")
+
+
+def test_create_class_with_base():
+    module = codegen.Module()
+    module.scope.reserve_name("Base")
+    cls, cls_name = module.create_class(
+        "MyClass",
+        bases=[module.scope.name("Base")],
+    )
+    assert_code_equal(
+        module,
+        """
+        class MyClass(Base):
+            pass
+        """,
+    )
+
+
+def test_create_class_with_decorators():
+    module = codegen.Module()
+    module.scope.reserve_name("deco")
+    cls, cls_name = module.create_class(
+        "MyClass",
+        decorators=[module.scope.name("deco")],
+    )
+    assert_code_equal(
+        module,
+        """
+        @deco
+        class MyClass:
+            pass
+        """,
+    )
+
+
+def test_create_class_full():
+    module = codegen.Module()
+    module.scope.reserve_name("Base")
+    module.scope.reserve_name("deco")
+    cls, cls_name = module.create_class(
+        "MyClass",
+        bases=[module.scope.name("Base")],
+        decorators=[module.scope.name("deco")],
+    )
+    func, _ = cls.body.create_function("__init__", args=["self"])
+    source = as_source_code(module)
+    assert "@deco" in source
+    assert "class MyClass(Base):" in source
+    assert "def __init__(self):" in source
+
+
+def test_class_scope_isolation():
+    """Class body scope doesn't leak into module scope."""
+    module = codegen.Module()
+    cls = codegen.Class("MyClass", parent_scope=module.scope)
+    cls.reserve_name("internal_var")
+    assert cls.is_name_in_use("internal_var")
+    assert not module.scope.is_name_in_use("internal_var")
+
+
 # --- as_python_source() tests ---
 
 
