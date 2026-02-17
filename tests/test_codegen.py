@@ -4,7 +4,6 @@ import keyword
 import textwrap
 
 import pytest
-from ast_decompiler.decompiler import Decompiler
 from hypothesis import example, given
 from hypothesis.strategies import text
 
@@ -16,18 +15,7 @@ def normalize_python(txt: str):
     return textwrap.dedent(txt.rstrip()).strip()
 
 
-def decompile(ast_node, indentation=4, line_length=100, starting_indentation=0):
-    """Decompiles an AST into Python code."""
-    decompiler = Decompiler(
-        indentation=indentation,
-        line_length=line_length,
-        starting_indentation=starting_indentation,
-    )
-    return decompiler.run(ast_node)
-
-
-def unparse(codegen_ast: codegen.CodeGenAstType) -> str:
-    """Unparse a codegen AST using ast.unparse (more reliable than ast_decompiler for edge cases)."""
+def as_source_code(codegen_ast: codegen.CodeGenAstType) -> str:
     if isinstance(codegen_ast, codegen.CodeGenAstList):
         mod = ast.Module(body=codegen_ast.as_ast_list(), type_ignores=[])
         ast.fix_missing_locations(mod)
@@ -36,19 +24,6 @@ def unparse(codegen_ast: codegen.CodeGenAstType) -> str:
         node = codegen_ast.as_ast()
         ast.fix_missing_locations(node)
         return ast.unparse(node)
-
-
-def decompile_ast_list(ast_list: list[ast.stmt]):
-    return decompile(ast.Module(body=ast_list, type_ignores=[], **codegen.DEFAULT_AST_ARGS_MODULE))
-
-
-def as_source_code(codegen_ast: codegen.CodeGenAstType) -> str:
-    if isinstance(codegen_ast, codegen.CodeGenAstList):
-        ast_list = codegen_ast.as_ast_list()
-        return decompile_ast_list(ast_list)
-    else:
-        ast = codegen_ast.as_ast()
-        return decompile(ast)
 
 
 def assert_code_equal(code1: str | codegen.CodeGenAstType, code2: str | codegen.CodeGenAstType):
@@ -1418,8 +1393,13 @@ def test_function_arg_with_defaults():
         ],
         parent_scope=module.scope,
     )
-    # ast_decompiler has a bug with positional-only defaults, use ast.unparse
-    assert unparse(func) == "def myfunc(a, b=1, /, c=2):\n    pass"
+    assert_code_equal(
+        func,
+        """
+        def myfunc(a, b=1, /, c=2):
+            pass
+        """,
+    )
 
 
 def test_function_arg_keyword_defaults():
@@ -1574,7 +1554,13 @@ def test_create_function_with_function_args():
             codegen.FunctionArg.keyword("b", default=codegen.Number(42)),
         ],
     )
-    assert unparse(module) == "def my_func(a, /, *, b=42):\n    pass"
+    assert_code_equal(
+        module,
+        """
+        def my_func(a, /, *, b=42):
+            pass
+        """,
+    )
     assert_code_equal(func_name, "my_func")
 
 
@@ -1585,8 +1571,13 @@ def test_function_arg_only_positional_with_default():
         args=[codegen.FunctionArg.positional("a", default=codegen.String("hi"))],
         parent_scope=module.scope,
     )
-    # ast_decompiler has a bug with positional-only defaults, use ast.unparse
-    assert unparse(func) == "def myfunc(a='hi', /):\n    pass"
+    assert_code_equal(
+        func,
+        """
+        def myfunc(a='hi', /):
+            pass
+        """,
+    )
 
 
 def test_function_arg_standard_with_default():

@@ -559,8 +559,8 @@ class Function(Scope, Statement):
             ),
             body=self.body.as_ast_list(allow_empty=False),
             decorator_list=[],
-            type_params=[],  # ast_decompiler compat
-            returns=None,  # ast_decompiler compat
+            type_params=[],
+            returns=None,
             **DEFAULT_AST_ARGS,
         )
 
