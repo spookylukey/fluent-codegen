@@ -326,13 +326,6 @@ def test_function_call_args_and_kwargs():
     assert_code_equal(as_source_code(func_call), "a_function(123, x='hello')")
 
 
-def test_function_call_bad_name():
-    module = codegen.Module()
-    module.scope.reserve_name("a_function")
-    with pytest.raises(AssertionError):
-        codegen.function_call("bad function name", [], {}, module.scope)
-
-
 def test_function_call_bad_kwarg_names():
     module = codegen.Module()
     module.scope.reserve_name("a_function")
@@ -371,7 +364,7 @@ def test_function_call_kwarg_star_syntax():
 
 def test_function_call_sensitive():
     module = codegen.Module()
-    module.scope.reserve_name("a_function")
+    module.scope.reserve_name("exec")
     with pytest.raises(AssertionError):
         codegen.function_call("exec", [], {}, module.scope)
 
@@ -380,6 +373,12 @@ def test_method_call_bad_name():
     s = codegen.String("x")
     with pytest.raises(AssertionError):
         codegen.method_call(s, "bad method name", [], {})
+
+
+def test_method_call_chained_name():
+    s = codegen.String("x")
+    call = s.method_call("startswith", [codegen.String("y")], {})
+    assert_code_equal(as_source_code(call), "'x'.startswith('y')")
 
 
 # --- Try/Catch tests ---

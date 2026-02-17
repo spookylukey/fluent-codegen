@@ -807,8 +807,6 @@ def function_call(
         looked_up_return_type = scope.get_name_properties(function_name).get(PROPERTY_RETURN_TYPE, expr_type)
         assert isinstance(looked_up_return_type, type)
         expr_type = looked_up_return_type
-    if not allowable_name(function_name, allow_builtin=True):
-        raise AssertionError(f"Expected {function_name} to be a valid Python identifier or builtin")
     if function_name in SENSITIVE_FUNCTIONS:
         raise AssertionError(f"Disallowing call to '{function_name}'")
 
