@@ -351,12 +351,14 @@ class Block(CodeGenAstList):
                     )
 
     # Safe alternatives to Block.statements being manipulated directly:
-    def add_assignment(self, name: str, value: Expression, allow_multiple: bool = False):
+    def add_assignment(self, name: str | Name, value: Expression, allow_multiple: bool = False):
         """
         Adds an assigment of the form:
 
            x = value
         """
+        if isinstance(name, Name):
+            name = name.name
         if not self.scope.is_name_in_use(name):
             raise AssertionError(f"Cannot assign to unreserved name '{name}'")
 

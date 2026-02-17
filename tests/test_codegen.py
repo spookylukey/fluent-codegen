@@ -281,6 +281,18 @@ def test_add_assignment_reserved():
     )
 
 
+def test_add_assignment_with_name_object():
+    module = codegen.Module()
+    name_obj = module.scope.create_name("x")
+    module.add_assignment(name_obj, codegen.String("a string"))
+    assert_code_equal(
+        module,
+        """
+        x = 'a string'
+        """,
+    )
+
+
 def test_add_assignment_bad():
     module = codegen.Module()
     name = module.scope.reserve_name("x")
