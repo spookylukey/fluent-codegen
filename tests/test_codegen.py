@@ -1139,3 +1139,256 @@ def test_auto_set():
 def test_auto_frozenset():
     result = codegen.auto(frozenset({1}))
     assert isinstance(result, codegen.Set)
+
+
+# --- Arithmetic operator tests ---
+
+
+def test_add_class():
+    result = codegen.Add(codegen.Number(1), codegen.Number(2))
+    assert_code_equal(as_source_code(result), "1 + 2")
+
+
+def test_sub_class():
+    result = codegen.Sub(codegen.Number(5), codegen.Number(3))
+    assert_code_equal(as_source_code(result), "5 - 3")
+
+
+def test_mul_class():
+    result = codegen.Mul(codegen.Number(4), codegen.Number(3))
+    assert_code_equal(as_source_code(result), "4 * 3")
+
+
+def test_div_class():
+    result = codegen.Div(codegen.Number(10), codegen.Number(3))
+    assert_code_equal(as_source_code(result), "10 / 3")
+
+
+def test_floor_div_class():
+    result = codegen.FloorDiv(codegen.Number(10), codegen.Number(3))
+    assert_code_equal(as_source_code(result), "10 // 3")
+
+
+def test_mod_class():
+    result = codegen.Mod(codegen.Number(10), codegen.Number(3))
+    assert_code_equal(as_source_code(result), "10 % 3")
+
+
+def test_pow_class():
+    result = codegen.Pow(codegen.Number(2), codegen.Number(8))
+    assert_code_equal(as_source_code(result), "2 ** 8")
+
+
+# --- Comparison operator tests ---
+
+
+def test_not_equals_class():
+    result = codegen.NotEquals(codegen.String("a"), codegen.String("b"))
+    assert_code_equal(as_source_code(result), "'a' != 'b'")
+
+
+def test_lt_class():
+    result = codegen.Lt(codegen.Number(1), codegen.Number(2))
+    assert_code_equal(as_source_code(result), "1 < 2")
+
+
+def test_gt_class():
+    result = codegen.Gt(codegen.Number(2), codegen.Number(1))
+    assert_code_equal(as_source_code(result), "2 > 1")
+
+
+def test_lte_class():
+    result = codegen.LtE(codegen.Number(1), codegen.Number(2))
+    assert_code_equal(as_source_code(result), "1 <= 2")
+
+
+def test_gte_class():
+    result = codegen.GtE(codegen.Number(2), codegen.Number(1))
+    assert_code_equal(as_source_code(result), "2 >= 1")
+
+
+def test_in_class():
+    result = codegen.In(codegen.String("a"), codegen.List([codegen.String("a"), codegen.String("b")]))
+    assert_code_equal(as_source_code(result), "'a' in ['a', 'b']")
+
+
+def test_not_in_class():
+    result = codegen.NotIn(codegen.String("c"), codegen.List([codegen.String("a"), codegen.String("b")]))
+    assert_code_equal(as_source_code(result), "'c' not in ['a', 'b']")
+
+
+# --- Boolean operator tests ---
+
+
+def test_and_class():
+    result = codegen.And(codegen.Bool(True), codegen.Bool(False))
+    assert_code_equal(as_source_code(result), "True and False")
+
+
+# --- Comparison operator type ---
+
+
+def test_comparison_ops_have_bool_type():
+    a, b = codegen.Number(1), codegen.Number(2)
+    for cls in (
+        codegen.Equals,
+        codegen.NotEquals,
+        codegen.Lt,
+        codegen.Gt,
+        codegen.LtE,
+        codegen.GtE,
+        codegen.In,
+        codegen.NotIn,
+    ):
+        assert cls(a, b).type is bool
+
+
+def test_boolean_ops_have_bool_type():
+    a, b = codegen.Bool(True), codegen.Bool(False)
+    assert codegen.And(a, b).type is bool
+    assert codegen.Or(a, b).type is bool
+
+
+# --- Expression utility method tests ---
+
+
+def test_expression_add_method():
+    result = codegen.Number(1).add(codegen.Number(2))
+    assert isinstance(result, codegen.Add)
+    assert_code_equal(as_source_code(result), "1 + 2")
+
+
+def test_expression_sub_method():
+    result = codegen.Number(5).sub(codegen.Number(3))
+    assert isinstance(result, codegen.Sub)
+    assert_code_equal(as_source_code(result), "5 - 3")
+
+
+def test_expression_mul_method():
+    result = codegen.Number(4).mul(codegen.Number(3))
+    assert isinstance(result, codegen.Mul)
+    assert_code_equal(as_source_code(result), "4 * 3")
+
+
+def test_expression_div_method():
+    result = codegen.Number(10).div(codegen.Number(3))
+    assert isinstance(result, codegen.Div)
+    assert_code_equal(as_source_code(result), "10 / 3")
+
+
+def test_expression_floordiv_method():
+    result = codegen.Number(10).floordiv(codegen.Number(3))
+    assert isinstance(result, codegen.FloorDiv)
+    assert_code_equal(as_source_code(result), "10 // 3")
+
+
+def test_expression_mod_method():
+    result = codegen.Number(10).mod(codegen.Number(3))
+    assert isinstance(result, codegen.Mod)
+    assert_code_equal(as_source_code(result), "10 % 3")
+
+
+def test_expression_pow_method():
+    result = codegen.Number(2).pow(codegen.Number(8))
+    assert isinstance(result, codegen.Pow)
+    assert_code_equal(as_source_code(result), "2 ** 8")
+
+
+def test_expression_eq_method():
+    result = codegen.String("x").eq(codegen.String("y"))
+    assert isinstance(result, codegen.Equals)
+    assert_code_equal(as_source_code(result), "'x' == 'y'")
+
+
+def test_expression_ne_method():
+    result = codegen.String("x").ne(codegen.String("y"))
+    assert isinstance(result, codegen.NotEquals)
+    assert_code_equal(as_source_code(result), "'x' != 'y'")
+
+
+def test_expression_lt_method():
+    result = codegen.Number(1).lt(codegen.Number(2))
+    assert isinstance(result, codegen.Lt)
+    assert_code_equal(as_source_code(result), "1 < 2")
+
+
+def test_expression_gt_method():
+    result = codegen.Number(2).gt(codegen.Number(1))
+    assert isinstance(result, codegen.Gt)
+    assert_code_equal(as_source_code(result), "2 > 1")
+
+
+def test_expression_le_method():
+    result = codegen.Number(1).le(codegen.Number(2))
+    assert isinstance(result, codegen.LtE)
+    assert_code_equal(as_source_code(result), "1 <= 2")
+
+
+def test_expression_ge_method():
+    result = codegen.Number(2).ge(codegen.Number(1))
+    assert isinstance(result, codegen.GtE)
+    assert_code_equal(as_source_code(result), "2 >= 1")
+
+
+def test_expression_and_method():
+    result = codegen.Bool(True).and_(codegen.Bool(False))
+    assert isinstance(result, codegen.And)
+    assert_code_equal(as_source_code(result), "True and False")
+
+
+def test_expression_or_method():
+    result = codegen.Bool(True).or_(codegen.Bool(False))
+    assert isinstance(result, codegen.Or)
+    assert_code_equal(as_source_code(result), "True or False")
+
+
+def test_expression_in_method():
+    result = codegen.String("a").in_(codegen.List([codegen.String("a"), codegen.String("b")]))
+    assert isinstance(result, codegen.In)
+    assert_code_equal(as_source_code(result), "'a' in ['a', 'b']")
+
+
+def test_expression_not_in_method():
+    result = codegen.String("c").not_in(codegen.List([codegen.String("a"), codegen.String("b")]))
+    assert isinstance(result, codegen.NotIn)
+    assert_code_equal(as_source_code(result), "'c' not in ['a', 'b']")
+
+
+# --- Chaining tests ---
+
+
+def test_chained_arithmetic():
+    """Test that arithmetic methods chain correctly: (1 + 2) * 3"""
+    result = codegen.Number(1).add(codegen.Number(2)).mul(codegen.Number(3))
+    assert_code_equal(as_source_code(result), "(1 + 2) * 3")
+
+
+def test_chained_comparison_with_arithmetic():
+    """Test chaining: (x + 1) > 0"""
+    scope = codegen.Scope()
+    scope.reserve_name("x")
+    x = scope.name("x")
+    result = x.add(codegen.Number(1)).gt(codegen.Number(0))
+    assert_code_equal(as_source_code(result), "x + 1 > 0")
+
+
+def test_chained_boolean():
+    """Test chaining: (a > 0) and (b < 10)"""
+    scope = codegen.Scope()
+    scope.reserve_name("a")
+    scope.reserve_name("b")
+    a = scope.name("a")
+    b = scope.name("b")
+    result = a.gt(codegen.Number(0)).and_(b.lt(codegen.Number(10)))
+    assert_code_equal(as_source_code(result), "a > 0 and b < 10")
+
+
+def test_chained_with_method_call():
+    """Test chaining operator methods with .attr() and .call()"""
+    scope = codegen.Scope()
+    scope.reserve_name("items")
+    items = scope.name("items")
+    # len(items) > 0  -- modeled as items.attr('__len__').call([],{}) > 0
+    # But more practically: items.method_call("count", ...).gt(Number(0))
+    result = items.method_call("count", [codegen.String("x")], {}).gt(codegen.Number(0))
+    assert_code_equal(as_source_code(result), "items.count('x') > 0")

@@ -10,20 +10,36 @@ from typing import TypedDict
 # - only the things needed by codegen.py
 
 Add = ast.Add
+And = ast.And
 Assign = ast.Assign
 BoolOp = ast.BoolOp
 BinOp = ast.BinOp
 Compare = ast.Compare
 Dict = ast.Dict
+Div = ast.Div
 Eq = ast.Eq
 ExceptHandler = ast.ExceptHandler
 Expr = ast.Expr
+FloorDiv = ast.FloorDiv
+Gt = ast.Gt
+GtE = ast.GtE
 If = ast.If
+In = ast.In
 List = ast.List
 Load = ast.Load
+Lt = ast.Lt
+LtE = ast.LtE
+Mod = ast.Mod
 Module = ast.Module
+Mult = ast.Mult
+NotEq = ast.NotEq
+NotIn = ast.NotIn
 Or = ast.Or
+Pow = ast.Pow
+Sub = ast.Sub
 boolop = ast.boolop
+cmpop = ast.cmpop
+operator = ast.operator
 Pass = ast.Pass
 Return = ast.Return
 Set = ast.Set

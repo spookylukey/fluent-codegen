@@ -11,7 +11,12 @@ from collections.abc import Callable, Sequence
 from typing import ClassVar, Protocol, assert_never, overload, runtime_checkable
 
 from . import ast_compat as py_ast
-from .ast_compat import DEFAULT_AST_ARGS, DEFAULT_AST_ARGS_ADD, DEFAULT_AST_ARGS_ARGUMENTS, DEFAULT_AST_ARGS_MODULE
+from .ast_compat import (
+    DEFAULT_AST_ARGS,
+    DEFAULT_AST_ARGS_ADD,
+    DEFAULT_AST_ARGS_ARGUMENTS,
+    DEFAULT_AST_ARGS_MODULE,
+)
 from .utils import allowable_keyword_arg_name, allowable_name
 
 # This module provides simple utilities for building up Python source code.
@@ -576,6 +581,65 @@ class Expression(CodeGenAst):
     ) -> Call:
         return self.attr(attribute).call(args, kwargs, expr_type=expr_type)
 
+    # Arithmetic operators
+
+    def add(self, other: Expression, /) -> Add:
+        return Add(self, other)
+
+    def sub(self, other: Expression, /) -> Sub:
+        return Sub(self, other)
+
+    def mul(self, other: Expression, /) -> Mul:
+        return Mul(self, other)
+
+    def div(self, other: Expression, /) -> Div:
+        return Div(self, other)
+
+    def floordiv(self, other: Expression, /) -> FloorDiv:
+        return FloorDiv(self, other)
+
+    def mod(self, other: Expression, /) -> Mod:
+        return Mod(self, other)
+
+    def pow(self, other: Expression, /) -> Pow:
+        return Pow(self, other)
+
+    # Comparison operators
+
+    def eq(self, other: Expression, /) -> Equals:
+        return Equals(self, other)
+
+    def ne(self, other: Expression, /) -> NotEquals:
+        return NotEquals(self, other)
+
+    def lt(self, other: Expression, /) -> Lt:
+        return Lt(self, other)
+
+    def gt(self, other: Expression, /) -> Gt:
+        return Gt(self, other)
+
+    def le(self, other: Expression, /) -> LtE:
+        return LtE(self, other)
+
+    def ge(self, other: Expression, /) -> GtE:
+        return GtE(self, other)
+
+    # Boolean operators
+
+    def and_(self, other: Expression, /) -> And:
+        return And(self, other)
+
+    def or_(self, other: Expression, /) -> Or:
+        return Or(self, other)
+
+    # Membership operators
+
+    def in_(self, other: Expression, /) -> In:
+        return In(self, other)
+
+    def not_in(self, other: Expression, /) -> NotIn:
+        return NotIn(self, other)
+
 
 class String(Expression):
     child_elements = []
@@ -938,16 +1002,93 @@ class BinaryOperator(Expression):
         self.right = right
 
 
-class Equals(BinaryOperator):
+class ArithOp(BinaryOperator, ABC):
+    """Arithmetic binary operator (ast.BinOp)."""
+
+    op: ClassVar[type[py_ast.operator]]
+
+    def as_ast(self) -> py_ast.expr:
+        return py_ast.BinOp(
+            left=self.left.as_ast(),
+            op=self.op(**DEFAULT_AST_ARGS_ADD),
+            right=self.right.as_ast(),
+            **DEFAULT_AST_ARGS,
+        )
+
+
+class Add(ArithOp):
+    op = py_ast.Add
+
+
+class Sub(ArithOp):
+    op = py_ast.Sub
+
+
+class Mul(ArithOp):
+    op = py_ast.Mult
+
+
+class Div(ArithOp):
+    op = py_ast.Div
+
+
+class FloorDiv(ArithOp):
+    op = py_ast.FloorDiv
+
+
+class Mod(ArithOp):
+    op = py_ast.Mod
+
+
+class Pow(ArithOp):
+    op = py_ast.Pow
+
+
+class CompareOp(BinaryOperator, ABC):
+    """Comparison operator (ast.Compare)."""
+
     type = bool
+    op: ClassVar[type[py_ast.cmpop]]
 
     def as_ast(self) -> py_ast.expr:
         return py_ast.Compare(
             left=self.left.as_ast(),
             comparators=[self.right.as_ast()],
-            ops=[py_ast.Eq()],
+            ops=[self.op()],
             **DEFAULT_AST_ARGS,
         )
+
+
+class Equals(CompareOp):
+    op = py_ast.Eq
+
+
+class NotEquals(CompareOp):
+    op = py_ast.NotEq
+
+
+class Lt(CompareOp):
+    op = py_ast.Lt
+
+
+class Gt(CompareOp):
+    op = py_ast.Gt
+
+
+class LtE(CompareOp):
+    op = py_ast.LtE
+
+
+class GtE(CompareOp):
+    op = py_ast.GtE
+
+
+class In(CompareOp):
+    op = py_ast.In
+
+
+class NotIn(CompareOp):
+    op = py_ast.NotIn
 
 
 class BoolOp(BinaryOperator, ABC):
@@ -960,6 +1101,10 @@ class BoolOp(BinaryOperator, ABC):
             values=[self.left.as_ast(), self.right.as_ast()],
             **DEFAULT_AST_ARGS,
         )
+
+
+class And(BoolOp):
+    op = py_ast.And
 
 
 class Or(BoolOp):
