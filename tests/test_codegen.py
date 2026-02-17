@@ -132,7 +132,7 @@ def test_function():
     module = codegen.Module()
     func = codegen.Function("myfunc", args=["myarg1", "myarg2"], parent_scope=module.scope)
     assert_code_equal(
-        as_source_code(func),
+        func,
         """
         def myfunc(myarg1, myarg2):
             pass
@@ -145,7 +145,7 @@ def test_function_return():
     func = codegen.Function("myfunc", parent_scope=module.scope)
     func.add_return(codegen.String("Hello"))
     assert_code_equal(
-        as_source_code(func),
+        func,
         """
         def myfunc():
             return 'Hello'
@@ -173,7 +173,7 @@ def test_add_function():
     func = codegen.Function(func_name, parent_scope=module.scope)
     module.add_function(func_name, func)
     assert_code_equal(
-        as_source_code(module),
+        module,
         """
         def myfunc():
             pass
@@ -185,13 +185,13 @@ def test_create_function():
     module = codegen.Module()
     func, func_name = module.create_function("my_func", args=["my_arg"])
     assert_code_equal(
-        as_source_code(module),
+        module,
         """
         def my_func(my_arg):
             pass
         """,
     )
-    assert_code_equal(as_source_code(func_name), "my_func")
+    assert_code_equal(func_name, "my_func")
 
 
 def test_function_args_name_check():
@@ -209,7 +209,7 @@ def test_function_args_name_reserved_check():
     func = codegen.Function(func_name, args=["my_arg"], parent_scope=module.scope)
     func.add_return(func.name("my_arg"))
     assert_code_equal(
-        as_source_code(func),
+        func,
         """
         def myfunc(my_arg):
             return my_arg
@@ -242,7 +242,7 @@ def test_name_function_arg_check():
         codegen.Name("some_name", func)
     # But can use function argument 'my_arg'
     ref = codegen.Name("my_arg", func)
-    assert_code_equal(as_source_code(ref), "my_arg")
+    assert_code_equal(ref, "my_arg")
 
 
 def test_name_bad():
@@ -275,7 +275,7 @@ def test_add_assignment_reserved():
     name = module.scope.reserve_name("x")
     module.add_assignment(name, codegen.String("a string"))
     assert_code_equal(
-        as_source_code(module),
+        module,
         """
         x = 'a string'
         """,
@@ -329,7 +329,7 @@ def test_function_call_known():
     module = codegen.Module()
     module.scope.reserve_name("a_function")
     func_call = codegen.function_call("a_function", [], {}, module.scope)
-    assert_code_equal(as_source_code(func_call), "a_function()")
+    assert_code_equal(func_call, "a_function()")
 
 
 def test_function_call_args_and_kwargs():
@@ -341,7 +341,7 @@ def test_function_call_args_and_kwargs():
         {"x": codegen.String("hello")},
         module.scope,
     )
-    assert_code_equal(as_source_code(func_call), "a_function(123, x='hello')")
+    assert_code_equal(func_call, "a_function(123, x='hello')")
 
 
 def test_function_call_bad_kwarg_names():
@@ -373,7 +373,7 @@ def test_function_call_kwarg_star_syntax():
     module.scope.reserve_name("a_function")
     func_call = codegen.function_call("a_function", [], {"hyphen-ated": codegen.Number(1)}, module.scope)
     assert_code_equal(
-        as_source_code(func_call),
+        func_call,
         """
         a_function(**{'hyphen-ated': 1})
         """,
@@ -396,7 +396,7 @@ def test_method_call_bad_name():
 def test_method_call_chained_name():
     s = codegen.String("x")
     call = s.method_call("startswith", [codegen.String("y")], {})
-    assert_code_equal(as_source_code(call), "'x'.startswith('y')")
+    assert_code_equal(call, "'x'.startswith('y')")
 
 
 # --- Try/Catch tests ---
@@ -407,7 +407,7 @@ def test_try_catch():
     scope.reserve_name("MyError")
     try_ = codegen.Try([scope.name("MyError")], scope)
     assert_code_equal(
-        as_source_code(try_),
+        try_,
         """
         try:
             pass
@@ -422,7 +422,7 @@ def test_try_catch():
     try_.except_block.add_assignment("y", codegen.String("y"))
     try_.else_block.add_assignment("z", codegen.String("z"))
     assert_code_equal(
-        as_source_code(try_),
+        try_,
         """
         try:
             x = 'x'
@@ -440,7 +440,7 @@ def test_try_catch_multiple_exceptions():
     scope.reserve_name("OtherError")
     try_ = codegen.Try([scope.name("MyError"), scope.name("OtherError")], scope)
     assert_code_equal(
-        as_source_code(try_),
+        try_,
         """
         try:
             pass
@@ -482,7 +482,7 @@ def test_if_empty():
     scope = codegen.Module()
     if_statement = codegen.If(scope.scope)
     if_statement = if_statement.finalize()
-    assert_code_equal(as_source_code(if_statement), "")
+    assert_code_equal(if_statement, "")
 
 
 def test_if_one_if():
@@ -491,7 +491,7 @@ def test_if_one_if():
     first_block = if_statement.add_if(codegen.Number(1))
     first_block.add_return(codegen.Number(2))
     assert_code_equal(
-        as_source_code(if_statement),
+        if_statement,
         """
         if 1:
             return 2
@@ -507,7 +507,7 @@ def test_if_two_ifs():
     second_block = if_statement.add_if(codegen.Number(3))
     second_block.add_return(codegen.Number(4))
     assert_code_equal(
-        as_source_code(if_statement),
+        if_statement,
         """
         if 1:
             return 2
@@ -524,7 +524,7 @@ def test_if_with_else():
     first_block.add_return(codegen.Number(2))
     if_statement.else_block.add_return(codegen.Number(3))
     assert_code_equal(
-        as_source_code(if_statement),
+        if_statement,
         """
         if 1:
             return 2
@@ -540,7 +540,7 @@ def test_if_no_ifs():
     if_statement.else_block.add_return(codegen.Number(3))
     if_statement = if_statement.finalize()
     assert_code_equal(
-        as_source_code(if_statement),
+        if_statement,
         """
         return 3
         """,
@@ -557,12 +557,12 @@ def test_string(t):
 
 def test_string_join_empty():
     join = codegen.StringJoin.build([])
-    assert_code_equal(as_source_code(join), "''")
+    assert_code_equal(join, "''")
 
 
 def test_string_join_one():
     join = codegen.StringJoin.build([codegen.String("hello")])
-    assert_code_equal(as_source_code(join), "'hello'")
+    assert_code_equal(join, "'hello'")
 
 
 def test_concat_string_join_two():
@@ -570,7 +570,7 @@ def test_concat_string_join_two():
     module.scope.reserve_name("tmp", properties={codegen.PROPERTY_TYPE: str})
     var = module.scope.name("tmp")
     join = codegen.ConcatJoin([codegen.String("hello "), var])
-    assert_code_equal(as_source_code(join), "'hello ' + tmp")
+    assert_code_equal(join, "'hello ' + tmp")
 
 
 def test_f_string_join_two():
@@ -578,7 +578,7 @@ def test_f_string_join_two():
     module.scope.reserve_name("tmp", properties={codegen.PROPERTY_TYPE: str})
     var = module.scope.name("tmp")
     join = codegen.FStringJoin([codegen.String("hello "), var])
-    assert_code_equal(as_source_code(join), "f'hello {tmp}'")
+    assert_code_equal(join, "f'hello {tmp}'")
 
 
 def test_string_join_collapse_strings():
@@ -594,7 +594,7 @@ def test_string_join_collapse_strings():
             codegen.String(" are you?"),
         ]
     )
-    assert_code_equal(as_source_code(join1), "'hello there ' + tmp + ' how are you?'")
+    assert_code_equal(join1, "'hello there ' + tmp + ' how are you?'")
 
 
 def test_dict_lookup():
@@ -602,24 +602,24 @@ def test_dict_lookup():
     scope.reserve_name("tmp")
     var = scope.name("tmp")
     lookup = codegen.DictLookup(var, codegen.String("x"))
-    assert_code_equal(as_source_code(lookup), "tmp['x']")
+    assert_code_equal(lookup, "tmp['x']")
 
 
 def test_equals():
     eq = codegen.Equals(codegen.String("x"), codegen.String("y"))
-    assert_code_equal(as_source_code(eq), "'x' == 'y'")
+    assert_code_equal(eq, "'x' == 'y'")
 
 
 def test_or():
     or_ = codegen.Or(codegen.String("x"), codegen.String("y"))
-    assert_code_equal(as_source_code(or_), "'x' or 'y'")
+    assert_code_equal(or_, "'x' or 'y'")
 
 
 def test_attr():
     scope = codegen.Scope()
     name = scope.create_name("foo")
     attr = name.attr("bar")
-    assert_code_equal(as_source_code(attr), "foo.bar")
+    assert_code_equal(attr, "foo.bar")
 
 
 def test_attr_bad_name():
@@ -716,7 +716,7 @@ def test_block_add_statement_bare_expression():
     module.scope.reserve_name("a_function")
     func_call = codegen.function_call("a_function", [], {}, module.scope)
     module.add_statement(func_call)
-    assert_code_equal(as_source_code(module), "a_function()")
+    assert_code_equal(module, "a_function()")
 
 
 def test_block_add_statement_reassign_parent():
@@ -762,19 +762,19 @@ def test_number_repr():
 def test_list_expression():
     lst = codegen.List([codegen.Number(1), codegen.String("two")])
     assert lst.type is list
-    assert_code_equal(as_source_code(lst), "[1, 'two']")
+    assert_code_equal(lst, "[1, 'two']")
 
 
 def test_dict_expression():
     d = codegen.Dict([(codegen.String("a"), codegen.Number(1))])
     assert d.type is dict
-    assert_code_equal(as_source_code(d), "{'a': 1}")
+    assert_code_equal(d, "{'a': 1}")
 
 
 def test_none_expr():
     n = codegen.NoneExpr()
     assert n.type is type(None)
-    assert_code_equal(as_source_code(n), "None")
+    assert_code_equal(n, "None")
 
 
 def test_function_call_repr():
@@ -864,7 +864,7 @@ def test_simplify():
         return node
 
     result = codegen.simplify(join, simplifier)
-    assert_code_equal(as_source_code(result), "'ab' + x")
+    assert_code_equal(result, "'ab' + x")
 
 
 def test_morph_into():
@@ -926,7 +926,7 @@ def test_method_call_type():
     s = codegen.String("x")
     mc = codegen.method_call(s, "upper", [], {}, expr_type=str)
     assert mc.type is str
-    assert_code_equal(as_source_code(mc), "'x'.upper()")
+    assert_code_equal(mc, "'x'.upper()")
 
 
 def test_block_add_statement_sets_parent():
@@ -951,7 +951,7 @@ def test_rewriting_traverse_replaces_node():
         return node
 
     codegen.rewriting_traverse(join, replace_hello)
-    assert_code_equal(as_source_code(join), "'world' + x")
+    assert_code_equal(join, "'world' + x")
 
 
 def test_rewriting_traverse_tuple():
@@ -967,49 +967,49 @@ def test_rewriting_traverse_tuple():
 def test_auto_string():
     result = codegen.auto("hello")
     assert isinstance(result, codegen.String)
-    assert_code_equal(as_source_code(result), "'hello'")
+    assert_code_equal(result, "'hello'")
 
 
 def test_auto_int():
     result = codegen.auto(42)
     assert isinstance(result, codegen.Number)
-    assert_code_equal(as_source_code(result), "42")
+    assert_code_equal(result, "42")
 
 
 def test_auto_float():
     result = codegen.auto(3.14)
     assert isinstance(result, codegen.Number)
-    assert_code_equal(as_source_code(result), "3.14")
+    assert_code_equal(result, "3.14")
 
 
 def test_auto_none():
     result = codegen.auto(None)
     assert isinstance(result, codegen.NoneExpr)
-    assert_code_equal(as_source_code(result), "None")
+    assert_code_equal(result, "None")
 
 
 def test_auto_list():
     result = codegen.auto([1, "two", 3.0])
     assert isinstance(result, codegen.List)
-    assert_code_equal(as_source_code(result), "[1, 'two', 3.0]")
+    assert_code_equal(result, "[1, 'two', 3.0]")
 
 
 def test_auto_list_empty():
     result = codegen.auto([])
     assert isinstance(result, codegen.List)
-    assert_code_equal(as_source_code(result), "[]")
+    assert_code_equal(result, "[]")
 
 
 def test_auto_dict():
     result = codegen.auto({"a": 1})
     assert isinstance(result, codegen.Dict)
-    assert_code_equal(as_source_code(result), "{'a': 1}")
+    assert_code_equal(result, "{'a': 1}")
 
 
 def test_auto_dict_empty():
     result = codegen.auto({})
     assert isinstance(result, codegen.Dict)
-    assert_code_equal(as_source_code(result), "{}")
+    assert_code_equal(result, "{}")
 
 
 def test_auto_nested():
@@ -1033,13 +1033,13 @@ def test_auto_unsupported_type():
 def test_bool_true():
     b = codegen.Bool(True)
     assert b.type is bool
-    assert_code_equal(as_source_code(b), "True")
+    assert_code_equal(b, "True")
 
 
 def test_bool_false():
     b = codegen.Bool(False)
     assert b.type is bool
-    assert_code_equal(as_source_code(b), "False")
+    assert_code_equal(b, "False")
 
 
 def test_bool_repr():
@@ -1050,13 +1050,13 @@ def test_bool_repr():
 def test_auto_bool_true():
     result = codegen.auto(True)
     assert isinstance(result, codegen.Bool)
-    assert_code_equal(as_source_code(result), "True")
+    assert_code_equal(result, "True")
 
 
 def test_auto_bool_false():
     result = codegen.auto(False)
     assert isinstance(result, codegen.Bool)
-    assert_code_equal(as_source_code(result), "False")
+    assert_code_equal(result, "False")
 
 
 # --- Bytes tests ---
@@ -1065,12 +1065,12 @@ def test_auto_bool_false():
 def test_bytes():
     b = codegen.Bytes(b"hello")
     assert b.type is bytes
-    assert_code_equal(as_source_code(b), "b'hello'")
+    assert_code_equal(b, "b'hello'")
 
 
 def test_bytes_empty():
     b = codegen.Bytes(b"")
-    assert_code_equal(as_source_code(b), "b''")
+    assert_code_equal(b, "b''")
 
 
 def test_bytes_repr():
@@ -1080,7 +1080,7 @@ def test_bytes_repr():
 def test_auto_bytes():
     result = codegen.auto(b"hello")
     assert isinstance(result, codegen.Bytes)
-    assert_code_equal(as_source_code(result), "b'hello'")
+    assert_code_equal(result, "b'hello'")
 
 
 # --- Tuple tests ---
@@ -1089,29 +1089,29 @@ def test_auto_bytes():
 def test_tuple():
     t = codegen.Tuple([codegen.Number(1), codegen.String("two")])
     assert t.type is tuple
-    assert_code_equal(as_source_code(t), "(1, 'two')")
+    assert_code_equal(t, "(1, 'two')")
 
 
 def test_tuple_empty():
     t = codegen.Tuple([])
-    assert_code_equal(as_source_code(t), "()")
+    assert_code_equal(t, "()")
 
 
 def test_tuple_single():
     t = codegen.Tuple([codegen.Number(1)])
-    assert_code_equal(as_source_code(t), "(1,)")
+    assert_code_equal(t, "(1,)")
 
 
 def test_auto_tuple():
     result = codegen.auto((1, "two", None))
     assert isinstance(result, codegen.Tuple)
-    assert_code_equal(as_source_code(result), "(1, 'two', None)")
+    assert_code_equal(result, "(1, 'two', None)")
 
 
 def test_auto_tuple_empty():
     result = codegen.auto(())
     assert isinstance(result, codegen.Tuple)
-    assert_code_equal(as_source_code(result), "()")
+    assert_code_equal(result, "()")
 
 
 # --- Set tests ---
@@ -1120,18 +1120,18 @@ def test_auto_tuple_empty():
 def test_set():
     s = codegen.Set([codegen.Number(1), codegen.Number(2)])
     assert s.type is set
-    assert_code_equal(as_source_code(s), "{1, 2}")
+    assert_code_equal(s, "{1, 2}")
 
 
 def test_set_single():
     s = codegen.Set([codegen.String("a")])
-    assert_code_equal(as_source_code(s), "{'a'}")
+    assert_code_equal(s, "{'a'}")
 
 
 def test_set_empty():
     """Empty set literal is not valid Python syntax ({} is a dict), so we emit set([])."""
     s = codegen.Set([])
-    assert_code_equal(as_source_code(s), "set([])")
+    assert_code_equal(s, "set([])")
     assert s.type is set
 
 
@@ -1181,109 +1181,109 @@ def test_boolean_ops_have_bool_type():
 def test_expression_add_method():
     result = codegen.Number(1).add(codegen.Number(2))
     assert isinstance(result, codegen.Add)
-    assert_code_equal(as_source_code(result), "1 + 2")
+    assert_code_equal(result, "1 + 2")
 
 
 def test_expression_sub_method():
     result = codegen.Number(5).sub(codegen.Number(3))
     assert isinstance(result, codegen.Sub)
-    assert_code_equal(as_source_code(result), "5 - 3")
+    assert_code_equal(result, "5 - 3")
 
 
 def test_expression_mul_method():
     result = codegen.Number(4).mul(codegen.Number(3))
     assert isinstance(result, codegen.Mul)
-    assert_code_equal(as_source_code(result), "4 * 3")
+    assert_code_equal(result, "4 * 3")
 
 
 def test_expression_div_method():
     result = codegen.Number(10).div(codegen.Number(3))
     assert isinstance(result, codegen.Div)
-    assert_code_equal(as_source_code(result), "10 / 3")
+    assert_code_equal(result, "10 / 3")
 
 
 def test_expression_floordiv_method():
     result = codegen.Number(10).floordiv(codegen.Number(3))
     assert isinstance(result, codegen.FloorDiv)
-    assert_code_equal(as_source_code(result), "10 // 3")
+    assert_code_equal(result, "10 // 3")
 
 
 def test_expression_mod_method():
     result = codegen.Number(10).mod(codegen.Number(3))
     assert isinstance(result, codegen.Mod)
-    assert_code_equal(as_source_code(result), "10 % 3")
+    assert_code_equal(result, "10 % 3")
 
 
 def test_expression_pow_method():
     result = codegen.Number(2).pow(codegen.Number(8))
     assert isinstance(result, codegen.Pow)
-    assert_code_equal(as_source_code(result), "2 ** 8")
+    assert_code_equal(result, "2 ** 8")
 
 
 def test_expression_eq_method():
     result = codegen.String("x").eq(codegen.String("y"))
     assert isinstance(result, codegen.Equals)
-    assert_code_equal(as_source_code(result), "'x' == 'y'")
+    assert_code_equal(result, "'x' == 'y'")
 
 
 def test_expression_ne_method():
     result = codegen.String("x").ne(codegen.String("y"))
     assert isinstance(result, codegen.NotEquals)
-    assert_code_equal(as_source_code(result), "'x' != 'y'")
+    assert_code_equal(result, "'x' != 'y'")
 
 
 def test_expression_lt_method():
     result = codegen.Number(1).lt(codegen.Number(2))
     assert isinstance(result, codegen.Lt)
-    assert_code_equal(as_source_code(result), "1 < 2")
+    assert_code_equal(result, "1 < 2")
 
 
 def test_expression_gt_method():
     result = codegen.Number(2).gt(codegen.Number(1))
     assert isinstance(result, codegen.Gt)
-    assert_code_equal(as_source_code(result), "2 > 1")
+    assert_code_equal(result, "2 > 1")
 
 
 def test_expression_le_method():
     result = codegen.Number(1).le(codegen.Number(2))
     assert isinstance(result, codegen.LtE)
-    assert_code_equal(as_source_code(result), "1 <= 2")
+    assert_code_equal(result, "1 <= 2")
 
 
 def test_expression_ge_method():
     result = codegen.Number(2).ge(codegen.Number(1))
     assert isinstance(result, codegen.GtE)
-    assert_code_equal(as_source_code(result), "2 >= 1")
+    assert_code_equal(result, "2 >= 1")
 
 
 def test_expression_and_method():
     result = codegen.Bool(True).and_(codegen.Bool(False))
     assert isinstance(result, codegen.And)
-    assert_code_equal(as_source_code(result), "True and False")
+    assert_code_equal(result, "True and False")
 
 
 def test_expression_or_method():
     result = codegen.Bool(True).or_(codegen.Bool(False))
     assert isinstance(result, codegen.Or)
-    assert_code_equal(as_source_code(result), "True or False")
+    assert_code_equal(result, "True or False")
 
 
 def test_expression_in_method():
     result = codegen.String("a").in_(codegen.List([codegen.String("a"), codegen.String("b")]))
     assert isinstance(result, codegen.In)
-    assert_code_equal(as_source_code(result), "'a' in ['a', 'b']")
+    assert_code_equal(result, "'a' in ['a', 'b']")
 
 
 def test_expression_not_in_method():
     result = codegen.String("c").not_in(codegen.List([codegen.String("a"), codegen.String("b")]))
     assert isinstance(result, codegen.NotIn)
-    assert_code_equal(as_source_code(result), "'c' not in ['a', 'b']")
+    assert_code_equal(result, "'c' not in ['a', 'b']")
 
 
 def test_expression_matmul_method():
     result = codegen.Scope().create_name("a").matmul(codegen.auto(1))
     assert isinstance(result, codegen.MatMul)
-    assert_code_equal(as_source_code(result), "a @ 1")
+    assert_code_equal(result, "a @ 1")
 
 
 # --- Chaining tests ---
@@ -1292,7 +1292,7 @@ def test_expression_matmul_method():
 def test_chained_arithmetic():
     """Test that arithmetic methods chain correctly: (1 + 2) * 3"""
     result = codegen.Number(1).add(codegen.Number(2)).mul(codegen.Number(3))
-    assert_code_equal(as_source_code(result), "(1 + 2) * 3")
+    assert_code_equal(result, "(1 + 2) * 3")
 
 
 def test_chained_comparison_with_arithmetic():
@@ -1301,7 +1301,7 @@ def test_chained_comparison_with_arithmetic():
     scope.reserve_name("x")
     x = scope.name("x")
     result = x.add(codegen.Number(1)).gt(codegen.Number(0))
-    assert_code_equal(as_source_code(result), "x + 1 > 0")
+    assert_code_equal(result, "x + 1 > 0")
 
 
 def test_chained_boolean():
@@ -1312,7 +1312,7 @@ def test_chained_boolean():
     a = scope.name("a")
     b = scope.name("b")
     result = a.gt(codegen.Number(0)).and_(b.lt(codegen.Number(10)))
-    assert_code_equal(as_source_code(result), "a > 0 and b < 10")
+    assert_code_equal(result, "a > 0 and b < 10")
 
 
 def test_chained_with_method_call():
@@ -1323,7 +1323,7 @@ def test_chained_with_method_call():
     # len(items) > 0  -- modeled as items.attr('__len__').call([],{}) > 0
     # But more practically: items.method_call("count", ...).gt(Number(0))
     result = items.method_call("count", [codegen.String("x")], {}).gt(codegen.Number(0))
-    assert_code_equal(as_source_code(result), "items.count('x') > 0")
+    assert_code_equal(result, "items.count('x') > 0")
 
 
 # ---- Misc module methods
