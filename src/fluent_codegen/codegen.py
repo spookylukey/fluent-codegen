@@ -392,13 +392,18 @@ class Block(CodeGenAstList):
         assert func.func_name == func_name
         self.add_statement(func)
 
-    def create_function(self, name: str, args: Sequence[str | FunctionArg]) -> tuple[Function, Name]:
+    def create_function(
+        self,
+        name: str,
+        args: Sequence[str | FunctionArg],
+        decorators: Sequence[Expression] | None = None,
+    ) -> tuple[Function, Name]:
         """
         Reserve a name for a function, create the Function and add the function statement
         to the block.
         """
         name_obj = self.scope.create_name(name)
-        func = Function(name_obj.name, args=args, parent_scope=self.scope)
+        func = Function(name_obj.name, args=args, parent_scope=self.scope, decorators=decorators)
         self.add_statement(func)
         return func, name_obj
 
@@ -507,10 +512,12 @@ class Function(Scope, Statement):
         name: str,
         args: Sequence[str | FunctionArg] | None = None,
         parent_scope: Scope | None = None,
+        decorators: Sequence[Expression] | None = None,
     ):
         super().__init__(parent_scope=parent_scope)
         self.body = Block(self)
         self.func_name = name
+        self.decorators: list[Expression] = list(decorators) if decorators else []
         if args is None:
             normalized: list[FunctionArg] = []
         else:
@@ -558,7 +565,7 @@ class Function(Scope, Statement):
                 **DEFAULT_AST_ARGS_ARGUMENTS,
             ),
             body=self.body.as_ast_list(allow_empty=False),
-            decorator_list=[],
+            decorator_list=[d.as_ast() for d in self.decorators],
             type_params=[],
             returns=None,
             **DEFAULT_AST_ARGS,

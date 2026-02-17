@@ -1545,6 +1545,90 @@ def test_function_arg_default_kind():
     assert arg.default is None
 
 
+def test_function_with_decorator():
+    module = codegen.Module()
+    func = codegen.Function(
+        "myfunc",
+        args=["x"],
+        parent_scope=module.scope,
+        decorators=[module.scope.name("staticmethod")],
+    )
+    assert_code_equal(
+        func,
+        """
+        @staticmethod
+        def myfunc(x):
+            pass
+        """,
+    )
+
+
+def test_function_with_multiple_decorators():
+    module = codegen.Module()
+    module.scope.reserve_name("my_decorator")
+    func = codegen.Function(
+        "myfunc",
+        args=[],
+        parent_scope=module.scope,
+        decorators=[
+            module.scope.name("my_decorator"),
+            module.scope.name("staticmethod"),
+        ],
+    )
+    assert_code_equal(
+        func,
+        """
+        @my_decorator
+        @staticmethod
+        def myfunc():
+            pass
+        """,
+    )
+
+
+def test_function_with_decorator_call():
+    module = codegen.Module()
+    module.scope.reserve_name("my_decorator")
+    decorator = codegen.function_call("my_decorator", [codegen.String("arg")], {}, module.scope)
+    func = codegen.Function(
+        "myfunc",
+        args=[],
+        parent_scope=module.scope,
+        decorators=[decorator],
+    )
+    assert_code_equal(
+        func,
+        """
+        @my_decorator('arg')
+        def myfunc():
+            pass
+        """,
+    )
+
+
+def test_create_function_with_decorators():
+    module = codegen.Module()
+    func, func_name = module.create_function(
+        "my_func",
+        args=["x"],
+        decorators=[module.scope.name("staticmethod")],
+    )
+    assert_code_equal(
+        module,
+        """
+        @staticmethod
+        def my_func(x):
+            pass
+        """,
+    )
+
+
+def test_function_no_decorators_default():
+    module = codegen.Module()
+    func = codegen.Function("myfunc", args=[], parent_scope=module.scope)
+    assert func.decorators == []
+
+
 def test_create_function_with_function_args():
     module = codegen.Module()
     func, func_name = module.create_function(
