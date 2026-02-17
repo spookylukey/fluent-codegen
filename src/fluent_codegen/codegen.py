@@ -364,8 +364,21 @@ class Block(CodeGenAstList):
         self.add_statement(_Assignment(name, value))
 
     def add_function(self, func_name: str, func: Function) -> None:
+        """
+        Add a function statement to the block.
+        """
         assert func.func_name == func_name
         self.add_statement(func)
+
+    def create_function(self, name: str, args: Sequence[str]) -> tuple[Function, Name]:
+        """
+        Reserve a name for a function, create the Function and add the function statement
+        to the block.
+        """
+        name_obj = self.scope.create_name(name)
+        func = Function(name_obj.name, args=args, parent_scope=self.scope)
+        self.add_statement(func)
+        return func, name_obj
 
     def add_return(self, value: Expression) -> None:
         self.add_statement(Return(value))
@@ -549,6 +562,8 @@ class Expression(CodeGenAst):
 
     @abstractmethod
     def as_ast(self) -> py_ast.expr: ...
+
+    # Some utilities for easy chaining:
 
     def attr(self, attribute: str, /) -> Attr:
         return Attr(self, attribute)
