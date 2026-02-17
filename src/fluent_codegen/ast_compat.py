@@ -32,6 +32,7 @@ LtE = ast.LtE
 Mod = ast.Mod
 Module = ast.Module
 Mult = ast.Mult
+MatMult = ast.MatMult
 NotEq = ast.NotEq
 NotIn = ast.NotIn
 Or = ast.Or

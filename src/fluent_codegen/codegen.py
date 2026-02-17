@@ -604,6 +604,9 @@ class Expression(CodeGenAst):
     def pow(self, other: Expression, /) -> Pow:
         return Pow(self, other)
 
+    def matmul(self, other: Expression, /) -> MatMul:
+        return MatMul(self, other)
+
     # Comparison operators
 
     def eq(self, other: Expression, /) -> Equals:
@@ -1042,6 +1045,10 @@ class Mod(ArithOp):
 
 class Pow(ArithOp):
     op = py_ast.Pow
+
+
+class MatMul(ArithOp):
+    op = py_ast.MatMult
 
 
 class CompareOp(BinaryOperator, ABC):

@@ -1275,6 +1275,12 @@ def test_expression_not_in_method():
     assert_code_equal(as_source_code(result), "'c' not in ['a', 'b']")
 
 
+def test_expression_matmul_method():
+    result = codegen.Scope().create_name("a").matmul(codegen.auto(1))
+    assert isinstance(result, codegen.MatMul)
+    assert_code_equal(as_source_code(result), "a @ 1")
+
+
 # --- Chaining tests ---
 
 
