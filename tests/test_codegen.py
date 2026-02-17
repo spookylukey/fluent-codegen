@@ -1141,89 +1141,10 @@ def test_auto_frozenset():
     assert isinstance(result, codegen.Set)
 
 
-# --- Arithmetic operator tests ---
+# --- Arithmetic operator tests, Comparison operator tests, Boolean operator tests
 
-
-def test_add_class():
-    result = codegen.Add(codegen.Number(1), codegen.Number(2))
-    assert_code_equal(as_source_code(result), "1 + 2")
-
-
-def test_sub_class():
-    result = codegen.Sub(codegen.Number(5), codegen.Number(3))
-    assert_code_equal(as_source_code(result), "5 - 3")
-
-
-def test_mul_class():
-    result = codegen.Mul(codegen.Number(4), codegen.Number(3))
-    assert_code_equal(as_source_code(result), "4 * 3")
-
-
-def test_div_class():
-    result = codegen.Div(codegen.Number(10), codegen.Number(3))
-    assert_code_equal(as_source_code(result), "10 / 3")
-
-
-def test_floor_div_class():
-    result = codegen.FloorDiv(codegen.Number(10), codegen.Number(3))
-    assert_code_equal(as_source_code(result), "10 // 3")
-
-
-def test_mod_class():
-    result = codegen.Mod(codegen.Number(10), codegen.Number(3))
-    assert_code_equal(as_source_code(result), "10 % 3")
-
-
-def test_pow_class():
-    result = codegen.Pow(codegen.Number(2), codegen.Number(8))
-    assert_code_equal(as_source_code(result), "2 ** 8")
-
-
-# --- Comparison operator tests ---
-
-
-def test_not_equals_class():
-    result = codegen.NotEquals(codegen.String("a"), codegen.String("b"))
-    assert_code_equal(as_source_code(result), "'a' != 'b'")
-
-
-def test_lt_class():
-    result = codegen.Lt(codegen.Number(1), codegen.Number(2))
-    assert_code_equal(as_source_code(result), "1 < 2")
-
-
-def test_gt_class():
-    result = codegen.Gt(codegen.Number(2), codegen.Number(1))
-    assert_code_equal(as_source_code(result), "2 > 1")
-
-
-def test_lte_class():
-    result = codegen.LtE(codegen.Number(1), codegen.Number(2))
-    assert_code_equal(as_source_code(result), "1 <= 2")
-
-
-def test_gte_class():
-    result = codegen.GtE(codegen.Number(2), codegen.Number(1))
-    assert_code_equal(as_source_code(result), "2 >= 1")
-
-
-def test_in_class():
-    result = codegen.In(codegen.String("a"), codegen.List([codegen.String("a"), codegen.String("b")]))
-    assert_code_equal(as_source_code(result), "'a' in ['a', 'b']")
-
-
-def test_not_in_class():
-    result = codegen.NotIn(codegen.String("c"), codegen.List([codegen.String("a"), codegen.String("b")]))
-    assert_code_equal(as_source_code(result), "'c' not in ['a', 'b']")
-
-
-# --- Boolean operator tests ---
-
-
-def test_and_class():
-    result = codegen.And(codegen.Bool(True), codegen.Bool(False))
-    assert_code_equal(as_source_code(result), "True and False")
-
+# The classes are tested indirectly by the utilty methods on `Expression`,
+# we don't really need separate tests.
 
 # --- Comparison operator type ---
 
