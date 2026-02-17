@@ -8,7 +8,7 @@ import keyword
 import re
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
-from typing import ClassVar, Protocol, assert_never, runtime_checkable
+from typing import ClassVar, Protocol, assert_never, overload, runtime_checkable
 
 from . import ast_compat as py_ast
 from .ast_compat import DEFAULT_AST_ARGS, DEFAULT_AST_ARGS_ADD, DEFAULT_AST_ARGS_ARGUMENTS, DEFAULT_AST_ARGS_MODULE
@@ -1035,6 +1035,30 @@ type PythonObj = (
     | frozenset[PythonObj]
     | dict[PythonObj, PythonObj]
 )
+
+
+@overload
+def auto(value: bool) -> Bool: ...  # type: ignore[overload-overlap]  # bool before int/float is intentional
+@overload
+def auto(value: str) -> String: ...
+@overload
+def auto(value: bytes) -> Bytes: ...
+@overload
+def auto(value: int) -> Number: ...
+@overload
+def auto(value: float) -> Number: ...
+@overload
+def auto(value: None) -> NoneExpr: ...
+@overload
+def auto(value: list[PythonObj]) -> List: ...
+@overload
+def auto(value: tuple[PythonObj, ...]) -> Tuple: ...
+@overload
+def auto(value: set[PythonObj]) -> Set: ...
+@overload
+def auto(value: frozenset[PythonObj]) -> Set: ...
+@overload
+def auto(value: dict[PythonObj, PythonObj]) -> Dict: ...
 
 
 def auto(value: PythonObj) -> Expression:
