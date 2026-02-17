@@ -909,7 +909,7 @@ class DictLookup(Expression):
         )
 
 
-ObjectCreation = function_call
+create_class_instance = function_call
 
 
 class NoneExpr(Expression):
