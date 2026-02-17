@@ -12,7 +12,7 @@ from fluent_codegen import codegen
 from fluent_codegen.utils import allowable_name
 
 
-def normalize_python(txt):
+def normalize_python(txt: str):
     return textwrap.dedent(txt.rstrip()).strip()
 
 
@@ -26,19 +26,24 @@ def decompile(ast_node, indentation=4, line_length=100, starting_indentation=0):
     return decompiler.run(ast_node)
 
 
-def decompile_ast_list(ast_list):
+def decompile_ast_list(ast_list: list[ast.stmt]):
     return decompile(ast.Module(body=ast_list, type_ignores=[], **codegen.DEFAULT_AST_ARGS_MODULE))
 
 
-def as_source_code(codegen_ast):
-    if not hasattr(codegen_ast, "as_ast"):
+def as_source_code(codegen_ast: codegen.CodeGenAstType) -> str:
+    if isinstance(codegen_ast, codegen.CodeGenAstList):
         ast_list = codegen_ast.as_ast_list()
+        return decompile_ast_list(ast_list)
     else:
-        ast_list = [codegen_ast.as_ast()]
-    return decompile_ast_list(ast_list)
+        ast = codegen_ast.as_ast()
+        return decompile(ast)
 
 
-def assert_code_equal(code1, code2):
+def assert_code_equal(code1: str | codegen.CodeGenAstType, code2: str | codegen.CodeGenAstType):
+    if not isinstance(code1, str):
+        code1 = as_source_code(code1)
+    if not isinstance(code2, str):
+        code2 = as_source_code(code2)
     assert normalize_python(code1) == normalize_python(code2)
 
 
@@ -1319,3 +1324,13 @@ def test_chained_with_method_call():
     # But more practically: items.method_call("count", ...).gt(Number(0))
     result = items.method_call("count", [codegen.String("x")], {}).gt(codegen.Number(0))
     assert_code_equal(as_source_code(result), "items.count('x') > 0")
+
+
+# ---- Misc module methods
+
+
+def test_module_as_ast():
+    mod = codegen.Module()
+    mod.scope.reserve_name("foo")
+    mod.add_assignment("foo", codegen.Number(1))
+    assert isinstance(mod.as_ast(), ast.Module)
