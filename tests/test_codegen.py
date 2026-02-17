@@ -304,20 +304,20 @@ def test_multiple_add_assignment_in_inherited_scope():
 def test_function_call_unknown():
     scope = codegen.Scope()
     with pytest.raises(AssertionError):
-        codegen.FunctionCall("a_function", [], {}, scope)
+        codegen.function_call("a_function", [], {}, scope)
 
 
 def test_function_call_known():
     module = codegen.Module()
     module.scope.reserve_name("a_function")
-    func_call = codegen.FunctionCall("a_function", [], {}, module.scope)
+    func_call = codegen.function_call("a_function", [], {}, module.scope)
     assert_code_equal(as_source_code(func_call), "a_function()")
 
 
 def test_function_call_args_and_kwargs():
     module = codegen.Module()
     module.scope.reserve_name("a_function")
-    func_call = codegen.FunctionCall(
+    func_call = codegen.function_call(
         "a_function",
         [codegen.Number(123)],
         {"x": codegen.String("hello")},
@@ -329,10 +329,8 @@ def test_function_call_args_and_kwargs():
 def test_function_call_bad_name():
     module = codegen.Module()
     module.scope.reserve_name("a_function")
-    func_call = codegen.FunctionCall("a_function", [], {}, module.scope)
-    func_call.function_name = "bad function name"
     with pytest.raises(AssertionError):
-        as_source_code(func_call)
+        codegen.function_call("bad function name", [], {}, module.scope)
 
 
 def test_function_call_bad_kwarg_names():
@@ -348,7 +346,7 @@ def test_function_call_bad_kwarg_names():
         ("valid_arg", True),
     ]
     for arg_name, allowed in allowed_args:
-        func_call = codegen.FunctionCall("a_function", [], {arg_name: codegen.String("a")}, module.scope)
+        func_call = codegen.function_call("a_function", [], {arg_name: codegen.String("a")}, module.scope)
         if allowed:
             output = as_source_code(func_call)
             assert output != ""
@@ -362,7 +360,7 @@ def test_function_call_bad_kwarg_names():
 def test_function_call_kwarg_star_syntax():
     module = codegen.Module()
     module.scope.reserve_name("a_function")
-    func_call = codegen.FunctionCall("a_function", [], {"hyphen-ated": codegen.Number(1)}, module.scope)
+    func_call = codegen.function_call("a_function", [], {"hyphen-ated": codegen.Number(1)}, module.scope)
     assert_code_equal(
         as_source_code(func_call),
         """
@@ -374,10 +372,8 @@ def test_function_call_kwarg_star_syntax():
 def test_function_call_sensitive():
     module = codegen.Module()
     module.scope.reserve_name("a_function")
-    func_call = codegen.FunctionCall("a_function", [], {}, module.scope)
-    func_call.function_name = "exec"
     with pytest.raises(AssertionError):
-        as_source_code(func_call)
+        codegen.function_call("exec", [], {}, module.scope)
 
 
 def test_method_call_bad_name():
@@ -603,6 +599,13 @@ def test_or():
     assert_code_equal(as_source_code(or_), "'x' or 'y'")
 
 
+def test_attr():
+    scope = codegen.Scope()
+    name = scope.create_name("foo")
+    attr = name.attr("bar")
+    assert_code_equal(as_source_code(attr), "foo.bar")
+
+
 # --- cleanup_name tests ---
 
 
@@ -688,7 +691,7 @@ def test_block_add_statement_bare_expression():
     """Test that bare expressions (e.g. method calls) get wrapped in Expr."""
     module = codegen.Module()
     module.scope.reserve_name("a_function")
-    func_call = codegen.FunctionCall("a_function", [], {}, module.scope)
+    func_call = codegen.function_call("a_function", [], {}, module.scope)
     module.add_statement(func_call)
     assert_code_equal(as_source_code(module), "a_function()")
 
@@ -760,8 +763,8 @@ def test_method_call_repr():
 def test_function_call_repr():
     module = codegen.Module()
     module.scope.reserve_name("f")
-    fc = codegen.FunctionCall("f", [], {}, module.scope)
-    assert "FunctionCall" in repr(fc)
+    fc = codegen.function_call("f", [], {}, module.scope)
+    assert "Call" in repr(fc)
 
 
 def test_name_repr():
@@ -807,7 +810,7 @@ def test_if_unfinalized_as_ast_raises():
 def test_function_call_return_type_property():
     module = codegen.Module()
     module.scope.reserve_name("a_function", properties={codegen.PROPERTY_RETURN_TYPE: str})
-    fc = codegen.FunctionCall("a_function", [], {}, module.scope)
+    fc = codegen.function_call("a_function", [], {}, module.scope)
     assert fc.type is str
 
 

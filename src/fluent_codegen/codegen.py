@@ -550,6 +550,12 @@ class Expression(CodeGenAst):
     @abstractmethod
     def as_ast(self) -> py_ast.expr: ...
 
+    def attr(self, attribute: str, /) -> Attr:
+        return Attr(self, attribute)
+
+    def call(self, args: Sequence[Expression], kwargs: dict[str, Expression], expr_type: type = UNKNOWN_TYPE) -> Call:
+        return Call(self, args, kwargs, expr_type=expr_type)
+
 
 class String(Expression):
     child_elements = []
@@ -769,35 +775,55 @@ class Name(Expression):
         return f"Name({repr(self.name)})"
 
 
-class FunctionCall(Expression):
-    child_elements = ["args", "kwargs"]
+class Attr(Expression):
+    child_elements = ["value"]
+
+    def __init__(self, value: Expression, attribute: str) -> None:
+        self.value = value
+        self.attribute = attribute
+
+    def as_ast(self) -> py_ast.expr:
+        return py_ast.Attribute(value=self.value.as_ast(), attr=self.attribute, **DEFAULT_AST_ARGS)
+
+
+def function_call(
+    function_name: str,
+    args: Sequence[Expression],
+    kwargs: dict[str, Expression],
+    scope: Scope,
+    expr_type: type = UNKNOWN_TYPE,
+) -> Expression:
+    if not scope.is_name_in_use(function_name):
+        raise AssertionError(f"Cannot call unknown function '{function_name}'")
+    if expr_type is UNKNOWN_TYPE:
+        # Try to find out automatically
+        looked_up_return_type = scope.get_name_properties(function_name).get(PROPERTY_RETURN_TYPE, expr_type)
+        assert isinstance(looked_up_return_type, type)
+        expr_type = looked_up_return_type
+    if not allowable_name(function_name, allow_builtin=True):
+        raise AssertionError(f"Expected {function_name} to be a valid Python identifier or builtin")
+    if function_name in SENSITIVE_FUNCTIONS:
+        raise AssertionError(f"Disallowing call to '{function_name}'")
+
+    return Name(name=function_name, scope=scope).call(args, kwargs, expr_type=expr_type)
+
+
+class Call(Expression):
+    child_elements = ["value", "args", "kwargs"]
 
     def __init__(
         self,
-        function_name: str,
+        value: Expression,
         args: Sequence[Expression],
         kwargs: dict[str, Expression],
-        scope: Scope,
         expr_type: type = UNKNOWN_TYPE,
     ):
-        if not scope.is_name_in_use(function_name):
-            raise AssertionError(f"Cannot call unknown function '{function_name}'")
-        self.function_name = function_name
+        self.value = value
         self.args = list(args)
         self.kwargs = kwargs
-        if expr_type is UNKNOWN_TYPE:
-            # Try to find out automatically
-            looked_up_return_type = scope.get_name_properties(function_name).get(PROPERTY_RETURN_TYPE, expr_type)
-            assert isinstance(looked_up_return_type, type)
-            expr_type = looked_up_return_type
         self.type = expr_type
 
     def as_ast(self) -> py_ast.expr:
-        if not allowable_name(self.function_name, allow_builtin=True):
-            raise AssertionError(f"Expected {self.function_name} to be a valid Python identifier or builtin")
-
-        if self.function_name in SENSITIVE_FUNCTIONS:
-            raise AssertionError(f"Disallowing call to '{self.function_name}'")
 
         for name in self.kwargs.keys():
             if not allowable_keyword_arg_name(name):
@@ -820,7 +846,7 @@ class FunctionCall(Expression):
             kwarg_pairs = list(sorted(self.kwargs.items()))
             kwarg_names, kwarg_values = [k for k, _ in kwarg_pairs], [v for _, v in kwarg_pairs]
             return py_ast.Call(
-                func=py_ast.Name(id=self.function_name, ctx=py_ast.Load(), **DEFAULT_AST_ARGS),
+                func=self.value.as_ast(),
                 args=[arg.as_ast() for arg in self.args],
                 keywords=[
                     py_ast.keyword(
@@ -838,7 +864,7 @@ class FunctionCall(Expression):
 
         # Normal `my_function(foo=bar)` syntax
         return py_ast.Call(
-            func=py_ast.Name(id=self.function_name, ctx=py_ast.Load(), **DEFAULT_AST_ARGS),
+            func=self.value.as_ast(),
             args=[arg.as_ast() for arg in self.args],
             keywords=[
                 py_ast.keyword(arg=name, value=value.as_ast(), **DEFAULT_AST_ARGS)
@@ -848,7 +874,7 @@ class FunctionCall(Expression):
         )
 
     def __repr__(self):
-        return f"FunctionCall({self.function_name}, {self.args}, {self.kwargs})"
+        return f"Call({self.value!r}, {self.args}, {self.kwargs})"
 
 
 class MethodCall(Expression):
@@ -897,7 +923,7 @@ class DictLookup(Expression):
         )
 
 
-ObjectCreation = FunctionCall
+ObjectCreation = function_call
 
 
 class NoneExpr(Expression):
