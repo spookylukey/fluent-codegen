@@ -14,14 +14,14 @@ from . import ast_compat as py_ast
 from .ast_compat import DEFAULT_AST_ARGS, DEFAULT_AST_ARGS_ADD, DEFAULT_AST_ARGS_ARGUMENTS, DEFAULT_AST_ARGS_MODULE
 from .utils import allowable_keyword_arg_name, allowable_name
 
-# This module provides simple utilities for building up Python source code. It
-# implements only what is really needed by compiler.py, with a number of aims
+# This module provides simple utilities for building up Python source code.
+# The design originally came from fluent-compiler, so had the following aims
 # and constraints:
 #
 # 1. Performance.
 #
 #    The resulting Python code should do as little as possible, especially for
-#    simple cases (which are by far the most common for .ftl files)
+#    simple cases.
 #
 # 2. Correctness (obviously)
 #
@@ -31,7 +31,7 @@ from .utils import allowable_keyword_arg_name, allowable_name
 #    not defined.
 #
 #    Correctness also has a security implication, since the result of this code
-#    is 'exec'ed. To that end:
+#    might be 'exec'ed. To that end:
 #     * We build up AST, rather than strings. This eliminates many
 #       potential bugs caused by wrong escaping/interpolation.
 #     * the `as_ast()` methods are paranoid about input, and do many asserts.
@@ -49,6 +49,9 @@ from .utils import allowable_keyword_arg_name, allowable_name
 #    decisions that aim to ensure things like function argument names are
 #    consistent and so can be predicted easily.
 
+# Outside of fluent-compiler, this code will likely be useful for situations
+# which have similar aims.
+
 
 PROPERTY_TYPE = "PROPERTY_TYPE"
 PROPERTY_RETURN_TYPE = "PROPERTY_RETURN_TYPE"
@@ -62,12 +65,11 @@ assert isinstance(UNKNOWN_TYPE, type)
 SENSITIVE_FUNCTIONS = {
     # builtin functions that we should never be calling from our code
     # generation. This is a defense-in-depth mechansim to stop our code
-    # generation becoming a code execution vulnerability. We also have
-    # higher level code that ensures we are not generating calls
-    # to arbitrary Python functions.
-    # This is not a comprehensive list of functions we are not using, but
-    # functions we definitely don't need and are most likely to be used to
-    # execute remote code or to get around safety mechanisms.
+    # generation becoming a code execution vulnerability. There should also be
+    # higher level code that ensures we are not generating calls to arbitrary
+    # Python functions. This is not a comprehensive list of functions we are not
+    # using, but functions we definitely don't need and are most likely to be
+    # used to execute remote code or to get around safety mechanisms.
     "__import__",
     "__build_class__",
     "apply",
