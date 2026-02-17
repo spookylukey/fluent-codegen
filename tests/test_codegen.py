@@ -1337,3 +1337,8 @@ def test_module_as_ast():
     mod.scope.reserve_name("foo")
     mod.add_assignment("foo", codegen.Number(1))
     assert isinstance(mod.as_ast(), ast.Module)
+
+
+def test_module_reserves_builtins_by_default():
+    mod = codegen.Module()
+    assert mod.scope.is_name_reserved("str")

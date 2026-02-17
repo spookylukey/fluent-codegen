@@ -4,6 +4,7 @@ Utilities for doing Python code generation
 
 from __future__ import annotations
 
+import builtins
 import keyword
 import re
 from abc import ABC, abstractmethod
@@ -291,9 +292,10 @@ class SupportsNameAssignment(Protocol):
 class _Assignment(Statement):
     child_elements = ["value"]
 
-    def __init__(self, name: str, value: Expression):
+    def __init__(self, name: str, value: Expression, /, *, type_hint: Expression | None = None):
         self.name = name
         self.value = value
+        self.type_hint = type_hint
 
     def as_ast(self):
         if not allowable_name(self.name):
@@ -351,7 +353,9 @@ class Block(CodeGenAstList):
                     )
 
     # Safe alternatives to Block.statements being manipulated directly:
-    def add_assignment(self, name: str | Name, value: Expression, allow_multiple: bool = False):
+    def add_assignment(
+        self, name: str | Name, value: Expression, *, type_hint: Expression | None = None, allow_multiple: bool = False
+    ):
         """
         Adds an assigment of the form:
 
@@ -368,7 +372,7 @@ class Block(CodeGenAstList):
         else:
             self.scope.register_assignment(name)
 
-        self.add_statement(_Assignment(name, value))
+        self.add_statement(_Assignment(name, value, type_hint=type_hint))
 
     def add_function(self, func_name: str, func: Function) -> None:
         """
@@ -400,8 +404,11 @@ class Block(CodeGenAstList):
 
 
 class Module(Block, CodeGenAst):
-    def __init__(self):
+    def __init__(self, reserve_builtins: bool = True):
         scope = Scope(parent_scope=None)
+        if reserve_builtins:
+            for name in dir(builtins):
+                scope.reserve_name(name)
         Block.__init__(self, scope)
 
     def as_ast(self) -> py_ast.Module:
