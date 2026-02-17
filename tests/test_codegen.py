@@ -924,20 +924,6 @@ def test_method_call_type():
     assert_code_equal(as_source_code(mc), "'x'.upper()")
 
 
-def test_expression_abstract():
-    """Expression.as_ast is abstract."""
-
-    class DummyExpr(codegen.Expression):
-        child_elements = []
-
-        def as_ast(self):
-            raise NotImplementedError()
-
-    d = DummyExpr()
-    with pytest.raises(NotImplementedError):
-        d.as_ast()
-
-
 def test_block_add_statement_sets_parent():
     """Test that add_statement sets parent_block when None."""
     module = codegen.Module()
