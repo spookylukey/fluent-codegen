@@ -222,8 +222,7 @@ def test_function_args_name_reserved_check():
 
 def test_name():
     scope = codegen.Scope()
-    name = scope.reserve_name("name")
-    ref = codegen.Name(name, scope)
+    ref = scope.create_name("name")
     assert as_source_code(ref) == "name"
 
 
@@ -327,14 +326,14 @@ def test_function_call_unknown():
 
 def test_function_call_known():
     module = codegen.Module()
-    module.scope.reserve_name("a_function")
+    module.scope.create_name("a_function")
     func_call = codegen.function_call("a_function", [], {}, module.scope)
     assert_code_equal(func_call, "a_function()")
 
 
 def test_function_call_args_and_kwargs():
     module = codegen.Module()
-    module.scope.reserve_name("a_function")
+    module.scope.create_name("a_function")
     func_call = codegen.function_call(
         "a_function",
         [codegen.Number(123)],
@@ -346,7 +345,7 @@ def test_function_call_args_and_kwargs():
 
 def test_function_call_bad_kwarg_names():
     module = codegen.Module()
-    module.scope.reserve_name("a_function")
+    module.scope.create_name("a_function")
     allowed_args = [
         ("hyphen-ated", True),
         ("class", True),
@@ -370,7 +369,7 @@ def test_function_call_bad_kwarg_names():
 
 def test_function_call_kwarg_star_syntax():
     module = codegen.Module()
-    module.scope.reserve_name("a_function")
+    module.scope.create_name("a_function")
     func_call = codegen.function_call("a_function", [], {"hyphen-ated": codegen.Number(1)}, module.scope)
     assert_code_equal(
         func_call,
@@ -382,7 +381,7 @@ def test_function_call_kwarg_star_syntax():
 
 def test_function_call_sensitive():
     module = codegen.Module()
-    module.scope.reserve_name("exec")
+    module.scope.create_name("exec")
     with pytest.raises(AssertionError):
         codegen.function_call("exec", [], {}, module.scope)
 
@@ -404,8 +403,8 @@ def test_method_call_chained_name():
 
 def test_try_catch():
     scope = codegen.Scope()
-    scope.reserve_name("MyError")
-    try_ = codegen.Try([scope.name("MyError")], scope)
+    my_error = scope.create_name("MyError")
+    try_ = codegen.Try([my_error], scope)
     assert_code_equal(
         try_,
         """
@@ -436,9 +435,9 @@ def test_try_catch():
 
 def test_try_catch_multiple_exceptions():
     scope = codegen.Scope()
-    scope.reserve_name("MyError")
-    scope.reserve_name("OtherError")
-    try_ = codegen.Try([scope.name("MyError"), scope.name("OtherError")], scope)
+    my_error = scope.create_name("MyError")
+    other_error = scope.create_name("OtherError")
+    try_ = codegen.Try([my_error, other_error], scope)
     assert_code_equal(
         try_,
         """
@@ -599,8 +598,7 @@ def test_string_join_collapse_strings():
 
 def test_dict_lookup():
     scope = codegen.Scope()
-    scope.reserve_name("tmp")
-    var = scope.name("tmp")
+    var = scope.create_name("tmp")
     lookup = codegen.DictLookup(var, codegen.String("x"))
     assert_code_equal(lookup, "tmp['x']")
 
@@ -713,7 +711,7 @@ def test_reserve_name_keyword_avoidance():
 def test_block_add_statement_bare_expression():
     """Test that bare expressions (e.g. method calls) get wrapped in Expr."""
     module = codegen.Module()
-    module.scope.reserve_name("a_function")
+    module.scope.create_name("a_function")
     func_call = codegen.function_call("a_function", [], {}, module.scope)
     module.add_statement(func_call)
     assert_code_equal(module, "a_function()")
@@ -779,22 +777,20 @@ def test_none_expr():
 
 def test_function_call_repr():
     module = codegen.Module()
-    module.scope.reserve_name("f")
+    module.scope.create_name("f")
     fc = codegen.function_call("f", [], {}, module.scope)
     assert "Call" in repr(fc)
 
 
 def test_name_repr():
     scope = codegen.Scope()
-    scope.reserve_name("x")
-    ref = scope.name("x")
+    ref = scope.create_name("x")
     assert repr(ref) == "Name('x')"
 
 
 def test_name_equality():
     scope = codegen.Scope()
-    scope.reserve_name("x")
-    ref1 = scope.name("x")
+    ref1 = scope.create_name("x")
     ref2 = scope.name("x")
     assert ref1 == ref2
     assert ref1 != "x"
@@ -916,8 +912,7 @@ def test_block_as_ast_list_with_codegen_ast_list():
 
 def test_dict_lookup_type():
     scope = codegen.Scope()
-    scope.reserve_name("tmp")
-    var = scope.name("tmp")
+    var = scope.create_name("tmp")
     lookup = codegen.DictLookup(var, codegen.String("x"), expr_type=str)
     assert lookup.type is str
 
@@ -1298,8 +1293,7 @@ def test_chained_arithmetic():
 def test_chained_comparison_with_arithmetic():
     """Test chaining: (x + 1) > 0"""
     scope = codegen.Scope()
-    scope.reserve_name("x")
-    x = scope.name("x")
+    x = scope.create_name("x")
     result = x.add(codegen.Number(1)).gt(codegen.Number(0))
     assert_code_equal(result, "x + 1 > 0")
 
@@ -1307,10 +1301,8 @@ def test_chained_comparison_with_arithmetic():
 def test_chained_boolean():
     """Test chaining: (a > 0) and (b < 10)"""
     scope = codegen.Scope()
-    scope.reserve_name("a")
-    scope.reserve_name("b")
-    a = scope.name("a")
-    b = scope.name("b")
+    a = scope.create_name("a")
+    b = scope.create_name("b")
     result = a.gt(codegen.Number(0)).and_(b.lt(codegen.Number(10)))
     assert_code_equal(result, "a > 0 and b < 10")
 
@@ -1318,8 +1310,7 @@ def test_chained_boolean():
 def test_chained_with_method_call():
     """Test chaining operator methods with .attr() and .call()"""
     scope = codegen.Scope()
-    scope.reserve_name("items")
-    items = scope.name("items")
+    items = scope.create_name("items")
     # len(items) > 0  -- modeled as items.attr('__len__').call([],{}) > 0
     # But more practically: items.method_call("count", ...).gt(Number(0))
     result = items.method_call("count", [codegen.String("x")], {}).gt(codegen.Number(0))
