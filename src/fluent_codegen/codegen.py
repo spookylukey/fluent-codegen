@@ -556,6 +556,11 @@ class Expression(CodeGenAst):
     def call(self, args: Sequence[Expression], kwargs: dict[str, Expression], expr_type: type = UNKNOWN_TYPE) -> Call:
         return Call(self, args, kwargs, expr_type=expr_type)
 
+    def method_call(
+        self, attribute: str, args: Sequence[Expression], kwargs: dict[str, Expression], expr_type: type = UNKNOWN_TYPE
+    ) -> Call:
+        return self.attr(attribute).call(args, kwargs, expr_type=expr_type)
+
 
 class String(Expression):
     child_elements = []
@@ -780,6 +785,8 @@ class Attr(Expression):
 
     def __init__(self, value: Expression, attribute: str) -> None:
         self.value = value
+        if not allowable_name(attribute, allow_builtin=True):
+            raise AssertionError(f"Expected {attribute} to be a valid Python identifier")
         self.attribute = attribute
 
     def as_ast(self) -> py_ast.expr:
@@ -877,33 +884,14 @@ class Call(Expression):
         return f"Call({self.value!r}, {self.args}, {self.kwargs})"
 
 
-class MethodCall(Expression):
-    child_elements = ["obj", "args"]
-
-    def __init__(self, obj: Expression, method_name: str, args: Sequence[Expression], expr_type: type = UNKNOWN_TYPE):
-        # We can't check method_name because we don't know the type of obj yet.
-        self.obj = obj
-        self.method_name = method_name
-        self.args = args
-        self.type = expr_type
-
-    def as_ast(self) -> py_ast.expr:
-        if not allowable_name(self.method_name, for_method=True):
-            raise AssertionError(f"Expected {self.method_name} to be a valid Python identifier")
-        return py_ast.Call(
-            func=py_ast.Attribute(
-                value=self.obj.as_ast(),
-                attr=self.method_name,
-                ctx=py_ast.Load(),
-                **DEFAULT_AST_ARGS,
-            ),
-            args=[arg.as_ast() for arg in self.args],
-            keywords=[],
-            **DEFAULT_AST_ARGS,
-        )
-
-    def __repr__(self):
-        return f"MethodCall({repr(self.obj)}, {repr(self.method_name)}, {repr(self.args)})"
+def method_call(
+    obj: Expression,
+    method_name: str,
+    args: Sequence[Expression],
+    kwargs: dict[str, Expression],
+    expr_type: type = UNKNOWN_TYPE,
+):
+    return obj.attr(method_name).call(args=args, kwargs=kwargs, expr_type=expr_type)
 
 
 class DictLookup(Expression):

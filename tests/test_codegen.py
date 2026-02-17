@@ -378,9 +378,8 @@ def test_function_call_sensitive():
 
 def test_method_call_bad_name():
     s = codegen.String("x")
-    method_call = codegen.MethodCall(s, "bad method name", [])
     with pytest.raises(AssertionError):
-        as_source_code(method_call)
+        codegen.method_call(s, "bad method name", [], {})
 
 
 # --- Try/Catch tests ---
@@ -606,6 +605,13 @@ def test_attr():
     assert_code_equal(as_source_code(attr), "foo.bar")
 
 
+def test_attr_bad_name():
+    scope = codegen.Scope()
+    name = scope.create_name("foo")
+    with pytest.raises(AssertionError):
+        name.attr("a bar")
+
+
 # --- cleanup_name tests ---
 
 
@@ -752,12 +758,6 @@ def test_none_expr():
     n = codegen.NoneExpr()
     assert n.type is type(None)
     assert_code_equal(as_source_code(n), "None")
-
-
-def test_method_call_repr():
-    s = codegen.String("x")
-    mc = codegen.MethodCall(s, "upper", [])
-    assert "MethodCall" in repr(mc)
 
 
 def test_function_call_repr():
@@ -907,7 +907,7 @@ def test_dict_lookup_type():
 
 def test_method_call_type():
     s = codegen.String("x")
-    mc = codegen.MethodCall(s, "upper", [], expr_type=str)
+    mc = codegen.method_call(s, "upper", [], {}, expr_type=str)
     assert mc.type is str
     assert_code_equal(as_source_code(mc), "'x'.upper()")
 
