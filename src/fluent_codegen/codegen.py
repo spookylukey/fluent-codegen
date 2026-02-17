@@ -300,11 +300,20 @@ class _Assignment(Statement):
     def as_ast(self):
         if not allowable_name(self.name):
             raise AssertionError(f"Expected {self.name} to be a valid Python identifier")
-        return py_ast.Assign(
-            targets=[py_ast.Name(id=self.name, ctx=py_ast.Store(), **DEFAULT_AST_ARGS)],
-            value=self.value.as_ast(),
-            **DEFAULT_AST_ARGS,
-        )
+        if self.type_hint is None:
+            return py_ast.Assign(
+                targets=[py_ast.Name(id=self.name, ctx=py_ast.Store(), **DEFAULT_AST_ARGS)],
+                value=self.value.as_ast(),
+                **DEFAULT_AST_ARGS,
+            )
+        else:
+            return py_ast.AnnAssign(
+                target=py_ast.Name(id=self.name, ctx=py_ast.Store(), **DEFAULT_AST_ARGS),
+                annotation=self.type_hint.as_ast(),
+                simple=1,  # not sure what this does...
+                value=self.value.as_ast(),
+                **DEFAULT_AST_ARGS,
+            )
 
     def has_assignment_for_name(self, name: str) -> bool:
         return self.name == name

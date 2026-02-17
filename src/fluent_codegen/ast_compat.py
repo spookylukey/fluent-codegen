@@ -12,6 +12,7 @@ from typing import TypedDict
 Add = ast.Add
 And = ast.And
 Assign = ast.Assign
+AnnAssign = ast.AnnAssign
 BoolOp = ast.BoolOp
 BinOp = ast.BinOp
 Compare = ast.Compare

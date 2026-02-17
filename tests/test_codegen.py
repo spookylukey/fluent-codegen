@@ -304,6 +304,17 @@ def test_add_assignment_bad():
         as_source_code(module)
 
 
+def test_add_assignment_type_hint():
+    module = codegen.Module()
+    module.add_assignment(module.scope.create_name("x"), codegen.String("a string"), type_hint=module.scope.name("str"))
+    assert_code_equal(
+        module,
+        """
+        x: str = 'a string'
+        """,
+    )
+
+
 def test_multiple_add_assignment():
     module = codegen.Module()
     name = module.scope.reserve_name("x")
