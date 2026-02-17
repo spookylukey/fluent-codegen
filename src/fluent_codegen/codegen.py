@@ -836,18 +836,14 @@ class Call(Expression):
 
         if any(not allowable_name(name) for name in self.kwargs.keys()):
             # This branch covers function arg names like 'foo-bar', which are
-            # allowable in Fluent, but not normally in Python. We work around
+            # allowable in languages like Fluent, but not normally in Python. We work around
             # this using `my_function(**{'foo-bar': baz})` syntax.
 
-            # (In fact, that's not true. It seems that this branch is not
-            # actually necessary, since it is the Python parser that disallows
-            # `foo-bar` as an identifier, and we are by-passing that by
-            # generating AST directly. The functional test in
-            # tests/format/test_functions.py
-            # (test_non_identifier_python_keyword_args) passes without this
-            # branch. However, to be on the safe side, and to produce AST that
-            # decompiles to something more recognisably correct, we pretend this
-            # is necessary).
+            # (If we only wanted to exec the resulting AST, this branch is technically not
+            # necessary, since it is the Python parser that disallows `foo-bar` as an identifier,
+            # and we are by-passing that by creating AST directly. However, to produce something
+            # that can be decompiled to valid Python, we solve the general case).
+
             kwarg_pairs = list(sorted(self.kwargs.items()))
             kwarg_names, kwarg_values = [k for k, _ in kwarg_pairs], [v for _, v in kwarg_pairs]
             return py_ast.Call(
