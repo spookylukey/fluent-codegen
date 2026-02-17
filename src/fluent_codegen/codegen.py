@@ -107,6 +107,12 @@ class CodeGenAst(ABC):
 
     child_elements: ClassVar[list[str]]
 
+    def as_python_source(self) -> str:
+        """Return the Python source code for this AST node."""
+        node = self.as_ast()
+        py_ast.fix_missing_locations(node)
+        return py_ast.unparse(node)
+
 
 class CodeGenAstList(ABC):
     """
@@ -118,6 +124,12 @@ class CodeGenAstList(ABC):
     def as_ast_list(self, allow_empty: bool = True) -> list[py_ast.stmt]: ...
 
     child_elements: ClassVar[list[str]]
+
+    def as_python_source(self) -> str:
+        """Return the Python source code for this AST list."""
+        mod = py_ast.Module(body=self.as_ast_list(), type_ignores=[], **DEFAULT_AST_ARGS_MODULE)
+        py_ast.fix_missing_locations(mod)
+        return py_ast.unparse(mod)
 
 
 CodeGenAstType = CodeGenAst | CodeGenAstList

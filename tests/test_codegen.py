@@ -1715,6 +1715,48 @@ def test_function_arg_complex_defaults():
     )
 
 
+# --- as_python_source() tests ---
+
+
+def test_as_python_source_expression():
+    s = codegen.String("hello")
+    assert s.as_python_source() == "'hello'"
+
+
+def test_as_python_source_statement():
+    module = codegen.Module()
+    func = codegen.Function("myfunc", args=["x"], parent_scope=module.scope)
+    func.add_return(func.name("x"))
+    source = func.as_python_source()
+    assert "def myfunc(x):" in source
+    assert "return x" in source
+
+
+def test_as_python_source_module():
+    module = codegen.Module()
+    module.scope.reserve_name("x")
+    module.add_assignment("x", codegen.Number(42))
+    source = module.as_python_source()
+    assert "x = 42" in source
+
+
+def test_as_python_source_block():
+    scope = codegen.Scope()
+    block = codegen.Block(scope)
+    name = scope.reserve_name("y")
+    block.add_assignment(name, codegen.String("test"))
+    source = block.as_python_source()
+    assert "y = 'test'" in source
+
+
+def test_as_python_source_matches_as_source_code():
+    """Verify as_python_source() matches the test helper as_source_code()."""
+    module = codegen.Module()
+    func, _ = module.create_function("my_func", args=["a", "b"])
+    func.add_return(func.name("a").add(func.name("b")))
+    assert module.as_python_source() == as_source_code(module)
+
+
 # ---- Misc module methods
 
 
