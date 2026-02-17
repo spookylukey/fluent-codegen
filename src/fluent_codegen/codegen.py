@@ -5,10 +5,12 @@ Utilities for doing Python code generation
 from __future__ import annotations
 
 import builtins
+import enum
 import keyword
 import re
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from typing import ClassVar, Protocol, assert_never, overload, runtime_checkable
 
 from . import ast_compat as py_ast
@@ -390,7 +392,7 @@ class Block(CodeGenAstList):
         assert func.func_name == func_name
         self.add_statement(func)
 
-    def create_function(self, name: str, args: Sequence[str]) -> tuple[Function, Name]:
+    def create_function(self, name: str, args: Sequence[str | FunctionArg]) -> tuple[Function, Name]:
         """
         Reserve a name for a function, create the Function and add the function statement
         to the block.
@@ -424,43 +426,135 @@ class Module(Block, CodeGenAst):
         return py_ast.Module(body=self.as_ast_list(), type_ignores=[], **DEFAULT_AST_ARGS_MODULE)
 
 
+class ArgKind(enum.Enum):
+    """The kind of a function argument."""
+
+    POSITIONAL_ONLY = "positional_only"
+    POSITIONAL_OR_KEYWORD = "positional_or_keyword"
+    KEYWORD_ONLY = "keyword_only"
+
+
+@dataclass(frozen=True)
+class FunctionArg:
+    """A function argument with a name, kind, and optional default value."""
+
+    name: str
+    kind: ArgKind = ArgKind.POSITIONAL_OR_KEYWORD
+    default: Expression | None = None
+
+    @classmethod
+    def positional(cls, name: str, *, default: Expression | None = None) -> FunctionArg:
+        """Create a positional-only argument."""
+        return cls(name=name, kind=ArgKind.POSITIONAL_ONLY, default=default)
+
+    @classmethod
+    def keyword(cls, name: str, *, default: Expression | None = None) -> FunctionArg:
+        """Create a keyword-only argument."""
+        return cls(name=name, kind=ArgKind.KEYWORD_ONLY, default=default)
+
+    @classmethod
+    def standard(cls, name: str, *, default: Expression | None = None) -> FunctionArg:
+        """Create a positional-or-keyword argument (the Python default)."""
+        return cls(name=name, kind=ArgKind.POSITIONAL_OR_KEYWORD, default=default)
+
+
+def _normalize_args(args: Sequence[str | FunctionArg]) -> list[FunctionArg]:
+    """Normalize a mixed list of str and FunctionArg into a list of FunctionArg."""
+    return [FunctionArg(name=a) if isinstance(a, str) else a for a in args]
+
+
+def _validate_arg_order(args: list[FunctionArg]) -> None:
+    """Validate that args are in the correct order:
+    positional-only, then positional-or-keyword, then keyword-only.
+    Within each group, defaults must come after non-defaults.
+    """
+    # Check kind ordering
+    KIND_ORDER = {
+        ArgKind.POSITIONAL_ONLY: 0,
+        ArgKind.POSITIONAL_OR_KEYWORD: 1,
+        ArgKind.KEYWORD_ONLY: 2,
+    }
+    prev_order = -1
+    for arg in args:
+        order = KIND_ORDER[arg.kind]
+        if order < prev_order:
+            raise ValueError(
+                f"Argument '{arg.name}' of kind {arg.kind.value} "
+                f"is out of order: positional-only args must come first, "
+                f"then positional-or-keyword, then keyword-only"
+            )
+        prev_order = order
+
+    # Check default ordering within positional groups
+    # (positional-only and positional-or-keyword share defaults list,
+    #  so non-default can't follow default across these groups)
+    seen_default_in_positional = False
+    for arg in args:
+        if arg.kind in (ArgKind.POSITIONAL_ONLY, ArgKind.POSITIONAL_OR_KEYWORD):
+            if arg.default is not None:
+                seen_default_in_positional = True
+            elif seen_default_in_positional:
+                raise ValueError(f"Non-default argument '{arg.name}' follows default argument in positional arguments")
+
+    # keyword-only args can have defaults in any order (Python allows it)
+
+
 class Function(Scope, Statement):
     child_elements = ["body"]
 
     def __init__(
         self,
         name: str,
-        args: Sequence[str] | None = None,
+        args: Sequence[str | FunctionArg] | None = None,
         parent_scope: Scope | None = None,
     ):
         super().__init__(parent_scope=parent_scope)
         self.body = Block(self)
         self.func_name = name
         if args is None:
-            args = ()
-        for arg in args:
-            if self.is_name_in_use(arg):
-                raise AssertionError(f"Can't use '{arg}' as function argument name because it shadows other names")
-            self.reserve_name(arg, function_arg=True)
-        self.args = args
+            normalized: list[FunctionArg] = []
+        else:
+            normalized = _normalize_args(args)
+        _validate_arg_order(normalized)
+        for arg in normalized:
+            if self.is_name_in_use(arg.name):
+                raise AssertionError(f"Can't use '{arg.name}' as function argument name because it shadows other names")
+            self.reserve_name(arg.name, function_arg=True)
+        self.args = normalized
 
     def as_ast(self) -> py_ast.stmt:
         if not allowable_name(self.func_name):
             raise AssertionError(f"Expected '{self.func_name}' to be a valid Python identifier")
         for arg in self.args:
-            if not allowable_name(arg):
-                raise AssertionError(f"Expected '{arg}' to be a valid Python identifier")
+            if not allowable_name(arg.name):
+                raise AssertionError(f"Expected '{arg.name}' to be a valid Python identifier")
+
+        def _make_arg(a: FunctionArg) -> py_ast.arg:
+            return py_ast.arg(arg=a.name, annotation=None, **DEFAULT_AST_ARGS)
+
+        posonlyargs = [_make_arg(a) for a in self.args if a.kind == ArgKind.POSITIONAL_ONLY]
+        regular_args = [_make_arg(a) for a in self.args if a.kind == ArgKind.POSITIONAL_OR_KEYWORD]
+        kwonlyargs = [_make_arg(a) for a in self.args if a.kind == ArgKind.KEYWORD_ONLY]
+
+        # defaults: right-aligned to posonlyargs + regular_args
+        positional_all = [a for a in self.args if a.kind in (ArgKind.POSITIONAL_ONLY, ArgKind.POSITIONAL_OR_KEYWORD)]
+        defaults = [a.default.as_ast() for a in positional_all if a.default is not None]
+
+        # kw_defaults: one entry per kwonlyarg, None if no default
+        kw_defaults: list[py_ast.expr | None] = [
+            a.default.as_ast() if a.default is not None else None for a in self.args if a.kind == ArgKind.KEYWORD_ONLY
+        ]
 
         return py_ast.FunctionDef(
             name=self.func_name,
             args=py_ast.arguments(
-                posonlyargs=[],
-                args=([py_ast.arg(arg=arg_name, annotation=None, **DEFAULT_AST_ARGS) for arg_name in self.args]),
+                posonlyargs=posonlyargs,
+                args=regular_args,
                 vararg=None,
-                kwonlyargs=[],
-                kw_defaults=[],
+                kwonlyargs=kwonlyargs,
+                kw_defaults=kw_defaults,
                 kwarg=None,
-                defaults=[],
+                defaults=defaults,
                 **DEFAULT_AST_ARGS_ARGUMENTS,
             ),
             body=self.body.as_ast_list(allow_empty=False),

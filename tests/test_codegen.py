@@ -26,6 +26,18 @@ def decompile(ast_node, indentation=4, line_length=100, starting_indentation=0):
     return decompiler.run(ast_node)
 
 
+def unparse(codegen_ast: codegen.CodeGenAstType) -> str:
+    """Unparse a codegen AST using ast.unparse (more reliable than ast_decompiler for edge cases)."""
+    if isinstance(codegen_ast, codegen.CodeGenAstList):
+        mod = ast.Module(body=codegen_ast.as_ast_list(), type_ignores=[])
+        ast.fix_missing_locations(mod)
+        return ast.unparse(mod)
+    else:
+        node = codegen_ast.as_ast()
+        ast.fix_missing_locations(node)
+        return ast.unparse(node)
+
+
 def decompile_ast_list(ast_list: list[ast.stmt]):
     return decompile(ast.Module(body=ast_list, type_ignores=[], **codegen.DEFAULT_AST_ARGS_MODULE))
 
@@ -1338,6 +1350,294 @@ def test_chained_with_method_call():
     # But more practically: items.method_call("count", ...).gt(Number(0))
     result = items.method_call("count", [codegen.String("x")], {}).gt(codegen.Number(0))
     assert_code_equal(result, "items.count('x') > 0")
+
+
+# --- FunctionArg tests ---
+
+
+def test_function_arg_positional_only():
+    module = codegen.Module()
+    func = codegen.Function(
+        "myfunc",
+        args=[codegen.FunctionArg.positional("a"), codegen.FunctionArg.positional("b")],
+        parent_scope=module.scope,
+    )
+    assert_code_equal(
+        func,
+        """
+        def myfunc(a, b, /):
+            pass
+        """,
+    )
+
+
+def test_function_arg_keyword_only():
+    module = codegen.Module()
+    func = codegen.Function(
+        "myfunc",
+        args=[codegen.FunctionArg.keyword("x"), codegen.FunctionArg.keyword("y")],
+        parent_scope=module.scope,
+    )
+    assert_code_equal(
+        func,
+        """
+        def myfunc(*, x, y):
+            pass
+        """,
+    )
+
+
+def test_function_arg_all_kinds():
+    module = codegen.Module()
+    func = codegen.Function(
+        "myfunc",
+        args=[
+            codegen.FunctionArg.positional("a"),
+            codegen.FunctionArg.standard("b"),
+            codegen.FunctionArg.keyword("c"),
+        ],
+        parent_scope=module.scope,
+    )
+    assert_code_equal(
+        func,
+        """
+        def myfunc(a, /, b, *, c):
+            pass
+        """,
+    )
+
+
+def test_function_arg_with_defaults():
+    module = codegen.Module()
+    func = codegen.Function(
+        "myfunc",
+        args=[
+            codegen.FunctionArg.positional("a"),
+            codegen.FunctionArg.positional("b", default=codegen.Number(1)),
+            codegen.FunctionArg.standard("c", default=codegen.Number(2)),
+        ],
+        parent_scope=module.scope,
+    )
+    # ast_decompiler has a bug with positional-only defaults, use ast.unparse
+    assert unparse(func) == "def myfunc(a, b=1, /, c=2):\n    pass"
+
+
+def test_function_arg_keyword_defaults():
+    module = codegen.Module()
+    func = codegen.Function(
+        "myfunc",
+        args=[
+            codegen.FunctionArg.keyword("x"),
+            codegen.FunctionArg.keyword("y", default=codegen.String("hello")),
+            codegen.FunctionArg.keyword("z"),
+        ],
+        parent_scope=module.scope,
+    )
+    assert_code_equal(
+        func,
+        """
+        def myfunc(*, x, y='hello', z):
+            pass
+        """,
+    )
+
+
+def test_function_arg_mixed_str_and_functionarg():
+    """str args are treated as positional-or-keyword."""
+    module = codegen.Module()
+    func = codegen.Function(
+        "myfunc",
+        args=["a", codegen.FunctionArg.keyword("b")],
+        parent_scope=module.scope,
+    )
+    assert_code_equal(
+        func,
+        """
+        def myfunc(a, *, b):
+            pass
+        """,
+    )
+
+
+def test_function_arg_bad_order_kw_before_positional():
+    module = codegen.Module()
+    with pytest.raises(ValueError, match="out of order"):
+        codegen.Function(
+            "myfunc",
+            args=[
+                codegen.FunctionArg.keyword("x"),
+                codegen.FunctionArg.standard("y"),
+            ],
+            parent_scope=module.scope,
+        )
+
+
+def test_function_arg_bad_order_standard_before_posonly():
+    module = codegen.Module()
+    with pytest.raises(ValueError, match="out of order"):
+        codegen.Function(
+            "myfunc",
+            args=[
+                codegen.FunctionArg.standard("x"),
+                codegen.FunctionArg.positional("y"),
+            ],
+            parent_scope=module.scope,
+        )
+
+
+def test_function_arg_non_default_after_default():
+    module = codegen.Module()
+    with pytest.raises(ValueError, match="Non-default argument"):
+        codegen.Function(
+            "myfunc",
+            args=[
+                codegen.FunctionArg.standard("a", default=codegen.Number(1)),
+                codegen.FunctionArg.standard("b"),
+            ],
+            parent_scope=module.scope,
+        )
+
+
+def test_function_arg_non_default_posonly_after_default_posonly():
+    module = codegen.Module()
+    with pytest.raises(ValueError, match="Non-default argument"):
+        codegen.Function(
+            "myfunc",
+            args=[
+                codegen.FunctionArg.positional("a", default=codegen.Number(1)),
+                codegen.FunctionArg.positional("b"),
+            ],
+            parent_scope=module.scope,
+        )
+
+
+def test_function_arg_non_default_standard_after_default_posonly():
+    """Positional default followed by standard non-default is invalid."""
+    module = codegen.Module()
+    with pytest.raises(ValueError, match="Non-default argument"):
+        codegen.Function(
+            "myfunc",
+            args=[
+                codegen.FunctionArg.positional("a", default=codegen.Number(1)),
+                codegen.FunctionArg.standard("b"),
+            ],
+            parent_scope=module.scope,
+        )
+
+
+def test_function_arg_bad_name():
+    module = codegen.Module()
+    func = codegen.Function(
+        "myfunc",
+        args=[codegen.FunctionArg.positional("bad arg")],
+        parent_scope=module.scope,
+    )
+    with pytest.raises(AssertionError):
+        as_source_code(func)
+
+
+def test_function_arg_shadows():
+    module = codegen.Module()
+    module.scope.reserve_name("x")
+    with pytest.raises(AssertionError):
+        codegen.Function(
+            "myfunc",
+            args=[codegen.FunctionArg.keyword("x")],
+            parent_scope=module.scope,
+        )
+
+
+def test_function_arg_enum_values():
+    assert codegen.ArgKind.POSITIONAL_ONLY.value == "positional_only"
+    assert codegen.ArgKind.POSITIONAL_OR_KEYWORD.value == "positional_or_keyword"
+    assert codegen.ArgKind.KEYWORD_ONLY.value == "keyword_only"
+
+
+def test_function_arg_dataclass_frozen():
+    arg = codegen.FunctionArg("x")
+    with pytest.raises(AttributeError):
+        arg.name = "y"  # type: ignore[misc]
+
+
+def test_function_arg_default_kind():
+    arg = codegen.FunctionArg("x")
+    assert arg.kind == codegen.ArgKind.POSITIONAL_OR_KEYWORD
+    assert arg.default is None
+
+
+def test_create_function_with_function_args():
+    module = codegen.Module()
+    func, func_name = module.create_function(
+        "my_func",
+        args=[
+            codegen.FunctionArg.positional("a"),
+            codegen.FunctionArg.keyword("b", default=codegen.Number(42)),
+        ],
+    )
+    assert unparse(module) == "def my_func(a, /, *, b=42):\n    pass"
+    assert_code_equal(func_name, "my_func")
+
+
+def test_function_arg_only_positional_with_default():
+    module = codegen.Module()
+    func = codegen.Function(
+        "myfunc",
+        args=[codegen.FunctionArg.positional("a", default=codegen.String("hi"))],
+        parent_scope=module.scope,
+    )
+    # ast_decompiler has a bug with positional-only defaults, use ast.unparse
+    assert unparse(func) == "def myfunc(a='hi', /):\n    pass"
+
+
+def test_function_arg_standard_with_default():
+    module = codegen.Module()
+    func = codegen.Function(
+        "myfunc",
+        args=[
+            codegen.FunctionArg.standard("a"),
+            codegen.FunctionArg.standard("b", default=codegen.NoneExpr()),
+        ],
+        parent_scope=module.scope,
+    )
+    assert_code_equal(
+        func,
+        """
+        def myfunc(a, b=None):
+            pass
+        """,
+    )
+
+
+def test_normalize_args_all_strings():
+    result = codegen._normalize_args(["a", "b", "c"])
+    assert all(isinstance(a, codegen.FunctionArg) for a in result)
+    assert all(a.kind == codegen.ArgKind.POSITIONAL_OR_KEYWORD for a in result)
+    assert [a.name for a in result] == ["a", "b", "c"]
+
+
+def test_normalize_args_all_function_args():
+    args = [codegen.FunctionArg.positional("a"), codegen.FunctionArg.keyword("b")]
+    result = codegen._normalize_args(args)
+    assert result == args
+
+
+def test_function_arg_complex_defaults():
+    """Test default values that are complex expressions."""
+    module = codegen.Module()
+    func = codegen.Function(
+        "myfunc",
+        args=[
+            codegen.FunctionArg.standard("a", default=codegen.List([codegen.Number(1), codegen.Number(2)])),
+        ],
+        parent_scope=module.scope,
+    )
+    assert_code_equal(
+        func,
+        """
+        def myfunc(a=[1, 2]):
+            pass
+        """,
+    )
 
 
 # ---- Misc module methods
