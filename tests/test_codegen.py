@@ -1046,7 +1046,7 @@ def test_string_join_collapse_strings():
 def test_dict_lookup():
     scope = codegen.Scope()
     var = scope.create_name("tmp")
-    lookup = codegen.DictLookup(var, codegen.String("x"))
+    lookup = codegen.Subscript(var, codegen.String("x"))
     assert_code_equal(lookup, "tmp['x']")
 
 

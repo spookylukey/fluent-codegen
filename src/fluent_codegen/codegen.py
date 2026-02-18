@@ -1373,17 +1373,17 @@ def method_call(
     return obj.attr(method_name).call(args=args, kwargs=kwargs)
 
 
-class DictLookup(Expression):
-    child_elements = ["lookup_obj", "lookup_arg"]
+class Subscript(Expression):
+    child_elements = ["value", "slice"]
 
-    def __init__(self, lookup_obj: Expression, lookup_arg: Expression):
-        self.lookup_obj = lookup_obj
-        self.lookup_arg = lookup_arg
+    def __init__(self, value: Expression, slice: Expression):
+        self.value = value
+        self.slice = slice
 
     def as_ast(self) -> py_ast.expr:
         return py_ast.Subscript(
-            value=self.lookup_obj.as_ast(),
-            slice=py_ast.subscript_slice_object(self.lookup_arg.as_ast()),
+            value=self.value.as_ast(),
+            slice=py_ast.subscript_slice_object(self.slice.as_ast()),
             ctx=py_ast.Load(),
             **DEFAULT_AST_ARGS,
         )
