@@ -444,17 +444,15 @@ class Block(CodeGenAstList):
         self.add_statement(if_statement)
         return if_statement
 
-    def create_with(self, context_expr: Expression, target: str | Name | None = None) -> With:
+    def create_with(self, context_expr: Expression, target: Name | None = None) -> With:
         """
-        Create a With statement, add it to this block, and return it.
+        Create a With statement, add it to this block, and return it
 
         Usage::
 
             with_stmt = block.create_with(expr, "f")
             with_stmt.body.create_return(value)
         """
-        if isinstance(target, Name):
-            target = target.name
         with_statement = With(context_expr, target=target, parent_scope=self.scope, parent_block=self)
         self.add_statement(with_statement)
         return with_statement
@@ -726,7 +724,7 @@ class With(Statement):
     def __init__(
         self,
         context_expr: Expression,
-        target: str | None = None,
+        target: Name | None = None,
         *,
         parent_scope: Scope,
         parent_block: Block | None = None,
@@ -740,9 +738,7 @@ class With(Statement):
     def as_ast(self) -> py_ast.With:
         optional_vars = None
         if self.target is not None:
-            if not allowable_name(self.target):
-                raise AssertionError(f"Expected '{self.target}' to be a valid Python identifier")
-            optional_vars = py_ast.Name(id=self.target, ctx=py_ast.Store(), **DEFAULT_AST_ARGS)
+            optional_vars = py_ast.Name(id=self.target.name, ctx=py_ast.Store(), **DEFAULT_AST_ARGS)
 
         return py_ast.With(
             items=[

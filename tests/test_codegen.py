@@ -613,25 +613,9 @@ def test_with_no_target():
 def test_with_target():
     module = codegen.Module()
     func, _ = module.create_function("myfunc", [])
-    name = func.reserve_name("f")
+    name = func.create_name("f")
     with_stmt = func.body.create_with(codegen.String("ctx"), name)
-    with_stmt.body.create_return(func.name(name))
-    assert_code_equal(
-        module,
-        """
-        def myfunc():
-            with 'ctx' as f:
-                return f
-        """,
-    )
-
-
-def test_with_target_name_object():
-    module = codegen.Module()
-    func, _ = module.create_function("myfunc", [])
-    name_obj = func.create_name("f")
-    with_stmt = func.body.create_with(codegen.String("ctx"), name_obj)
-    with_stmt.body.create_return(name_obj)
+    with_stmt.body.create_return(name)
     assert_code_equal(
         module,
         """
