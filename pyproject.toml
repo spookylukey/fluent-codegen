@@ -1,7 +1,7 @@
 [project]
 name = "fluent-codegen"
 description = "A Python library for generating Python code via AST construction."
-license = {text = "APL 2"}
+license = "Apache-2.0"
 authors = [
     { name = "Luke Plant", email = "luke@lukeplant.me.uk" }
 ]
@@ -16,7 +16,6 @@ keywords = [
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
-  "License :: OSI Approved :: Apache Software License",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.12",
