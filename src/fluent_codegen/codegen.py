@@ -1634,7 +1634,7 @@ def auto(value: PythonObj) -> Expression:
     elif isinstance(value, (int, float)):
         return Number(value)
     elif value is None:
-        return NoneExpr()
+        return constants.None_
     elif isinstance(value, list):
         return List([auto(item) for item in value])
     elif isinstance(value, tuple):
