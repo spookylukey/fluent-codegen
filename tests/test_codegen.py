@@ -16,21 +16,14 @@ def normalize_python(txt: str):
 
 
 def as_source_code(codegen_ast: codegen.CodeGenAstType) -> str:
-    if isinstance(codegen_ast, codegen.CodeGenAstList):
-        mod = ast.Module(body=codegen_ast.as_ast_list(), type_ignores=[])
-        ast.fix_missing_locations(mod)
-        return ast.unparse(mod)
-    else:
-        node = codegen_ast.as_ast()
-        ast.fix_missing_locations(node)
-        return ast.unparse(node)
+    return codegen_ast.as_python_source()
 
 
 def assert_code_equal(code1: str | codegen.CodeGenAstType, code2: str | codegen.CodeGenAstType):
     if not isinstance(code1, str):
-        code1 = as_source_code(code1)
+        code1 = code1.as_python_source()
     if not isinstance(code2, str):
-        code2 = as_source_code(code2)
+        code2 = code2.as_python_source()
     assert normalize_python(code1) == normalize_python(code2)
 
 
