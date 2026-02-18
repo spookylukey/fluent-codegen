@@ -50,7 +50,7 @@ Quick example
    module = codegen.Module()
    func_name = module.scope.reserve_name("greet")
    func = codegen.Function(func_name, args=["name"], parent_scope=module.scope)
-   func.add_return(
+   func.create_return(
        codegen.StringJoin.build([
            codegen.String("Hello, "),
            codegen.Name("name", func),

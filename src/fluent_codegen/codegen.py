@@ -376,7 +376,7 @@ class Block(CodeGenAstList):
                     )
 
     # Safe alternatives to Block.statements being manipulated directly:
-    def add_assignment(
+    def create_assignment(
         self, name: str | Name, value: Expression, *, type_hint: Expression | None = None, allow_multiple: bool = False
     ):
         """
@@ -434,18 +434,18 @@ class Block(CodeGenAstList):
         self.add_statement(cls)
         return cls, name_obj
 
-    def add_return(self, value: Expression) -> None:
+    def create_return(self, value: Expression) -> None:
         self.add_statement(Return(value))
 
-    def add_if(self) -> If:
+    def create_if(self) -> If:
         """
         Create an If statement, add it to this block, and return it.
 
         Usage::
 
-            if_stmt = block.add_if()
+            if_stmt = block.create_if()
             if_block = if_stmt.add_if(condition)
-            if_block.add_return(value)
+            if_block.create_return(value)
         """
         if_statement = If(self.scope, parent_block=self)
         self.add_statement(if_statement)
@@ -612,8 +612,8 @@ class Function(Scope, Statement):
             **DEFAULT_AST_ARGS,
         )
 
-    def add_return(self, value: Expression):
-        self.body.add_return(value)
+    def create_return(self, value: Expression):
+        self.body.create_return(value)
 
 
 class Class(Scope, Statement):

@@ -130,7 +130,7 @@ def test_function():
 def test_function_return():
     module = codegen.Module()
     func = codegen.Function("myfunc", parent_scope=module.scope)
-    func.add_return(codegen.String("Hello"))
+    func.create_return(codegen.String("Hello"))
     assert_code_equal(
         func,
         """
@@ -194,7 +194,7 @@ def test_function_args_name_reserved_check():
     module.scope.reserve_function_arg_name("my_arg")
     func_name = module.scope.reserve_name("myfunc")
     func = codegen.Function(func_name, args=["my_arg"], parent_scope=module.scope)
-    func.add_return(func.name("my_arg"))
+    func.create_return(func.name("my_arg"))
     assert_code_equal(
         func,
         """
@@ -250,16 +250,16 @@ def test_create_name():
 # --- Assignment tests ---
 
 
-def test_add_assignment_unreserved():
+def test_create_assignment_unreserved():
     scope = codegen.Module()
     with pytest.raises(AssertionError):
-        scope.add_assignment("x", codegen.String("a string"))
+        scope.create_assignment("x", codegen.String("a string"))
 
 
-def test_add_assignment_reserved():
+def test_create_assignment_reserved():
     module = codegen.Module()
     name = module.scope.reserve_name("x")
-    module.add_assignment(name, codegen.String("a string"))
+    module.create_assignment(name, codegen.String("a string"))
     assert_code_equal(
         module,
         """
@@ -268,10 +268,10 @@ def test_add_assignment_reserved():
     )
 
 
-def test_add_assignment_with_name_object():
+def test_create_assignment_with_name_object():
     module = codegen.Module()
     name_obj = module.scope.create_name("x")
-    module.add_assignment(name_obj, codegen.String("a string"))
+    module.create_assignment(name_obj, codegen.String("a string"))
     assert_code_equal(
         module,
         """
@@ -280,10 +280,10 @@ def test_add_assignment_with_name_object():
     )
 
 
-def test_add_assignment_bad():
+def test_create_assignment_bad():
     module = codegen.Module()
     name = module.scope.reserve_name("x")
-    module.add_assignment(name, codegen.String("a string"))
+    module.create_assignment(name, codegen.String("a string"))
     stmt = module.statements[0]
     assert isinstance(stmt, codegen._Assignment)
     stmt.name = "something with a space"
@@ -291,9 +291,11 @@ def test_add_assignment_bad():
         as_source_code(module)
 
 
-def test_add_assignment_type_hint():
+def test_create_assignment_type_hint():
     module = codegen.Module()
-    module.add_assignment(module.scope.create_name("x"), codegen.String("a string"), type_hint=module.scope.name("str"))
+    module.create_assignment(
+        module.scope.create_name("x"), codegen.String("a string"), type_hint=module.scope.name("str")
+    )
     assert_code_equal(
         module,
         """
@@ -302,27 +304,27 @@ def test_add_assignment_type_hint():
     )
 
 
-def test_multiple_add_assignment():
+def test_multiple_create_assignment():
     module = codegen.Module()
     name = module.scope.reserve_name("x")
-    module.add_assignment(name, codegen.String("a string"))
+    module.create_assignment(name, codegen.String("a string"))
     with pytest.raises(AssertionError):
-        module.add_assignment(name, codegen.String("another string"))
+        module.create_assignment(name, codegen.String("another string"))
 
 
-def test_multiple_add_assignment_in_inherited_scope():
+def test_multiple_create_assignment_in_inherited_scope():
     scope = codegen.Scope()
     scope.reserve_name("myfunc")
     func = codegen.Function("myfunc", args=[], parent_scope=scope)
     try_ = codegen.Try([], func)
     name = func.reserve_name("name")
 
-    try_.try_block.add_assignment(name, codegen.Number(1))
+    try_.try_block.create_assignment(name, codegen.Number(1))
     with pytest.raises(AssertionError):
-        try_.try_block.add_assignment(name, codegen.Number(2))
+        try_.try_block.create_assignment(name, codegen.Number(2))
     with pytest.raises(AssertionError):
-        try_.except_block.add_assignment(name, codegen.Number(2))
-    try_.except_block.add_assignment(name, codegen.Number(2), allow_multiple=True)
+        try_.except_block.create_assignment(name, codegen.Number(2))
+    try_.except_block.create_assignment(name, codegen.Number(2), allow_multiple=True)
 
 
 # --- Function call tests ---
@@ -427,9 +429,9 @@ def test_try_catch():
     scope.reserve_name("x")
     scope.reserve_name("y")
     scope.reserve_name("z")
-    try_.try_block.add_assignment("x", codegen.String("x"))
-    try_.except_block.add_assignment("y", codegen.String("y"))
-    try_.else_block.add_assignment("z", codegen.String("z"))
+    try_.try_block.create_assignment("x", codegen.String("x"))
+    try_.except_block.create_assignment("y", codegen.String("y"))
+    try_.else_block.create_assignment("z", codegen.String("z"))
     assert_code_equal(
         try_,
         """
@@ -465,10 +467,10 @@ def test_try_catch_has_assignment_for_name_1():
     name = scope.reserve_name("foo")
     assert not try_.has_assignment_for_name(name)
 
-    try_.try_block.add_assignment(name, codegen.String("x"))
+    try_.try_block.create_assignment(name, codegen.String("x"))
     assert not try_.has_assignment_for_name(name)
 
-    try_.except_block.add_assignment(name, codegen.String("x"), allow_multiple=True)
+    try_.except_block.create_assignment(name, codegen.String("x"), allow_multiple=True)
     assert try_.has_assignment_for_name(name)
 
 
@@ -477,10 +479,10 @@ def test_try_catch_has_assignment_for_name_2():
     try_ = codegen.Try([], scope)
     name = scope.reserve_name("foo")
 
-    try_.except_block.add_assignment(name, codegen.String("x"))
+    try_.except_block.create_assignment(name, codegen.String("x"))
     assert not try_.has_assignment_for_name(name)
 
-    try_.else_block.add_assignment(name, codegen.String("x"), allow_multiple=True)
+    try_.else_block.create_assignment(name, codegen.String("x"), allow_multiple=True)
     assert try_.has_assignment_for_name(name)
 
 
@@ -498,7 +500,7 @@ def test_if_one_if():
     scope = codegen.Module()
     if_statement = codegen.If(scope.scope)
     first_block = if_statement.add_if(codegen.Number(1))
-    first_block.add_return(codegen.Number(2))
+    first_block.create_return(codegen.Number(2))
     assert_code_equal(
         if_statement,
         """
@@ -512,9 +514,9 @@ def test_if_two_ifs():
     scope = codegen.Module()
     if_statement = codegen.If(scope.scope)
     first_block = if_statement.add_if(codegen.Number(1))
-    first_block.add_return(codegen.Number(2))
+    first_block.create_return(codegen.Number(2))
     second_block = if_statement.add_if(codegen.Number(3))
-    second_block.add_return(codegen.Number(4))
+    second_block.create_return(codegen.Number(4))
     assert_code_equal(
         if_statement,
         """
@@ -530,8 +532,8 @@ def test_if_with_else():
     scope = codegen.Module()
     if_statement = codegen.If(scope.scope)
     first_block = if_statement.add_if(codegen.Number(1))
-    first_block.add_return(codegen.Number(2))
-    if_statement.else_block.add_return(codegen.Number(3))
+    first_block.create_return(codegen.Number(2))
+    if_statement.else_block.create_return(codegen.Number(3))
     assert_code_equal(
         if_statement,
         """
@@ -546,7 +548,7 @@ def test_if_with_else():
 def test_if_no_ifs():
     scope = codegen.Module()
     if_statement = codegen.If(scope.scope)
-    if_statement.else_block.add_return(codegen.Number(3))
+    if_statement.else_block.create_return(codegen.Number(3))
     if_statement = if_statement.finalize()
     assert_code_equal(
         if_statement,
@@ -568,13 +570,13 @@ def test_if_scope():
     assert name_in_if_block == "myvalue2"
 
 
-def test_block_add_if():
+def test_block_create_if():
     module = codegen.Module()
     func, _ = module.create_function("myfunc", [])
-    if_stmt = func.body.add_if()
+    if_stmt = func.body.create_if()
     if_block = if_stmt.add_if(codegen.constants.True_)
-    if_block.add_return(codegen.Number(1))
-    if_stmt.else_block.add_return(codegen.Number(2))
+    if_block.create_return(codegen.Number(1))
+    if_stmt.else_block.create_return(codegen.Number(2))
     assert_code_equal(
         module,
         """
@@ -587,19 +589,19 @@ def test_block_add_if():
     )
 
 
-def test_block_add_if_scope():
+def test_block_create_if_scope():
     module = codegen.Module()
     func, _ = module.create_function("myfunc", [])
     func.reserve_name("myvalue")
-    if_stmt = func.body.add_if()
+    if_stmt = func.body.create_if()
     if_block = if_stmt.add_if(codegen.constants.True_)
     assert if_block.scope.is_name_in_use("myvalue")
 
 
-def test_block_add_if_parent_block():
+def test_block_create_if_parent_block():
     module = codegen.Module()
     func, _ = module.create_function("myfunc", [])
-    if_stmt = func.body.add_if()
+    if_stmt = func.body.create_if()
     if_block = if_stmt.add_if(codegen.constants.True_)
     assert if_block.parent_block is func.body
 
@@ -789,7 +791,7 @@ def test_block_has_assignment_from_parent():
     """Test has_assignment_for_name delegation to parent block."""
     module = codegen.Module()
     name = module.scope.reserve_name("x")
-    module.add_assignment(name, codegen.String("hello"))
+    module.create_assignment(name, codegen.String("hello"))
     child = codegen.Block(module.scope, parent_block=module)
     assert child.has_assignment_for_name(name)
 
@@ -962,7 +964,7 @@ def test_block_as_ast_list_with_codegen_ast_list():
     scope = codegen.Scope()
     inner_block = codegen.Block(scope)
     name = scope.reserve_name("x")
-    inner_block.add_assignment(name, codegen.String("hello"))
+    inner_block.create_assignment(name, codegen.String("hello"))
     module.add_statement(inner_block)
     source = as_source_code(module)
     assert "x = 'hello'" in source
@@ -1384,7 +1386,7 @@ def test_starred_in_assignment():
     module = codegen.Module()
     b = module.scope.create_name("b")
     a = module.scope.create_name("a")
-    module.add_assignment(a, codegen.Tuple([b.starred()]))
+    module.create_assignment(a, codegen.Tuple([b.starred()]))
     assert_code_equal(
         module,
         """
@@ -1909,7 +1911,7 @@ def test_class_with_body():
     module = codegen.Module()
     cls = codegen.Class("MyClass", parent_scope=module.scope)
     name = cls.reserve_name("x")
-    cls.body.add_assignment(name, codegen.Number(42))
+    cls.body.create_assignment(name, codegen.Number(42))
     assert_code_equal(
         cls,
         """
@@ -1923,7 +1925,7 @@ def test_class_with_method():
     module = codegen.Module()
     cls = codegen.Class("MyClass", parent_scope=module.scope)
     func, _ = cls.body.create_function("my_method", args=["self"])
-    func.add_return(codegen.Number(1))
+    func.create_return(codegen.Number(1))
     source = as_source_code(cls)
     assert "class MyClass:" in source
     assert "def my_method(self):" in source
@@ -1941,7 +1943,7 @@ def test_class_with_decorator_and_base_and_body():
         decorators=[module.scope.name("dataclass")],
     )
     name = cls.reserve_name("value")
-    cls.body.add_assignment(name, codegen.Number(0))
+    cls.body.create_assignment(name, codegen.Number(0))
     source = as_source_code(cls)
     assert "@dataclass" in source
     assert "class MyClass(Base):" in source
@@ -2044,7 +2046,7 @@ def test_as_python_source_expression():
 def test_as_python_source_statement():
     module = codegen.Module()
     func = codegen.Function("myfunc", args=["x"], parent_scope=module.scope)
-    func.add_return(func.name("x"))
+    func.create_return(func.name("x"))
     source = func.as_python_source()
     assert "def myfunc(x):" in source
     assert "return x" in source
@@ -2053,7 +2055,7 @@ def test_as_python_source_statement():
 def test_as_python_source_module():
     module = codegen.Module()
     module.scope.reserve_name("x")
-    module.add_assignment("x", codegen.Number(42))
+    module.create_assignment("x", codegen.Number(42))
     source = module.as_python_source()
     assert "x = 42" in source
 
@@ -2062,7 +2064,7 @@ def test_as_python_source_block():
     scope = codegen.Scope()
     block = codegen.Block(scope)
     name = scope.reserve_name("y")
-    block.add_assignment(name, codegen.String("test"))
+    block.create_assignment(name, codegen.String("test"))
     source = block.as_python_source()
     assert "y = 'test'" in source
 
@@ -2071,7 +2073,7 @@ def test_as_python_source_matches_as_source_code():
     """Verify as_python_source() matches the test helper as_source_code()."""
     module = codegen.Module()
     func, _ = module.create_function("my_func", args=["a", "b"])
-    func.add_return(func.name("a").add(func.name("b")))
+    func.create_return(func.name("a").add(func.name("b")))
     assert module.as_python_source() == as_source_code(module)
 
 
@@ -2081,7 +2083,7 @@ def test_as_python_source_matches_as_source_code():
 def test_module_as_ast():
     mod = codegen.Module()
     mod.scope.reserve_name("foo")
-    mod.add_assignment("foo", codegen.Number(1))
+    mod.create_assignment("foo", codegen.Number(1))
     assert isinstance(mod.as_ast(), ast.Module)
 
 
