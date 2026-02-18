@@ -154,20 +154,6 @@ def test_function_bad_arg():
         as_source_code(func)
 
 
-def test_add_function():
-    module = codegen.Module()
-    func_name = module.scope.reserve_name("myfunc")
-    func = codegen.Function(func_name, parent_scope=module.scope)
-    module.add_function(func_name, func)
-    assert_code_equal(
-        module,
-        """
-        def myfunc():
-            pass
-        """,
-    )
-
-
 def test_create_function():
     module = codegen.Module()
     func, func_name = module.create_function("my_func", args=["my_arg"])

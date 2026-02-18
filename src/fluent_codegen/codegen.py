@@ -397,13 +397,6 @@ class Block(CodeGenAstList):
 
         self.add_statement(_Assignment(name, value, type_hint=type_hint))
 
-    def add_function(self, func_name: str, func: Function) -> None:
-        """
-        Add a function statement to the block.
-        """
-        assert func.func_name == func_name
-        self.add_statement(func)
-
     def create_function(
         self,
         name: str,
