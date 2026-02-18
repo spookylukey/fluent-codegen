@@ -382,6 +382,8 @@ class Block(CodeGenAstList):
             # "import foo as bar" results in `bar` name being assigned.
             if not allowable_name(as_):
                 raise AssertionError(f"{as_!r} is not an allowable 'as' name")
+            if self.scope.is_name_in_use(as_):
+                raise AssertionError(f"{as_!r} is already assigned in the scope")
             as_name_object = self.scope.create_name(as_)
             return_name_object = as_name_object
         else:
@@ -401,6 +403,36 @@ class Block(CodeGenAstList):
             return_name_object = self.scope.name(name_to_assign)
 
         import_statement = Import(module=module, as_=as_name_object)
+        self.add_statement(import_statement)
+        return import_statement, return_name_object
+
+    def create_import_from(self, from_module: str, import_: str, as_: str | None = None) -> tuple[ImportFrom, Name]:
+
+        return_name_object: Name
+        if as_ is not None:
+            # "from foo import bar as baz" results in `baz` name being assigned.
+            if not allowable_name(as_):
+                raise AssertionError(f"{as_!r} is not an allowable 'as' name")
+            if self.scope.is_name_in_use(as_):
+                raise AssertionError(f"{as_!r} is already assigned in the scope")
+            as_name_object = self.scope.create_name(as_)
+            return_name_object = as_name_object
+        else:
+            as_name_object = None
+            # Check the dotted bit.
+            dotted_parts = from_module.split(".")
+            for part in dotted_parts:
+                if not allowable_name(part):
+                    raise AssertionError(f"{from_module!r} not an allowable 'import' name")
+
+            # Check the `import_` for clashes.
+            name_to_assign = import_
+
+            if self.scope.is_name_in_use(name_to_assign):
+                raise AssertionError(f"{name_to_assign!r} is already assigned in the scope")
+            return_name_object = self.scope.create_name(name_to_assign)
+
+        import_statement = ImportFrom(from_module=from_module, import_=import_, as_=as_name_object)
         self.add_statement(import_statement)
         return import_statement, return_name_object
 
@@ -855,6 +887,41 @@ class Import(Statement):
             return py_ast.Import(names=[py_ast.alias(name=self.module)], **DEFAULT_AST_ARGS)
         else:
             return py_ast.Import(names=[py_ast.alias(name=self.module, asname=self.as_.name)], **DEFAULT_AST_ARGS)
+
+
+class ImportFrom(Statement):
+    """
+    `from import' statement, supporting:
+    - from foo import bar
+    - from foo import bar as baz
+
+    Use via `Block.create_import_from`
+
+    We deliberately don't support multiple imports - these should
+    be cleaned up later using a linter on the generated code, if desired.
+    """
+
+    def __init__(self, from_module: str, import_: str, as_: Name | None) -> None:
+        self.from_module = from_module
+        self.import_ = import_
+        self.as_ = as_
+
+    def as_ast(self) -> py_ast.AST:
+        if self.as_ is None:
+            # No alias needed:
+            return py_ast.ImportFrom(
+                module=self.from_module,
+                names=[py_ast.alias(name=self.import_)],
+                level=0,
+                **DEFAULT_AST_ARGS,
+            )
+        else:
+            return py_ast.ImportFrom(
+                module=self.from_module,
+                names=[py_ast.alias(name=self.import_, asname=self.as_.name)],
+                level=0,
+                **DEFAULT_AST_ARGS,
+            )
 
 
 class Expression(CodeGenAst):

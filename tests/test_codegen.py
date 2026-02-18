@@ -698,6 +698,14 @@ def test_import_as():
     )
 
 
+def test_import_as_clashing():
+    module = codegen.Module()
+    _, name1 = module.create_import(module="foo", as_="bar")
+    assert name1.name == "bar"
+    with pytest.raises(AssertionError):
+        module.create_import(module="baz", as_="bar")
+
+
 def test_import_illegal_module_name():
     module = codegen.Module()
     with pytest.raises(AssertionError):
@@ -760,6 +768,50 @@ def test_import_dotted_as():
         import foo.bar as baz
         """,
     )
+
+
+def test_import_from():
+    module = codegen.Module()
+    import_stmt, name = module.create_import_from(from_module="foo", import_="bar")
+    assert name.name == "bar"
+    assert not module.scope.is_name_in_use("foo")
+    assert module.scope.is_name_in_use("bar")
+    assert_code_equal(
+        import_stmt,
+        """
+        from foo import bar
+        """,
+    )
+
+
+def test_import_from_as():
+    module = codegen.Module()
+    import_stmt, name = module.create_import_from(from_module="foo", import_="bar", as_="baz")
+    assert name.name == "baz"
+    assert not module.scope.is_name_in_use("foo")
+    assert module.scope.is_name_in_use("baz")
+    assert_code_equal(
+        import_stmt,
+        """
+        from foo import bar as baz
+        """,
+    )
+
+
+def test_import_from_name_clash():
+    module = codegen.Module()
+    _, name = module.create_import_from(from_module="foo", import_="bar")
+    assert name.name == "bar"
+    with pytest.raises(AssertionError):
+        module.create_import_from(from_module="quz", import_="bar")
+
+
+def test_import_from_as_name_clash():
+    module = codegen.Module()
+    _, name = module.create_import_from(from_module="foo", import_="bar", as_="baz")
+    assert name.name == "baz"
+    with pytest.raises(AssertionError):
+        module.create_import_from(from_module="quz", import_="bar", as_="baz")
 
 
 # --- Expression tests ---
