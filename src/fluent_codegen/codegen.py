@@ -819,6 +819,11 @@ class Expression(CodeGenAst):
     def not_in(self, other: Expression, /) -> NotIn:
         return NotIn(self, other)
 
+    # Unpacking
+
+    def starred(self) -> Starred:
+        return Starred(self)
+
 
 class String(Expression):
     child_elements = []
@@ -1049,6 +1054,19 @@ class Attr(Expression):
 
     def as_ast(self) -> py_ast.expr:
         return py_ast.Attribute(value=self.value.as_ast(), attr=self.attribute, **DEFAULT_AST_ARGS)
+
+
+class Starred(Expression):
+    child_elements = ["value"]
+
+    def __init__(self, value: Expression):
+        self.value = value
+
+    def as_ast(self) -> py_ast.expr:
+        return py_ast.Starred(value=self.value.as_ast(), ctx=py_ast.Load(), **DEFAULT_AST_ARGS)
+
+    def __repr__(self):
+        return f"Starred({self.value!r})"
 
 
 def function_call(

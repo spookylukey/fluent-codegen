@@ -45,6 +45,7 @@ operator = ast.operator
 Pass = ast.Pass
 Return = ast.Return
 Set = ast.Set
+Starred = ast.Starred
 Store = ast.Store
 Subscript = ast.Subscript
 Tuple = ast.Tuple

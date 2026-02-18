@@ -1291,6 +1291,60 @@ def test_expression_matmul_method():
     assert_code_equal(result, "a @ 1")
 
 
+# --- Starred tests ---
+
+
+def test_starred_expression():
+    scope = codegen.Scope()
+    name = scope.create_name("args")
+    starred = name.starred()
+    assert isinstance(starred, codegen.Starred)
+    assert_code_equal(starred, "*args")
+
+
+def test_starred_in_function_call():
+    module = codegen.Module()
+    module.scope.create_name("my_func")
+    args_name = module.scope.create_name("args")
+    call = codegen.function_call("my_func", [args_name.starred()], {}, module.scope)
+    assert_code_equal(call, "my_func(*args)")
+
+
+def test_starred_in_list():
+    scope = codegen.Scope()
+    name = scope.create_name("items")
+    lst = codegen.List([name.starred(), codegen.Number(1)])
+    assert_code_equal(lst, "[*items, 1]")
+
+
+def test_starred_in_tuple():
+    scope = codegen.Scope()
+    name = scope.create_name("items")
+    tup = codegen.Tuple([codegen.Number(0), name.starred()])
+    assert_code_equal(tup, "(0, *items)")
+
+
+def test_starred_repr():
+    scope = codegen.Scope()
+    name = scope.create_name("x")
+    starred = codegen.Starred(name)
+    assert repr(starred) == "Starred(Name('x'))"
+
+
+def test_starred_in_assignment():
+    """Starred on the value side, e.g. `a = (*b,)`."""
+    module = codegen.Module()
+    b = module.scope.create_name("b")
+    a = module.scope.create_name("a")
+    module.add_assignment(a, codegen.Tuple([b.starred()]))
+    assert_code_equal(
+        module,
+        """
+        a = (*b,)
+        """,
+    )
+
+
 # --- Chaining tests ---
 
 
