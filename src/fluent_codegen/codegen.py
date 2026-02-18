@@ -406,7 +406,7 @@ class Block(CodeGenAstList):
         self.add_statement(import_statement)
         return import_statement, return_name_object
 
-    def create_import_from(self, from_module: str, import_: str, as_: str | None = None) -> tuple[ImportFrom, Name]:
+    def create_import_from(self, *, from_: str, import_: str, as_: str | None = None) -> tuple[ImportFrom, Name]:
 
         return_name_object: Name
         if as_ is not None:
@@ -420,10 +420,10 @@ class Block(CodeGenAstList):
         else:
             as_name_object = None
             # Check the dotted bit.
-            dotted_parts = from_module.split(".")
+            dotted_parts = from_.split(".")
             for part in dotted_parts:
                 if not allowable_name(part):
-                    raise AssertionError(f"{from_module!r} not an allowable 'import' name")
+                    raise AssertionError(f"{from_!r} not an allowable 'import' name")
 
             # Check the `import_` for clashes.
             name_to_assign = import_
@@ -432,7 +432,7 @@ class Block(CodeGenAstList):
                 raise AssertionError(f"{name_to_assign!r} is already assigned in the scope")
             return_name_object = self.scope.create_name(name_to_assign)
 
-        import_statement = ImportFrom(from_module=from_module, import_=import_, as_=as_name_object)
+        import_statement = ImportFrom(from_module=from_, import_=import_, as_=as_name_object)
         self.add_statement(import_statement)
         return import_statement, return_name_object
 
