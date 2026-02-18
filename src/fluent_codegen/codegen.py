@@ -140,7 +140,6 @@ class Scope:
         self.parent_scope = parent_scope
         self.names: set[str] = set()
         self._function_arg_reserved_names: set[str] = set()
-        self._properties: dict[str, dict[str, object]] = {}
         self._assignments: set[str] = set()
 
     def is_name_in_use(self, name: str) -> bool:
@@ -169,19 +168,15 @@ class Scope:
         requested: str,
         function_arg: bool = False,
         is_builtin: bool = False,
-        properties: dict[str, object] | None = None,
     ):
         """
         Reserve a name as being in use in a scope.
 
         Pass function_arg=True if this is a function argument.
-        'properties' is an optional dict of additional properties
-        (e.g. the type associated with a name)
         """
 
         def _add(final: str):
             self.names.add(final)
-            self._properties[final] = properties or {}
             return final
 
         if function_arg:
@@ -226,43 +221,6 @@ class Scope:
         if self.is_name_reserved(name):
             raise AssertionError(f"Can't reserve '{name}' as function arg name as it is already reserved")
         self._function_arg_reserved_names.add(name)
-
-    def get_name_properties(self, name: str) -> dict[str, object]:
-        """
-        Gets a dictionary of properties for the name.
-        Raises exception if the name is not reserved in this scope or parent
-        """
-        if name in self._properties:
-            return self._properties[name]
-        if self.parent_scope is None:
-            raise LookupError(f"{name} not found in properties")
-        return self.parent_scope.get_name_properties(name)
-
-    def set_name_properties(self, name: str, props: dict[str, object]):
-        """
-        Sets a dictionary of properties for the name.
-        Raises exception if the name is not reserved in this scope or parent.
-        """
-        scope = self
-        while True:
-            if scope is None:
-                raise LookupError(f"{name} not found in properties")
-            if name in scope._properties:
-                scope._properties[name].update(props)
-                break
-            else:
-                scope = scope.parent_scope
-
-    def find_names_by_property(self, prop_name: str, prop_val: object) -> list[str]:
-        """
-        Retrieve all names that match the supplied property name and value
-        """
-        return [
-            name
-            for name, props in self._properties.items()
-            for k, v in props.items()
-            if k == prop_name and v == prop_val
-        ]
 
     def has_assignment(self, name: str) -> bool:
         return name in self._assignments
@@ -998,10 +956,6 @@ class ImportFrom(Statement):
 
 
 class Expression(CodeGenAst):
-    # type represents the Python type this expression will produce,
-    # if we know it (UNKNOWN_TYPE otherwise).
-    type: type = UNKNOWN_TYPE
-
     @abstractmethod
     def as_ast(self) -> py_ast.expr: ...
 
@@ -1014,18 +968,16 @@ class Expression(CodeGenAst):
         self,
         args: Sequence[Expression] | None = None,
         kwargs: dict[str, Expression] | None = None,
-        expr_type: type = UNKNOWN_TYPE,
     ) -> Call:
-        return Call(self, args or [], kwargs or {}, expr_type=expr_type)
+        return Call(self, args or [], kwargs or {})
 
     def method_call(
         self,
         attribute: str,
         args: Sequence[Expression] | None = None,
         kwargs: dict[str, Expression] | None = None,
-        expr_type: type = UNKNOWN_TYPE,
     ) -> Call:
-        return self.attr(attribute).call(args, kwargs, expr_type=expr_type)
+        return self.attr(attribute).call(args, kwargs)
 
     # Arithmetic operators
 
@@ -1152,7 +1104,6 @@ class Number(Expression):
 
     def __init__(self, number: int | float):
         self.number = number
-        self.type = type(number)
 
     def as_ast(self) -> py_ast.expr:
         return py_ast.Constant(self.number, **DEFAULT_AST_ARGS)
@@ -1166,7 +1117,6 @@ class List(Expression):
 
     def __init__(self, items: list[Expression]):
         self.items = items
-        self.type = list
 
     def as_ast(self) -> py_ast.expr:
         return py_ast.List(elts=[i.as_ast() for i in self.items], ctx=py_ast.Load(), **DEFAULT_AST_ARGS)
@@ -1177,7 +1127,6 @@ class Tuple(Expression):
 
     def __init__(self, items: Sequence[Expression]):
         self.items = items
-        self.type = tuple
 
     def as_ast(self) -> py_ast.expr:
         return py_ast.Tuple(elts=[i.as_ast() for i in self.items], ctx=py_ast.Load(), **DEFAULT_AST_ARGS)
@@ -1188,7 +1137,6 @@ class Set(Expression):
 
     def __init__(self, items: Sequence[Expression]):
         self.items = items
-        self.type = set
 
     def as_ast(self) -> py_ast.expr:
         if len(self.items) == 0:
@@ -1207,7 +1155,6 @@ class Dict(Expression):
 
     def __init__(self, pairs: Sequence[tuple[Expression, Expression]]):
         self.pairs = pairs
-        self.type = dict
 
     def as_ast(self) -> py_ast.expr:
         return py_ast.Dict(
@@ -1297,9 +1244,6 @@ class Name(Expression):
         if not scope.is_name_in_use(name):
             raise AssertionError(f"Cannot refer to undefined name '{name}'")
         self.name = name
-        looked_up_type = scope.get_name_properties(name).get(PROPERTY_TYPE, UNKNOWN_TYPE)
-        assert isinstance(looked_up_type, type)
-        self.type = looked_up_type
 
     def as_ast(self) -> py_ast.expr:
         if not allowable_name(self.name, allow_builtin=True):
@@ -1344,19 +1288,13 @@ def function_call(
     args: Sequence[Expression],
     kwargs: dict[str, Expression],
     scope: Scope,
-    expr_type: type = UNKNOWN_TYPE,
 ) -> Expression:
     if not scope.is_name_in_use(function_name):
         raise AssertionError(f"Cannot call unknown function '{function_name}'")
-    if expr_type is UNKNOWN_TYPE:
-        # Try to find out automatically
-        looked_up_return_type = scope.get_name_properties(function_name).get(PROPERTY_RETURN_TYPE, expr_type)
-        assert isinstance(looked_up_return_type, type)
-        expr_type = looked_up_return_type
     if function_name in SENSITIVE_FUNCTIONS:
         raise AssertionError(f"Disallowing call to '{function_name}'")
 
-    return Name(name=function_name, scope=scope).call(args, kwargs, expr_type=expr_type)
+    return Name(name=function_name, scope=scope).call(args, kwargs)
 
 
 class Call(Expression):
@@ -1367,12 +1305,10 @@ class Call(Expression):
         value: Expression,
         args: Sequence[Expression],
         kwargs: dict[str, Expression],
-        expr_type: type = UNKNOWN_TYPE,
     ):
         self.value = value
         self.args = list(args)
         self.kwargs = kwargs
-        self.type = expr_type
 
     def as_ast(self) -> py_ast.expr:
 
@@ -1429,18 +1365,16 @@ def method_call(
     method_name: str,
     args: Sequence[Expression],
     kwargs: dict[str, Expression],
-    expr_type: type = UNKNOWN_TYPE,
 ):
-    return obj.attr(method_name).call(args=args, kwargs=kwargs, expr_type=expr_type)
+    return obj.attr(method_name).call(args=args, kwargs=kwargs)
 
 
 class DictLookup(Expression):
     child_elements = ["lookup_obj", "lookup_arg"]
 
-    def __init__(self, lookup_obj: Expression, lookup_arg: Expression, expr_type: type = UNKNOWN_TYPE):
+    def __init__(self, lookup_obj: Expression, lookup_arg: Expression):
         self.lookup_obj = lookup_obj
         self.lookup_arg = lookup_arg
-        self.type = expr_type
 
     def as_ast(self) -> py_ast.expr:
         return py_ast.Subscript(

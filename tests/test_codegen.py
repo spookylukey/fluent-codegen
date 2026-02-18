@@ -91,12 +91,6 @@ def test_reserve_function_arg_after_reserve_name():
         scope.reserve_function_arg_name("my_arg")
 
 
-def test_name_properties():
-    scope = codegen.Scope()
-    scope.reserve_name("name", properties={"FOO": True})
-    assert scope.get_name_properties("name") == {"FOO": True}
-
-
 def test_scope_name_helper():
     scope = codegen.Scope()
     name = scope.reserve_name("name")
@@ -922,7 +916,7 @@ def test_string_join_one():
 
 def test_concat_string_join_two():
     module = codegen.Module()
-    module.scope.reserve_name("tmp", properties={codegen.PROPERTY_TYPE: str})
+    module.scope.reserve_name("tmp")
     var = module.scope.name("tmp")
     join = codegen.ConcatJoin([codegen.String("hello "), var])
     assert_code_equal(join, "'hello ' + tmp")
@@ -930,7 +924,7 @@ def test_concat_string_join_two():
 
 def test_f_string_join_two():
     module = codegen.Module()
-    module.scope.reserve_name("tmp", properties={codegen.PROPERTY_TYPE: str})
+    module.scope.reserve_name("tmp")
     var = module.scope.name("tmp")
     join = codegen.FStringJoin([codegen.String("hello "), var])
     assert_code_equal(join, "f'hello {tmp}'")
@@ -938,7 +932,7 @@ def test_f_string_join_two():
 
 def test_string_join_collapse_strings():
     scope = codegen.Scope()
-    scope.reserve_name("tmp", properties={codegen.PROPERTY_TYPE: str})
+    scope.reserve_name("tmp")
     var = scope.name("tmp")
     join1 = codegen.ConcatJoin.build(
         [
@@ -1013,50 +1007,6 @@ def test_cleanup_name_allowed_identifier(t):
 # --- Additional coverage tests ---
 
 
-def test_get_name_properties_not_found():
-    scope = codegen.Scope()
-    with pytest.raises(LookupError):
-        scope.get_name_properties("nonexistent")
-
-
-def test_get_name_properties_from_parent():
-    parent = codegen.Scope()
-    parent.reserve_name("name", properties={"FOO": True})
-    child = codegen.Scope(parent_scope=parent)
-    assert child.get_name_properties("name") == {"FOO": True}
-
-
-def test_set_name_properties():
-    scope = codegen.Scope()
-    scope.reserve_name("name", properties={"FOO": True})
-    scope.set_name_properties("name", {"BAR": False})
-    assert scope.get_name_properties("name") == {"FOO": True, "BAR": False}
-
-
-def test_set_name_properties_in_parent():
-    parent = codegen.Scope()
-    parent.reserve_name("name", properties={"FOO": True})
-    child = codegen.Scope(parent_scope=parent)
-    child.set_name_properties("name", {"BAR": False})
-    assert parent.get_name_properties("name") == {"FOO": True, "BAR": False}
-
-
-def test_set_name_properties_not_found():
-    scope = codegen.Scope()
-    with pytest.raises(LookupError):
-        scope.set_name_properties("nonexistent", {"FOO": True})
-
-
-def test_find_names_by_property():
-    scope = codegen.Scope()
-    scope.reserve_name("a", properties={"type": "string"})
-    scope.reserve_name("b", properties={"type": "int"})
-    scope.reserve_name("c", properties={"type": "string"})
-    assert scope.find_names_by_property("type", "string") == ["a", "c"]
-    assert scope.find_names_by_property("type", "int") == ["b"]
-    assert scope.find_names_by_property("type", "float") == []
-
-
 def test_reserve_name_keyword_avoidance():
     scope = codegen.Scope()
     # 'class' is a keyword, so reserve_name should avoid it
@@ -1115,13 +1065,11 @@ def test_number_repr():
 
 def test_list_expression():
     lst = codegen.List([codegen.Number(1), codegen.String("two")])
-    assert lst.type is list
     assert_code_equal(lst, "[1, 'two']")
 
 
 def test_dict_expression():
     d = codegen.Dict([(codegen.String("a"), codegen.Number(1))])
-    assert d.type is dict
     assert_code_equal(d, "{'a': 1}")
 
 
@@ -1154,7 +1102,7 @@ def test_name_equality():
 
 def test_string_join_repr():
     scope = codegen.Scope()
-    scope.reserve_name("tmp", properties={codegen.PROPERTY_TYPE: str})
+    scope.reserve_name("tmp")
     var = scope.name("tmp")
     join = codegen.ConcatJoin([codegen.String("hello "), var])
     assert "ConcatJoin" in repr(join)
@@ -1176,13 +1124,6 @@ def test_if_unfinalized_as_ast_raises():
         if_statement.as_ast()
 
 
-def test_function_call_return_type_property():
-    module = codegen.Module()
-    module.scope.reserve_name("a_function", properties={codegen.PROPERTY_RETURN_TYPE: str})
-    fc = codegen.function_call("a_function", [], {}, module.scope)
-    assert fc.type is str
-
-
 def test_traverse():
     """Test traverse function on Python AST nodes."""
     import ast
@@ -1197,7 +1138,7 @@ def test_traverse():
 def test_simplify():
     """Test simplify replaces nodes using a simplifier function."""
     scope = codegen.Scope()
-    scope.reserve_name("x", properties={codegen.PROPERTY_TYPE: str})
+    scope.reserve_name("x")
     var = scope.name("x")
     join = codegen.ConcatJoin([codegen.String("a"), codegen.String("b"), var])
 
@@ -1266,20 +1207,6 @@ def test_block_as_ast_list_with_codegen_ast_list():
     assert "x = 'hello'" in source
 
 
-def test_dict_lookup_type():
-    scope = codegen.Scope()
-    var = scope.create_name("tmp")
-    lookup = codegen.DictLookup(var, codegen.String("x"), expr_type=str)
-    assert lookup.type is str
-
-
-def test_method_call_type():
-    s = codegen.String("x")
-    mc = codegen.method_call(s, "upper", [], {}, expr_type=str)
-    assert mc.type is str
-    assert_code_equal(mc, "'x'.upper()")
-
-
 def test_block_add_statement_sets_parent():
     """Test that add_statement sets parent_block when None."""
     module = codegen.Module()
@@ -1292,8 +1219,7 @@ def test_block_add_statement_sets_parent():
 def test_rewriting_traverse_replaces_node():
     """Test that rewriting_traverse actually replaces nodes via morph_into."""
     scope = codegen.Scope()
-    scope.reserve_name("x", properties={codegen.PROPERTY_TYPE: str})
-    var = scope.name("x")
+    var = scope.create_name("x")
     join = codegen.ConcatJoin([codegen.String("hello"), var])
 
     def replace_hello(node):
@@ -1439,7 +1365,6 @@ def test_auto_bytes():
 
 def test_tuple():
     t = codegen.Tuple([codegen.Number(1), codegen.String("two")])
-    assert t.type is tuple
     assert_code_equal(t, "(1, 'two')")
 
 
@@ -1470,7 +1395,6 @@ def test_auto_tuple_empty():
 
 def test_set():
     s = codegen.Set([codegen.Number(1), codegen.Number(2)])
-    assert s.type is set
     assert_code_equal(s, "{1, 2}")
 
 
@@ -1483,7 +1407,6 @@ def test_set_empty():
     """Empty set literal is not valid Python syntax ({} is a dict), so we emit set([])."""
     s = codegen.Set([])
     assert_code_equal(s, "set([])")
-    assert s.type is set
 
 
 def test_auto_set():
