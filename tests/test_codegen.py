@@ -306,6 +306,94 @@ def test_multiple_create_assignment_in_inherited_scope():
     try_.except_block.create_assignment(name, codegen.Number(2), allow_multiple=True)
 
 
+# --- Annotation tests ---
+
+
+def test_create_annotation():
+    module = codegen.Module()
+    name = module.create_annotation("x", module.scope.name("int"))
+    assert_code_equal(
+        module,
+        """
+        x: int
+        """,
+    )
+    assert_code_equal(name, "x")
+
+
+def test_create_annotation_reserves_name():
+    module = codegen.Module()
+    module.create_annotation("x", module.scope.name("int"))
+    assert module.scope.is_name_in_use("x")
+
+
+def test_create_annotation_duplicate_name_gets_renamed():
+    module = codegen.Module()
+    module.create_annotation("x", module.scope.name("int"))
+    name2 = module.create_annotation("x", module.scope.name("str"))
+    assert_code_equal(name2, "x2")
+
+
+# --- Field tests ---
+
+
+def test_create_field_no_default():
+    module = codegen.Module()
+    name = module.create_field("x", module.scope.name("int"))
+    assert_code_equal(
+        module,
+        """
+        x: int
+        """,
+    )
+    assert_code_equal(name, "x")
+
+
+def test_create_field_with_default():
+    module = codegen.Module()
+    name = module.create_field("x", module.scope.name("int"), default=codegen.Number(42))
+    assert_code_equal(
+        module,
+        """
+        x: int = 42
+        """,
+    )
+    assert_code_equal(name, "x")
+
+
+def test_create_field_dataclass():
+    """Test a full dataclass with mixed fields."""
+    module = codegen.Module()
+    module.scope.reserve_name("dataclass")
+    cls, _ = module.create_class("Point", decorators=[module.scope.name("dataclass")])
+    cls.body.create_field("x", module.scope.name("float"))
+    cls.body.create_field("y", module.scope.name("float"))
+    cls.body.create_field("label", module.scope.name("str"), default=codegen.String(""))
+    assert_code_equal(
+        module,
+        """
+        @dataclass
+        class Point:
+            x: float
+            y: float
+            label: str = ''
+        """,
+    )
+
+
+def test_create_field_reserves_name():
+    module = codegen.Module()
+    module.create_field("x", module.scope.name("int"))
+    assert module.scope.is_name_in_use("x")
+
+
+def test_create_field_duplicate_name_gets_renamed():
+    module = codegen.Module()
+    module.create_field("x", module.scope.name("int"))
+    name2 = module.create_field("x", module.scope.name("str"))
+    assert_code_equal(name2, "x2")
+
+
 # --- Function call tests ---
 
 

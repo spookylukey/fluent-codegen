@@ -303,6 +303,30 @@ class SupportsNameAssignment(Protocol):
     def has_assignment_for_name(self, name: str) -> bool: ...
 
 
+class _Annotation(Statement):
+    """A bare type annotation without a value, e.g. ``x: int``."""
+
+    child_elements = []
+
+    def __init__(self, name: str, annotation: Expression):
+        self.name = name
+        self.annotation = annotation
+
+    def as_ast(self):
+        if not allowable_name(self.name):
+            raise AssertionError(f"Expected {self.name} to be a valid Python identifier")
+        return py_ast.AnnAssign(
+            target=py_ast.Name(id=self.name, ctx=py_ast.Store(), **DEFAULT_AST_ARGS),
+            annotation=self.annotation.as_ast(),
+            simple=1,
+            value=None,
+            **DEFAULT_AST_ARGS,
+        )
+
+    def has_assignment_for_name(self, name: str) -> bool:
+        return self.name == name
+
+
 class _Assignment(Statement):
     child_elements = ["value"]
 
@@ -457,6 +481,39 @@ class Block(CodeGenAstList):
             self.scope.register_assignment(name)
 
         self.add_statement(_Assignment(name, value, type_hint=type_hint))
+
+    def create_annotation(self, name: str, annotation: Expression) -> Name:
+        """
+        Adds a bare type annotation of the form::
+
+            x: int
+
+        Reserves the name and adds the annotation statement to the block.
+        """
+        name_obj = self.scope.create_name(name)
+        self.scope.register_assignment(name_obj.name)
+        self.add_statement(_Annotation(name_obj.name, annotation))
+        return name_obj
+
+    def create_field(self, name: str, annotation: Expression, *, default: Expression | None = None) -> Name:
+        """
+        Create a typed field, typically used in dataclass bodies.
+
+        If *default* is provided, creates an annotated assignment::
+
+            x: int = 0
+
+        Otherwise, creates a bare annotation::
+
+            x: int
+        """
+        if default is not None:
+            name_obj = self.scope.create_name(name)
+            self.scope.register_assignment(name_obj.name)
+            self.add_statement(_Assignment(name_obj.name, default, type_hint=annotation))
+            return name_obj
+        else:
+            return self.create_annotation(name, annotation)
 
     def create_function(
         self,
