@@ -2246,3 +2246,16 @@ def test_module_as_ast():
 def test_module_reserves_builtins_by_default():
     mod = codegen.Module()
     assert mod.scope.is_name_reserved("str")
+
+
+def test_module_comment():
+    mod = codegen.Module()
+    mod.add_file_comment("Hello")
+    mod.create_import("foo")
+    assert_code_equal(
+        mod,
+        """
+        # Hello
+        import foo
+        """,
+    )

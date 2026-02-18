@@ -502,9 +502,18 @@ class Module(Block, CodeGenAst):
             for name in dir(builtins):
                 scope.reserve_name(name, is_builtin=True)
         Block.__init__(self, scope)
+        self.file_comments: list[str] = []
 
     def as_ast(self) -> py_ast.Module:
         return py_ast.Module(body=self.as_ast_list(), type_ignores=[], **DEFAULT_AST_ARGS_MODULE)
+
+    def as_python_source(self) -> str:
+        main = super().as_python_source()
+        file_comments = "".join(f"# {comment}\n" for comment in self.file_comments)
+        return file_comments + main
+
+    def add_file_comment(self, comment: str) -> None:
+        self.file_comments.append(comment)
 
 
 class ArgKind(enum.Enum):
