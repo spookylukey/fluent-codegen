@@ -662,16 +662,20 @@ class Function(Scope, Statement):
         self.func_name = name
         self.decorators: list[Expression] = list(decorators) if decorators else []
         self.return_type: Expression | None = return_type
-        if args is None:
-            normalized: list[FunctionArg] = []
-        else:
-            normalized = _normalize_args(args)
-        _validate_arg_order(normalized)
+        self.args: list[FunctionArg] = []
+        if args is not None:
+            self.add_args(args)
+
+    def add_args(self, args: Sequence[str | FunctionArg]) -> None:
+        """Add arguments to the function, with the same validation as in __init__."""
+        normalized = _normalize_args(args)
+        combined = self.args + normalized
+        _validate_arg_order(combined)
         for arg in normalized:
             if self.is_name_in_use(arg.name):
                 raise AssertionError(f"Can't use '{arg.name}' as function argument name because it shadows other names")
             self.reserve_name(arg.name, function_arg=True)
-        self.args = normalized
+        self.args = combined
 
     def as_ast(self) -> py_ast.stmt:
         if not allowable_name(self.func_name):

@@ -162,6 +162,71 @@ def test_function_args_name_check():
         codegen.Function(func_name, args=["my_arg"], parent_scope=module.scope)
 
 
+def test_function_add_args():
+    module = codegen.Module()
+    func_name = module.scope.reserve_name("myfunc")
+    func = codegen.Function(func_name, args=["a"], parent_scope=module.scope)
+    func.add_args(["b", "c"])
+    func.create_return(func.name("a"))
+    assert_code_equal(
+        func,
+        """
+        def myfunc(a, b, c):
+            return a
+        """,
+    )
+
+
+def test_function_add_args_with_function_arg():
+    module = codegen.Module()
+    func_name = module.scope.reserve_name("myfunc")
+    func = codegen.Function(func_name, parent_scope=module.scope)
+    func.add_args([codegen.FunctionArg.keyword("x", default=codegen.Number(1))])
+    func.create_return(func.name("x"))
+    assert_code_equal(
+        func,
+        """
+        def myfunc(*, x=1):
+            return x
+        """,
+    )
+
+
+def test_function_add_args_name_shadow_check():
+    module = codegen.Module()
+    module.scope.reserve_name("my_arg")
+    func_name = module.scope.reserve_name("myfunc")
+    func = codegen.Function(func_name, parent_scope=module.scope)
+    with pytest.raises(AssertionError):
+        func.add_args(["my_arg"])
+
+
+def test_function_add_args_duplicate_check():
+    module = codegen.Module()
+    func_name = module.scope.reserve_name("myfunc")
+    func = codegen.Function(func_name, args=["a"], parent_scope=module.scope)
+    with pytest.raises(AssertionError):
+        func.add_args(["a"])
+
+
+def test_function_add_args_order_check():
+    module = codegen.Module()
+    func_name = module.scope.reserve_name("myfunc")
+    func = codegen.Function(func_name, args=[codegen.FunctionArg.keyword("x")], parent_scope=module.scope)
+    with pytest.raises(ValueError):
+        func.add_args([codegen.FunctionArg.positional("y")])
+
+
+def test_function_add_args_reserves_name():
+    """Added args should be usable as Name references within the function."""
+    module = codegen.Module()
+    func_name = module.scope.reserve_name("myfunc")
+    func = codegen.Function(func_name, parent_scope=module.scope)
+    func.add_args(["my_arg"])
+    ref = codegen.Name("my_arg", func)
+    assert_code_equal(ref, "my_arg")
+
+
 def test_function_args_name_reserved_check():
     module = codegen.Module()
     module.scope.reserve_function_arg_name("my_arg")
