@@ -328,6 +328,26 @@ def test_create_annotation_duplicate_name_gets_renamed():
     assert_code_equal(name2, "x2")
 
 
+def test_create_annotation_bad_name():
+    module = codegen.Module()
+    # Force a bad name through by directly constructing _Annotation
+    from fluent_codegen.codegen import _Annotation
+
+    stmt = _Annotation("bad name", module.scope.name("int"))
+    with pytest.raises(AssertionError):
+        as_source_code(stmt)
+
+
+def test_annotation_has_assignment_for_name():
+    from fluent_codegen.codegen import _Annotation
+
+    scope = codegen.Scope()
+    scope.reserve_name("int")
+    stmt = _Annotation("x", scope.name("int"))
+    assert stmt.has_assignment_for_name("x") is True
+    assert stmt.has_assignment_for_name("y") is False
+
+
 # --- Field tests ---
 
 
@@ -894,6 +914,18 @@ def test_import_from_as_name_clash():
     assert name.name == "baz"
     with pytest.raises(AssertionError):
         module.create_import_from(from_="quz", import_="bar", as_="baz")
+
+
+def test_import_from_bad_as_name():
+    module = codegen.Module()
+    with pytest.raises(AssertionError):
+        module.create_import_from(from_="foo", import_="bar", as_="bad name")
+
+
+def test_import_from_bad_from_name():
+    module = codegen.Module()
+    with pytest.raises(AssertionError):
+        module.create_import_from(from_="bad name", import_="bar")
 
 
 # --- Expression tests ---
