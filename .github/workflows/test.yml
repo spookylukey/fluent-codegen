@@ -31,5 +31,5 @@ jobs:
       - run: uv run ruff format --check src/ tests/
       - run: uv run pyright src
 
-      - name: Test with pytest
+      - name: Test with pytest (100% coverage required)
         run: uv run pytest

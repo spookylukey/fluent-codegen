@@ -69,6 +69,7 @@ known-first-party = ["fluent_codegen"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "--cov=fluent_codegen --cov-fail-under=100"
 
 [dependency-groups]
 dev = [
