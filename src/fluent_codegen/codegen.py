@@ -662,25 +662,25 @@ class Function(Scope, Statement):
         self.func_name = name
         self.decorators: list[Expression] = list(decorators) if decorators else []
         self.return_type: Expression | None = return_type
-        self.args: list[FunctionArg] = []
+        self._args: list[FunctionArg] = []
         if args is not None:
             self.add_args(args)
 
     def add_args(self, args: Sequence[str | FunctionArg]) -> None:
         """Add arguments to the function, with the same validation as in __init__."""
         normalized = _normalize_args(args)
-        combined = self.args + normalized
+        combined = self._args + normalized
         _validate_arg_order(combined)
         for arg in normalized:
             if self.is_name_in_use(arg.name):
                 raise AssertionError(f"Can't use '{arg.name}' as function argument name because it shadows other names")
             self.reserve_name(arg.name, function_arg=True)
-        self.args = combined
+        self._args = combined
 
     def as_ast(self) -> py_ast.stmt:
         if not allowable_name(self.func_name):
             raise AssertionError(f"Expected '{self.func_name}' to be a valid Python identifier")
-        for arg in self.args:
+        for arg in self._args:
             if not allowable_name(arg.name):
                 raise AssertionError(f"Expected '{arg.name}' to be a valid Python identifier")
 
@@ -691,17 +691,17 @@ class Function(Scope, Statement):
                 **DEFAULT_AST_ARGS,
             )
 
-        posonlyargs = [_make_arg(a) for a in self.args if a.kind == ArgKind.POSITIONAL_ONLY]
-        regular_args = [_make_arg(a) for a in self.args if a.kind == ArgKind.POSITIONAL_OR_KEYWORD]
-        kwonlyargs = [_make_arg(a) for a in self.args if a.kind == ArgKind.KEYWORD_ONLY]
+        posonlyargs = [_make_arg(a) for a in self._args if a.kind == ArgKind.POSITIONAL_ONLY]
+        regular_args = [_make_arg(a) for a in self._args if a.kind == ArgKind.POSITIONAL_OR_KEYWORD]
+        kwonlyargs = [_make_arg(a) for a in self._args if a.kind == ArgKind.KEYWORD_ONLY]
 
         # defaults: right-aligned to posonlyargs + regular_args
-        positional_all = [a for a in self.args if a.kind in (ArgKind.POSITIONAL_ONLY, ArgKind.POSITIONAL_OR_KEYWORD)]
+        positional_all = [a for a in self._args if a.kind in (ArgKind.POSITIONAL_ONLY, ArgKind.POSITIONAL_OR_KEYWORD)]
         defaults = [a.default.as_ast() for a in positional_all if a.default is not None]
 
         # kw_defaults: one entry per kwonlyarg, None if no default
         kw_defaults: list[py_ast.expr | None] = [
-            a.default.as_ast() if a.default is not None else None for a in self.args if a.kind == ArgKind.KEYWORD_ONLY
+            a.default.as_ast() if a.default is not None else None for a in self._args if a.kind == ArgKind.KEYWORD_ONLY
         ]
 
         return py_ast.FunctionDef(
