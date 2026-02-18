@@ -499,7 +499,7 @@ def test_if_empty():
 def test_if_one_if():
     scope = codegen.Module()
     if_statement = codegen.If(scope.scope)
-    first_block = if_statement.add_if(codegen.Number(1))
+    first_block = if_statement.create_if_branch(codegen.Number(1))
     first_block.create_return(codegen.Number(2))
     assert_code_equal(
         if_statement,
@@ -513,9 +513,9 @@ def test_if_one_if():
 def test_if_two_ifs():
     scope = codegen.Module()
     if_statement = codegen.If(scope.scope)
-    first_block = if_statement.add_if(codegen.Number(1))
+    first_block = if_statement.create_if_branch(codegen.Number(1))
     first_block.create_return(codegen.Number(2))
-    second_block = if_statement.add_if(codegen.Number(3))
+    second_block = if_statement.create_if_branch(codegen.Number(3))
     second_block.create_return(codegen.Number(4))
     assert_code_equal(
         if_statement,
@@ -531,7 +531,7 @@ def test_if_two_ifs():
 def test_if_with_else():
     scope = codegen.Module()
     if_statement = codegen.If(scope.scope)
-    first_block = if_statement.add_if(codegen.Number(1))
+    first_block = if_statement.create_if_branch(codegen.Number(1))
     first_block.create_return(codegen.Number(2))
     if_statement.else_block.create_return(codegen.Number(3))
     assert_code_equal(
@@ -563,7 +563,7 @@ def test_if_scope():
     func, _ = module.create_function("myfunc", [])
     func.reserve_name("myvalue")
     if_statement = codegen.If(parent_scope=func, parent_block=func.body)
-    if_block = if_statement.add_if(codegen.constants.True_)
+    if_block = if_statement.create_if_branch(codegen.constants.True_)
     assert if_block.scope.is_name_in_use("myvalue")
 
     name_in_if_block = if_block.scope.reserve_name("myvalue")
@@ -574,7 +574,7 @@ def test_block_create_if():
     module = codegen.Module()
     func, _ = module.create_function("myfunc", [])
     if_stmt = func.body.create_if()
-    if_block = if_stmt.add_if(codegen.constants.True_)
+    if_block = if_stmt.create_if_branch(codegen.constants.True_)
     if_block.create_return(codegen.Number(1))
     if_stmt.else_block.create_return(codegen.Number(2))
     assert_code_equal(
@@ -594,7 +594,7 @@ def test_block_create_if_scope():
     func, _ = module.create_function("myfunc", [])
     func.reserve_name("myvalue")
     if_stmt = func.body.create_if()
-    if_block = if_stmt.add_if(codegen.constants.True_)
+    if_block = if_stmt.create_if_branch(codegen.constants.True_)
     assert if_block.scope.is_name_in_use("myvalue")
 
 
@@ -602,7 +602,7 @@ def test_block_create_if_parent_block():
     module = codegen.Module()
     func, _ = module.create_function("myfunc", [])
     if_stmt = func.body.create_if()
-    if_block = if_stmt.add_if(codegen.constants.True_)
+    if_block = if_stmt.create_if_branch(codegen.constants.True_)
     assert if_block.parent_block is func.body
 
 
@@ -867,7 +867,7 @@ def test_string_join_repr():
 def test_if_finalize_returns_self():
     scope = codegen.Module()
     if_statement = codegen.If(scope.scope)
-    if_statement.add_if(codegen.Number(1))
+    if_statement.create_if_branch(codegen.Number(1))
     result = if_statement.finalize()
     assert result is if_statement
 

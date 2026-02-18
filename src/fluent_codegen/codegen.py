@@ -673,7 +673,10 @@ class If(Statement):
         self.else_block = Block(parent_scope, parent_block=self._parent_block)
         self._parent_scope = parent_scope
 
-    def add_if(self, condition: Expression):
+    def create_if_branch(self, condition: Expression) -> Block:
+        """
+        Create new if branch with a condition.
+        """
         new_if = Block(self._parent_scope, parent_block=self._parent_block)
         self.if_blocks.append(new_if)
         self.conditions.append(condition)
