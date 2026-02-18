@@ -463,13 +463,16 @@ class Block(CodeGenAstList):
         name: str,
         args: Sequence[str | FunctionArg],
         decorators: Sequence[Expression] | None = None,
+        return_type: Expression | None = None,
     ) -> tuple[Function, Name]:
         """
         Reserve a name for a function, create the Function and add the function statement
         to the block.
         """
         name_obj = self.scope.create_name(name)
-        func = Function(name_obj.name, args=args, parent_scope=self.scope, decorators=decorators)
+        func = Function(
+            name_obj.name, args=args, parent_scope=self.scope, decorators=decorators, return_type=return_type
+        )
         self.add_statement(func)
         return func, name_obj
 
@@ -630,11 +633,13 @@ class Function(Scope, Statement):
         args: Sequence[str | FunctionArg] | None = None,
         parent_scope: Scope | None = None,
         decorators: Sequence[Expression] | None = None,
+        return_type: Expression | None = None,
     ):
         super().__init__(parent_scope=parent_scope)
         self.body = Block(self)
         self.func_name = name
         self.decorators: list[Expression] = list(decorators) if decorators else []
+        self.return_type: Expression | None = return_type
         if args is None:
             normalized: list[FunctionArg] = []
         else:
@@ -684,7 +689,7 @@ class Function(Scope, Statement):
             body=self.body.as_ast_list(allow_empty=False),
             decorator_list=[d.as_ast() for d in self.decorators],
             type_params=[],
-            returns=None,
+            returns=self.return_type.as_ast() if self.return_type is not None else None,
             **DEFAULT_AST_ARGS,
         )
 

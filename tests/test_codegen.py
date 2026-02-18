@@ -1941,6 +1941,79 @@ def test_function_no_decorators_default():
     assert func.decorators == []
 
 
+def test_function_return_type():
+    module = codegen.Module()
+    func = codegen.Function(
+        "myfunc",
+        args=["x"],
+        parent_scope=module.scope,
+        return_type=module.scope.name("int"),
+    )
+    assert_code_equal(
+        func,
+        """
+        def myfunc(x) -> int:
+            pass
+        """,
+    )
+
+
+def test_function_return_type_none():
+    module = codegen.Module()
+    func = codegen.Function(
+        "myfunc",
+        args=[],
+        parent_scope=module.scope,
+        return_type=codegen.constants.None_,
+    )
+    assert_code_equal(
+        func,
+        """
+        def myfunc() -> None:
+            pass
+        """,
+    )
+
+
+def test_function_return_type_string_expr():
+    module = codegen.Module()
+    func = codegen.Function(
+        "myfunc",
+        args=[],
+        parent_scope=module.scope,
+        return_type=codegen.String("MyClass"),
+    )
+    assert_code_equal(
+        func,
+        """
+        def myfunc() -> 'MyClass':
+            pass
+        """,
+    )
+
+
+def test_function_no_return_type_default():
+    module = codegen.Module()
+    func = codegen.Function("myfunc", args=[], parent_scope=module.scope)
+    assert func.return_type is None
+
+
+def test_create_function_with_return_type():
+    module = codegen.Module()
+    func, func_name = module.create_function(
+        "my_func",
+        args=["x"],
+        return_type=module.scope.name("str"),
+    )
+    assert_code_equal(
+        module,
+        """
+        def my_func(x) -> str:
+            pass
+        """,
+    )
+
+
 def test_create_function_with_function_args():
     module = codegen.Module()
     func, func_name = module.create_function(
