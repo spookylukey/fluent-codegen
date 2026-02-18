@@ -1651,6 +1651,6 @@ class constants:
     Useful pre-made Expression constants
     """
 
-    None_: NoneExpr = auto(None)
+    None_: NoneExpr = NoneExpr()
     True_: Bool = auto(True)
     False_: Bool = auto(False)
