@@ -1172,7 +1172,6 @@ def test_dict_expression():
 
 def test_none_expr():
     n = codegen.NoneExpr()
-    assert n.type is type(None)
     assert_code_equal(n, "None")
 
 
@@ -1406,13 +1405,11 @@ def test_auto_unsupported_type():
 
 def test_bool_true():
     b = codegen.Bool(True)
-    assert b.type is bool
     assert_code_equal(b, "True")
 
 
 def test_bool_false():
     b = codegen.Bool(False)
-    assert b.type is bool
     assert_code_equal(b, "False")
 
 
@@ -1438,7 +1435,6 @@ def test_auto_bool_false():
 
 def test_bytes():
     b = codegen.Bytes(b"hello")
-    assert b.type is bytes
     assert_code_equal(b, "b'hello'")
 
 
@@ -1521,29 +1517,6 @@ def test_auto_frozenset():
 
 # The classes are tested indirectly by the utilty methods on `Expression`,
 # we don't really need separate tests.
-
-# --- Comparison operator type ---
-
-
-def test_comparison_ops_have_bool_type():
-    a, b = codegen.Number(1), codegen.Number(2)
-    for cls in (
-        codegen.Equals,
-        codegen.NotEquals,
-        codegen.Lt,
-        codegen.Gt,
-        codegen.LtE,
-        codegen.GtE,
-        codegen.In,
-        codegen.NotIn,
-    ):
-        assert cls(a, b).type is bool
-
-
-def test_boolean_ops_have_bool_type():
-    a, b = codegen.Bool(True), codegen.Bool(False)
-    assert codegen.And(a, b).type is bool
-    assert codegen.Or(a, b).type is bool
 
 
 # --- Expression utility method tests ---

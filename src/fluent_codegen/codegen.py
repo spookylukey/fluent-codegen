@@ -61,15 +61,6 @@ from .utils import allowable_keyword_arg_name, allowable_name
 # which have similar aims.
 
 
-PROPERTY_TYPE = "PROPERTY_TYPE"
-PROPERTY_RETURN_TYPE = "PROPERTY_RETURN_TYPE"
-# UNKNOWN_TYPE is just an alias for `object` for clarity.
-UNKNOWN_TYPE: type = object
-# It is important for our usage of it that UNKNOWN_TYPE is a `type`,
-# and the most general `type`.
-assert isinstance(UNKNOWN_TYPE, type)
-
-
 SENSITIVE_FUNCTIONS = {
     # builtin functions that we should never be calling from our code
     # generation. This is a defense-in-depth mechansim to stop our code
@@ -1057,8 +1048,6 @@ class Expression(CodeGenAst):
 class String(Expression):
     child_elements = []
 
-    type = str
-
     def __init__(self, string_value: str):
         self.string_value = string_value
 
@@ -1079,8 +1068,6 @@ class String(Expression):
 class Bool(Expression):
     child_elements = []
 
-    type = bool
-
     def __init__(self, value: bool):
         self.value = value
 
@@ -1093,8 +1080,6 @@ class Bool(Expression):
 
 class Bytes(Expression):
     child_elements = []
-
-    type = bytes
 
     def __init__(self, value: bytes):
         self.value = value
@@ -1173,8 +1158,6 @@ class Dict(Expression):
 
 class StringJoinBase(Expression):
     child_elements = ["parts"]
-
-    type = str
 
     def __init__(self, parts: Sequence[Expression]):
         self.parts = parts
@@ -1396,8 +1379,6 @@ create_class_instance = function_call
 
 
 class NoneExpr(Expression):
-    type = type(None)
-
     def as_ast(self) -> py_ast.expr:
         return py_ast.Constant(value=None, **DEFAULT_AST_ARGS)
 
@@ -1459,7 +1440,6 @@ class MatMul(ArithOp):
 class CompareOp(BinaryOperator, ABC):
     """Comparison operator (ast.Compare)."""
 
-    type = bool
     op: ClassVar[type[py_ast.cmpop]]
 
     def as_ast(self) -> py_ast.expr:
@@ -1504,7 +1484,6 @@ class NotIn(CompareOp):
 
 
 class BoolOp(BinaryOperator, ABC):
-    type = bool
     op: ClassVar[type[py_ast.boolop]]
 
     def as_ast(self) -> py_ast.expr:
