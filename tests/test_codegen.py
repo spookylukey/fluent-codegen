@@ -675,6 +675,100 @@ def test_with_empty_body():
     )
 
 
+# --- Import tests ---
+
+
+def test_import():
+    module = codegen.Module()
+    import_stmt, name = module.create_import(module="foo")
+    assert name.name == "foo"
+    assert module.scope.is_name_in_use("foo")
+    assert_code_equal(
+        import_stmt,
+        """
+        import foo
+        """,
+    )
+
+
+def test_import_as():
+    module = codegen.Module()
+    import_stmt, name = module.create_import(module="foo", as_="bar")
+    assert name.name == "bar"
+    assert not module.scope.is_name_in_use("foo")
+    assert module.scope.is_name_in_use("bar")
+    assert_code_equal(
+        import_stmt,
+        """
+        import foo as bar
+        """,
+    )
+
+
+def test_import_illegal_module_name():
+    module = codegen.Module()
+    with pytest.raises(AssertionError):
+        module.create_import(module="foo asdasd")
+    with pytest.raises(AssertionError):
+        module.create_import(module="foo. asdasd")
+
+    # Builtin
+    with pytest.raises(AssertionError):
+        module.create_import(module="str")
+
+
+def test_import_illegal_as_name():
+    module = codegen.Module()
+    with pytest.raises(AssertionError):
+        module.create_import(module="foo", as_="bar.baz")
+
+
+def test_import_dotted():
+    module = codegen.Module()
+    import_stmt, _ = module.create_import(module="foo.bar")
+    assert module.scope.is_name_in_use("foo")
+    assert not module.scope.is_name_in_use("foo.bar")
+    assert not module.scope.is_name_in_use("bar")
+    assert_code_equal(
+        import_stmt,
+        """
+        import foo.bar
+        """,
+    )
+
+
+def test_import_dotted_multiple():
+    # You can do multiple imports from the same top level module.
+    module = codegen.Module()
+    assert not module.scope.is_name_in_use("foo")
+    module.create_import(module="foo.bar")
+    assert module.scope.is_name_in_use("foo")
+    module.create_import(module="foo.baz")
+    assert module.scope.is_name_in_use("foo")
+    assert_code_equal(
+        module,
+        """
+        import foo.bar
+        import foo.baz
+        """,
+    )
+
+
+def test_import_dotted_as():
+    module = codegen.Module()
+    import_stmt, _ = module.create_import(module="foo.bar", as_="baz")
+    assert not module.scope.is_name_in_use("foo")
+    assert not module.scope.is_name_in_use("foo.bar")
+    assert not module.scope.is_name_in_use("bar")
+    assert module.scope.is_name_in_use("baz")
+    assert_code_equal(
+        import_stmt,
+        """
+        import foo.bar as baz
+        """,
+    )
+
+
 # --- Expression tests ---
 
 

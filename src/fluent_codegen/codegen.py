@@ -375,6 +375,35 @@ class Block(CodeGenAstList):
                         f"Block {statement} is already child of {statement.parent_block}, can't reassign to {self}"
                     )
 
+    def create_import(self, module: str, as_: str | None = None) -> tuple[Import, Name]:
+
+        return_name_object: Name
+        if as_ is not None:
+            # "import foo as bar" results in `bar` name being assigned.
+            if not allowable_name(as_):
+                raise AssertionError(f"{as_!r} is not an allowable 'as' name")
+            as_name_object = self.scope.create_name(as_)
+            return_name_object = as_name_object
+        else:
+            as_name_object = None
+            # "import foo" results in `foo` name being assigned
+            # "import foo.bar" also results in `foo` being reserved.
+            dotted_parts = module.split(".")
+            for part in dotted_parts:
+                if not allowable_name(part):
+                    raise AssertionError(f"{module!r} not an allowable 'import' name")
+            name_to_assign = dotted_parts[0]
+            # We can't rename, so don't use `reserve_name` or `create_name`.
+            # We also need to allow for multiple imports, like `import foo.bar` then `import foo.baz`
+
+            if not self.scope.is_name_in_use(name_to_assign):
+                self.scope.reserve_name(name_to_assign)
+            return_name_object = self.scope.name(name_to_assign)
+
+        import_statement = Import(module=module, as_=as_name_object)
+        self.add_statement(import_statement)
+        return import_statement, return_name_object
+
     # Safe alternatives to Block.statements being manipulated directly:
     def create_assignment(
         self, name: str | Name, value: Expression, *, type_hint: Expression | None = None, allow_multiple: bool = False
@@ -471,7 +500,7 @@ class Module(Block, CodeGenAst):
         scope = Scope(parent_scope=None)
         if reserve_builtins:
             for name in dir(builtins):
-                scope.reserve_name(name)
+                scope.reserve_name(name, is_builtin=True)
         Block.__init__(self, scope)
 
     def as_ast(self) -> py_ast.Module:
@@ -791,6 +820,32 @@ class Try(Statement):
         ) and self.except_block.has_assignment_for_name(name):
             return True
         return False
+
+
+class Import(Statement):
+    """
+    Simple import statements, supporting:
+    - import foo
+    - import foo as bar
+    - import foo.bar
+    - import foo.bar as baz
+
+    Use via `Block.create_import`
+
+    We deliberately don't support multiple imports - these should
+    be cleaned up later using a linter on the generated code, if desired.
+    """
+
+    def __init__(self, module: str, as_: Name | None) -> None:
+        self.module = module
+        self.as_ = as_
+
+    def as_ast(self) -> py_ast.AST:
+        if self.as_ is None:
+            # No alias needed:
+            return py_ast.Import(names=[py_ast.alias(name=self.module)], **DEFAULT_AST_ARGS)
+        else:
+            return py_ast.Import(names=[py_ast.alias(name=self.module, asname=self.as_.name)], **DEFAULT_AST_ARGS)
 
 
 class Expression(CodeGenAst):

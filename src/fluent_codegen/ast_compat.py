@@ -69,7 +69,9 @@ Constant = ast.Constant
 AST = ast.AST
 stmt = ast.stmt
 expr = ast.expr
-
+Import = ast.Import
+ImportFrom = ast.ImportFrom
+alias = ast.alias
 
 # `compile` builtin needs these attributes on AST nodes.
 # It's hard to get something sensible we can put for line/col numbers so we put arbitrary values.
