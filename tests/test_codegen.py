@@ -2100,6 +2100,143 @@ def test_function_arg_complex_defaults():
     )
 
 
+def test_function_arg_annotation_standard():
+    module = codegen.Module()
+    func = codegen.Function(
+        "myfunc",
+        args=[
+            codegen.FunctionArg.standard("x", annotation=module.scope.name("int")),
+            codegen.FunctionArg.standard("y", annotation=module.scope.name("str")),
+        ],
+        parent_scope=module.scope,
+    )
+    assert_code_equal(
+        func,
+        """
+        def myfunc(x: int, y: str):
+            pass
+        """,
+    )
+
+
+def test_function_arg_annotation_positional():
+    module = codegen.Module()
+    func = codegen.Function(
+        "myfunc",
+        args=[
+            codegen.FunctionArg.positional("x", annotation=module.scope.name("int")),
+        ],
+        parent_scope=module.scope,
+    )
+    assert_code_equal(
+        func,
+        """
+        def myfunc(x: int, /):
+            pass
+        """,
+    )
+
+
+def test_function_arg_annotation_keyword():
+    module = codegen.Module()
+    func = codegen.Function(
+        "myfunc",
+        args=[
+            codegen.FunctionArg.keyword("x", annotation=module.scope.name("int")),
+        ],
+        parent_scope=module.scope,
+    )
+    assert_code_equal(
+        func,
+        """
+        def myfunc(*, x: int):
+            pass
+        """,
+    )
+
+
+def test_function_arg_annotation_with_default():
+    module = codegen.Module()
+    func = codegen.Function(
+        "myfunc",
+        args=[
+            codegen.FunctionArg.standard("x", annotation=module.scope.name("int"), default=codegen.Number(0)),
+        ],
+        parent_scope=module.scope,
+    )
+    assert_code_equal(
+        func,
+        """
+        def myfunc(x: int=0):
+            pass
+        """,
+    )
+
+
+def test_function_arg_annotation_mixed():
+    """Some args annotated, some not."""
+    module = codegen.Module()
+    func = codegen.Function(
+        "myfunc",
+        args=[
+            codegen.FunctionArg.standard("x", annotation=module.scope.name("int")),
+            codegen.FunctionArg.standard("y"),
+        ],
+        parent_scope=module.scope,
+    )
+    assert_code_equal(
+        func,
+        """
+        def myfunc(x: int, y):
+            pass
+        """,
+    )
+
+
+def test_function_arg_annotation_none_default():
+    arg = codegen.FunctionArg.standard("x")
+    assert arg.annotation is None
+
+
+def test_function_arg_annotation_all_kinds():
+    module = codegen.Module()
+    func = codegen.Function(
+        "myfunc",
+        args=[
+            codegen.FunctionArg.positional("a", annotation=module.scope.name("int")),
+            codegen.FunctionArg.standard("b", annotation=module.scope.name("str")),
+            codegen.FunctionArg.keyword("c", annotation=module.scope.name("float")),
+        ],
+        parent_scope=module.scope,
+    )
+    assert_code_equal(
+        func,
+        """
+        def myfunc(a: int, /, b: str, *, c: float):
+            pass
+        """,
+    )
+
+
+def test_function_arg_annotation_with_return_type():
+    module = codegen.Module()
+    func = codegen.Function(
+        "myfunc",
+        args=[
+            codegen.FunctionArg.standard("x", annotation=module.scope.name("int")),
+        ],
+        parent_scope=module.scope,
+        return_type=module.scope.name("str"),
+    )
+    assert_code_equal(
+        func,
+        """
+        def myfunc(x: int) -> str:
+            pass
+        """,
+    )
+
+
 # --- Class tests ---
 
 

@@ -566,21 +566,28 @@ class FunctionArg:
     name: str
     kind: ArgKind = ArgKind.POSITIONAL_OR_KEYWORD
     default: Expression | None = None
+    annotation: Expression | None = None
 
     @classmethod
-    def positional(cls, name: str, *, default: Expression | None = None) -> FunctionArg:
+    def positional(
+        cls, name: str, *, default: Expression | None = None, annotation: Expression | None = None
+    ) -> FunctionArg:
         """Create a positional-only argument."""
-        return cls(name=name, kind=ArgKind.POSITIONAL_ONLY, default=default)
+        return cls(name=name, kind=ArgKind.POSITIONAL_ONLY, default=default, annotation=annotation)
 
     @classmethod
-    def keyword(cls, name: str, *, default: Expression | None = None) -> FunctionArg:
+    def keyword(
+        cls, name: str, *, default: Expression | None = None, annotation: Expression | None = None
+    ) -> FunctionArg:
         """Create a keyword-only argument."""
-        return cls(name=name, kind=ArgKind.KEYWORD_ONLY, default=default)
+        return cls(name=name, kind=ArgKind.KEYWORD_ONLY, default=default, annotation=annotation)
 
     @classmethod
-    def standard(cls, name: str, *, default: Expression | None = None) -> FunctionArg:
+    def standard(
+        cls, name: str, *, default: Expression | None = None, annotation: Expression | None = None
+    ) -> FunctionArg:
         """Create a positional-or-keyword argument (the Python default)."""
-        return cls(name=name, kind=ArgKind.POSITIONAL_OR_KEYWORD, default=default)
+        return cls(name=name, kind=ArgKind.POSITIONAL_OR_KEYWORD, default=default, annotation=annotation)
 
 
 def _normalize_args(args: Sequence[str | FunctionArg]) -> list[FunctionArg]:
@@ -659,7 +666,11 @@ class Function(Scope, Statement):
                 raise AssertionError(f"Expected '{arg.name}' to be a valid Python identifier")
 
         def _make_arg(a: FunctionArg) -> py_ast.arg:
-            return py_ast.arg(arg=a.name, annotation=None, **DEFAULT_AST_ARGS)
+            return py_ast.arg(
+                arg=a.name,
+                annotation=a.annotation.as_ast() if a.annotation is not None else None,
+                **DEFAULT_AST_ARGS,
+            )
 
         posonlyargs = [_make_arg(a) for a in self.args if a.kind == ArgKind.POSITIONAL_ONLY]
         regular_args = [_make_arg(a) for a in self.args if a.kind == ArgKind.POSITIONAL_OR_KEYWORD]
