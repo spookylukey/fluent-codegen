@@ -1433,3 +1433,16 @@ def auto(value: PythonObj) -> Expression:
     elif isinstance(value, dict):  # type: ignore[reportUnnecessaryIsInstance]
         return Dict([(auto(k), auto(v)) for k, v in value.items()])
     assert_never(value)
+
+
+class Constants:
+    """
+    Useful pre-made Expression constants
+    """
+
+    None_: NoneExpr = auto(None)
+    True_: Bool = auto(True)
+    False_: Bool = auto(False)
+
+
+constants = Constants()
