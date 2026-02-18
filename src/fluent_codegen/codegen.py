@@ -444,6 +444,21 @@ class Block(CodeGenAstList):
         self.add_statement(if_statement)
         return if_statement
 
+    def create_with(self, context_expr: Expression, target: str | Name | None = None) -> With:
+        """
+        Create a With statement, add it to this block, and return it.
+
+        Usage::
+
+            with_stmt = block.create_with(expr, "f")
+            with_stmt.body.create_return(value)
+        """
+        if isinstance(target, Name):
+            target = target.name
+        with_statement = With(context_expr, target=target, parent_scope=self.scope, parent_block=self)
+        self.add_statement(with_statement)
+        return with_statement
+
     def has_assignment_for_name(self, name: str) -> bool:
         for s in self.statements:
             if isinstance(s, SupportsNameAssignment) and s.has_assignment_for_name(name):
@@ -703,6 +718,42 @@ class If(Statement):
             previous_if.orelse = self.else_block.as_ast_list()
 
         return if_ast
+
+
+class With(Statement):
+    child_elements = ["context_expr", "body"]
+
+    def __init__(
+        self,
+        context_expr: Expression,
+        target: str | None = None,
+        *,
+        parent_scope: Scope,
+        parent_block: Block | None = None,
+    ):
+        self.context_expr = context_expr
+        self.target = target
+        self._parent_scope = parent_scope
+        self._parent_block = parent_block
+        self.body = Block(parent_scope, parent_block=parent_block)
+
+    def as_ast(self) -> py_ast.With:
+        optional_vars = None
+        if self.target is not None:
+            if not allowable_name(self.target):
+                raise AssertionError(f"Expected '{self.target}' to be a valid Python identifier")
+            optional_vars = py_ast.Name(id=self.target, ctx=py_ast.Store(), **DEFAULT_AST_ARGS)
+
+        return py_ast.With(
+            items=[
+                py_ast.withitem(
+                    context_expr=self.context_expr.as_ast(),
+                    optional_vars=optional_vars,
+                )
+            ],
+            body=self.body.as_ast_list(allow_empty=False),
+            **DEFAULT_AST_ARGS,
+        )
 
 
 class Try(Statement):

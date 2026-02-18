@@ -592,6 +592,105 @@ def test_block_create_if_parent_block():
     assert if_block.parent_block is func.body
 
 
+# --- With tests ---
+
+
+def test_with_no_target():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", [])
+    with_stmt = func.body.create_with(codegen.String("ctx"))
+    with_stmt.body.create_return(codegen.Number(1))
+    assert_code_equal(
+        module,
+        """
+        def myfunc():
+            with 'ctx':
+                return 1
+        """,
+    )
+
+
+def test_with_target():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", [])
+    name = func.reserve_name("f")
+    with_stmt = func.body.create_with(codegen.String("ctx"), name)
+    with_stmt.body.create_return(func.name(name))
+    assert_code_equal(
+        module,
+        """
+        def myfunc():
+            with 'ctx' as f:
+                return f
+        """,
+    )
+
+
+def test_with_target_name_object():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", [])
+    name_obj = func.create_name("f")
+    with_stmt = func.body.create_with(codegen.String("ctx"), name_obj)
+    with_stmt.body.create_return(name_obj)
+    assert_code_equal(
+        module,
+        """
+        def myfunc():
+            with 'ctx' as f:
+                return f
+        """,
+    )
+
+
+def test_with_scope():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", [])
+    func.reserve_name("myvalue")
+    with_stmt = func.body.create_with(codegen.String("ctx"))
+    assert with_stmt.body.scope.is_name_in_use("myvalue")
+
+
+def test_with_parent_block():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", [])
+    with_stmt = func.body.create_with(codegen.String("ctx"))
+    assert with_stmt.body.parent_block is func.body
+
+
+def test_with_standalone():
+    module = codegen.Module()
+    name = module.scope.reserve_name("ctx_mgr")
+    with_stmt = codegen.With(
+        codegen.Name(name, module.scope),
+        target=None,
+        parent_scope=module.scope,
+    )
+    with_stmt.body.create_return(codegen.Number(42))
+    assert_code_equal(
+        with_stmt,
+        """
+        with ctx_mgr:
+            return 42
+        """,
+    )
+
+
+def test_with_empty_body():
+    """An empty with body should produce a pass statement."""
+    module = codegen.Module()
+    with_stmt = codegen.With(
+        codegen.String("ctx"),
+        parent_scope=module.scope,
+    )
+    assert_code_equal(
+        with_stmt,
+        """
+        with 'ctx':
+            pass
+        """,
+    )
+
+
 # --- Expression tests ---
 
 
