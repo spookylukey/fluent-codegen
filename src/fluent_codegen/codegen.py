@@ -1492,7 +1492,7 @@ def auto(value: PythonObj) -> Expression:
     assert_never(value)
 
 
-class Constants:
+class constants:
     """
     Useful pre-made Expression constants
     """
@@ -1500,6 +1500,3 @@ class Constants:
     None_: NoneExpr = auto(None)
     True_: Bool = auto(True)
     False_: Bool = auto(False)
-
-
-constants = Constants()
