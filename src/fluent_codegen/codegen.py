@@ -983,6 +983,9 @@ class Expression(CodeGenAst):
     ) -> Call:
         return self.attr(attribute).call(args, kwargs)
 
+    def subscript(self, slice: Expression, /) -> Subscript:
+        return Subscript(self, slice)
+
     # Arithmetic operators
 
     def add(self, other: Expression, /) -> Add:

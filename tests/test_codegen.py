@@ -1043,10 +1043,10 @@ def test_string_join_collapse_strings():
     assert_code_equal(join1, "'hello there ' + tmp + ' how are you?'")
 
 
-def test_dict_lookup():
+def test_subscript():
     scope = codegen.Scope()
     var = scope.create_name("tmp")
-    lookup = codegen.Subscript(var, codegen.String("x"))
+    lookup = var.subscript(codegen.String("x"))
     assert_code_equal(lookup, "tmp['x']")
 
 
