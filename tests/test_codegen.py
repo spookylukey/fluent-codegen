@@ -1639,6 +1639,41 @@ def test_chained_with_method_call():
     assert_code_equal(result, "items.count('x') > 0")
 
 
+def test_call_no_args():
+    scope = codegen.Scope()
+    name = scope.create_name("foo")
+    result = name.call()
+    assert_code_equal(result, "foo()")
+
+
+def test_call_args_only():
+    scope = codegen.Scope()
+    name = scope.create_name("foo")
+    result = name.call([codegen.Number(1)])
+    assert_code_equal(result, "foo(1)")
+
+
+def test_call_kwargs_only():
+    scope = codegen.Scope()
+    name = scope.create_name("foo")
+    result = name.call(kwargs={"x": codegen.Number(1)})
+    assert_code_equal(result, "foo(x=1)")
+
+
+def test_method_call_no_args():
+    scope = codegen.Scope()
+    name = scope.create_name("obj")
+    result = name.method_call("do_thing")
+    assert_code_equal(result, "obj.do_thing()")
+
+
+def test_method_call_args_only():
+    scope = codegen.Scope()
+    name = scope.create_name("obj")
+    result = name.method_call("do_thing", [codegen.String("a")])
+    assert_code_equal(result, "obj.do_thing('a')")
+
+
 # --- FunctionArg tests ---
 
 

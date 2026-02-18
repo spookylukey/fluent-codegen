@@ -953,11 +953,20 @@ class Expression(CodeGenAst):
     def attr(self, attribute: str, /) -> Attr:
         return Attr(self, attribute)
 
-    def call(self, args: Sequence[Expression], kwargs: dict[str, Expression], expr_type: type = UNKNOWN_TYPE) -> Call:
-        return Call(self, args, kwargs, expr_type=expr_type)
+    def call(
+        self,
+        args: Sequence[Expression] | None = None,
+        kwargs: dict[str, Expression] | None = None,
+        expr_type: type = UNKNOWN_TYPE,
+    ) -> Call:
+        return Call(self, args or [], kwargs or {}, expr_type=expr_type)
 
     def method_call(
-        self, attribute: str, args: Sequence[Expression], kwargs: dict[str, Expression], expr_type: type = UNKNOWN_TYPE
+        self,
+        attribute: str,
+        args: Sequence[Expression] | None = None,
+        kwargs: dict[str, Expression] | None = None,
+        expr_type: type = UNKNOWN_TYPE,
     ) -> Call:
         return self.attr(attribute).call(args, kwargs, expr_type=expr_type)
 
