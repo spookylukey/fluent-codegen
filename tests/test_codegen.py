@@ -556,6 +556,18 @@ def test_if_no_ifs():
     )
 
 
+def test_if_scope():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", [])
+    func.reserve_name("myvalue")
+    if_statement = codegen.If(parent_scope=func, parent_block=func.body)
+    if_block = if_statement.add_if(codegen.constants.True_)
+    assert if_block.scope.is_name_in_use("myvalue")
+
+    name_in_if_block = if_block.scope.reserve_name("myvalue")
+    assert name_in_if_block == "myvalue2"
+
+
 # --- Expression tests ---
 
 
