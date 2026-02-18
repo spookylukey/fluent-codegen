@@ -568,6 +568,42 @@ def test_if_scope():
     assert name_in_if_block == "myvalue2"
 
 
+def test_block_add_if():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", [])
+    if_stmt = func.body.add_if()
+    if_block = if_stmt.add_if(codegen.constants.True_)
+    if_block.add_return(codegen.Number(1))
+    if_stmt.else_block.add_return(codegen.Number(2))
+    assert_code_equal(
+        module,
+        """
+        def myfunc():
+            if True:
+                return 1
+            else:
+                return 2
+        """,
+    )
+
+
+def test_block_add_if_scope():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", [])
+    func.reserve_name("myvalue")
+    if_stmt = func.body.add_if()
+    if_block = if_stmt.add_if(codegen.constants.True_)
+    assert if_block.scope.is_name_in_use("myvalue")
+
+
+def test_block_add_if_parent_block():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", [])
+    if_stmt = func.body.add_if()
+    if_block = if_stmt.add_if(codegen.constants.True_)
+    assert if_block.parent_block is func.body
+
+
 # --- Expression tests ---
 
 

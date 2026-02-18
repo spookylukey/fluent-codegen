@@ -437,6 +437,20 @@ class Block(CodeGenAstList):
     def add_return(self, value: Expression) -> None:
         self.add_statement(Return(value))
 
+    def add_if(self) -> If:
+        """
+        Create an If statement, add it to this block, and return it.
+
+        Usage::
+
+            if_stmt = block.add_if()
+            if_block = if_stmt.add_if(condition)
+            if_block.add_return(value)
+        """
+        if_statement = If(self.scope, parent_block=self)
+        self.add_statement(if_statement)
+        return if_statement
+
     def has_assignment_for_name(self, name: str) -> bool:
         for s in self.statements:
             if isinstance(s, SupportsNameAssignment) and s.has_assignment_for_name(name):
