@@ -2626,9 +2626,9 @@ def test_module_reserves_builtins_by_default():
     assert mod.scope.is_name_reserved("str")
 
 
-def test_module_comment():
+def test_block_add_comment():
     mod = codegen.Module()
-    mod.add_file_comment("Hello")
+    mod.add_comment("Hello")
     mod.create_import("foo")
     assert_code_equal(
         mod,
@@ -2637,3 +2637,101 @@ def test_module_comment():
         import foo
         """,
     )
+
+
+def test_comment_in_function_body():
+    mod = codegen.Module()
+    func, _ = mod.create_function("my_func", args=["x"])
+    func.body.add_comment("Process the value")
+    x = codegen.Name("x", func)
+    func.body.create_return(x)
+    assert_code_equal(
+        mod,
+        """
+        def my_func(x):
+            # Process the value
+            return x
+        """,
+    )
+
+
+def test_comment_in_class_body():
+    mod = codegen.Module()
+    cls, _ = mod.create_class("MyClass")
+    cls.body.add_comment("Class fields")
+    cls.body.create_field("name", codegen.Name("str", mod.scope))
+    assert_code_equal(
+        mod,
+        """
+        class MyClass:
+            # Class fields
+            name: str
+        """,
+    )
+
+
+def test_multiple_comments():
+    mod = codegen.Module()
+    mod.add_comment("First comment")
+    mod.add_comment("Second comment")
+    mod.create_import("foo")
+    assert_code_equal(
+        mod,
+        """
+        # First comment
+        # Second comment
+        import foo
+        """,
+    )
+
+
+def test_comment_compile_constraint():
+    """Comments must not affect compile() — as_ast() must return a compilable AST."""
+    mod = codegen.Module()
+    mod.add_comment("This is a comment")
+    func, _ = mod.create_function("greet", args=["name"])
+    func.body.add_comment("Return greeting")
+    func.body.create_return(codegen.String("hello"))
+
+    # as_ast() must be compilable
+    ast_tree = mod.as_ast()
+    code = compile(ast_tree, "<test>", "exec")
+    ns: dict[str, object] = {}
+    exec(code, ns)
+    assert ns["greet"]("world") == "hello"
+
+
+def test_comment_source_constraint():
+    """as_python_source() must include the comments."""
+    mod = codegen.Module()
+    mod.add_comment("File header")
+    mod.create_import("os")
+    source = mod.as_python_source()
+    assert "# File header" in source
+    assert "import os" in source
+
+
+def test_comment_interleaved_with_statements():
+    mod = codegen.Module()
+    mod.create_import("os")
+    mod.add_comment("Now import sys")
+    mod.create_import("sys")
+    assert_code_equal(
+        mod,
+        """
+        import os
+        # Now import sys
+        import sys
+        """,
+    )
+
+
+def test_comment_only_block():
+    """A block with only comments should compile (comments stripped = empty body)."""
+    mod = codegen.Module()
+    mod.add_comment("Just a comment")
+    ast_tree = mod.as_ast()
+    code = compile(ast_tree, "<test>", "exec")
+    ns: dict[str, object] = {}
+    exec(code, ns)
+    # Should execute without error

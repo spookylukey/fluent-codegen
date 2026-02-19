@@ -5,6 +5,7 @@ Utilities for doing Python code generation
 from __future__ import annotations
 
 import builtins
+import contextvars
 import enum
 import keyword
 import re
@@ -19,8 +20,15 @@ from .ast_compat import (
     DEFAULT_AST_ARGS_ADD,
     DEFAULT_AST_ARGS_ARGUMENTS,
     DEFAULT_AST_ARGS_MODULE,
+    CommentNode,
+    unparse_with_comments,
 )
 from .utils import allowable_keyword_arg_name, allowable_name
+
+_include_comments: contextvars.ContextVar[bool] = contextvars.ContextVar("_include_comments", default=False)
+
+#: Type alias for comment strings stored in :attr:`Block.statements`.
+Comment = str
 
 # This module provides simple utilities for building up Python source code.
 # The design originally came from fluent-compiler, so had the following aims
@@ -100,9 +108,13 @@ class CodeGenAst(ABC):
 
     def as_python_source(self) -> str:
         """Return the Python source code for this AST node."""
-        node = self.as_ast()
-        py_ast.fix_missing_locations(node)
-        return py_ast.unparse(node)
+        token = _include_comments.set(True)
+        try:
+            node = self.as_ast()
+            py_ast.fix_missing_locations(node)
+            return unparse_with_comments(node)
+        finally:
+            _include_comments.reset(token)
 
 
 class CodeGenAstList(ABC):
@@ -118,9 +130,13 @@ class CodeGenAstList(ABC):
 
     def as_python_source(self) -> str:
         """Return the Python source code for this AST list."""
-        mod = py_ast.Module(body=self.as_ast_list(), type_ignores=[], **DEFAULT_AST_ARGS_MODULE)
-        py_ast.fix_missing_locations(mod)
-        return py_ast.unparse(mod)
+        token = _include_comments.set(True)
+        try:
+            mod = py_ast.Module(body=self.as_ast_list(), type_ignores=[], **DEFAULT_AST_ARGS_MODULE)
+            py_ast.fix_missing_locations(mod)
+            return unparse_with_comments(mod)
+        finally:
+            _include_comments.reset(token)
 
 
 CodeGenAstType = CodeGenAst | CodeGenAstList
@@ -311,31 +327,41 @@ class Block(CodeGenAstList):
 
     def __init__(self, scope: Scope, parent_block: Block | None = None):
         self.scope = scope
-        # We all `Expression` here for things like MethodCall which
-        # are bare expressions that are still useful for side effects
-        self.statements: list[Block | Statement | Expression] = []
+        # We allow `Expression` here for things like MethodCall which
+        # are bare expressions that are still useful for side effects.
+        # `Comment` (str) entries are rendered as ``# text`` comments.
+        self.statements: list[Block | Statement | Expression | Comment] = []
         self.parent_block = parent_block
 
     def as_ast_list(self, allow_empty: bool = True) -> list[py_ast.stmt]:
+        include_comments = _include_comments.get()
         retval: list[py_ast.stmt] = []
         for s in self.statements:
+            if isinstance(s, str):
+                # Comment
+                if include_comments:
+                    retval.append(CommentNode(s, **DEFAULT_AST_ARGS))  # type: ignore[reportArgumentType]
+                continue
             if isinstance(s, CodeGenAstList):
                 retval.extend(s.as_ast_list(allow_empty=True))
+            elif isinstance(s, Statement):
+                ast_obj = s.as_ast()
+                assert isinstance(ast_obj, py_ast.stmt), (
+                    "Statement object return {ast_obj} which is not a subclass of py_ast.stmt"
+                )
+                retval.append(ast_obj)
             else:
-                if isinstance(s, Statement):
-                    ast_obj = s.as_ast()
-                    assert isinstance(ast_obj, py_ast.stmt), (
-                        "Statement object return {ast_obj} which is not a subclass of py_ast.stmt"
-                    )
-                    retval.append(ast_obj)
-                else:
-                    # Things like bare function/method calls need to be wrapped
-                    # in `Expr` to match the way Python parses.
-                    retval.append(py_ast.Expr(s.as_ast(), **DEFAULT_AST_ARGS))
+                # Things like bare function/method calls need to be wrapped
+                # in `Expr` to match the way Python parses.
+                retval.append(py_ast.Expr(s.as_ast(), **DEFAULT_AST_ARGS))
 
         if len(retval) == 0 and not allow_empty:
             return [py_ast.Pass(**DEFAULT_AST_ARGS)]
         return retval
+
+    def add_comment(self, text: str) -> None:
+        """Add a ``# text`` comment line at the current position in the block."""
+        self.statements.append(text)
 
     def add_statement(self, statement: Statement | Block | Expression) -> None:
         self.statements.append(statement)
@@ -543,18 +569,18 @@ class Module(Block, CodeGenAst):
             for name in dir(builtins):
                 scope.reserve_name(name, is_builtin=True)
         Block.__init__(self, scope)
-        self.file_comments: list[str] = []
 
     def as_ast(self) -> py_ast.Module:
         return py_ast.Module(body=self.as_ast_list(), type_ignores=[], **DEFAULT_AST_ARGS_MODULE)
 
     def as_python_source(self) -> str:
-        main = super().as_python_source()
-        file_comments = "".join(f"# {comment}\n" for comment in self.file_comments)
-        return file_comments + main
-
-    def add_file_comment(self, comment: str) -> None:
-        self.file_comments.append(comment)
+        token = _include_comments.set(True)
+        try:
+            mod = py_ast.Module(body=self.as_ast_list(), type_ignores=[], **DEFAULT_AST_ARGS_MODULE)
+            py_ast.fix_missing_locations(mod)
+            return unparse_with_comments(mod)
+        finally:
+            _include_comments.reset(token)
 
 
 class ArgKind(enum.Enum):

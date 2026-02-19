@@ -91,3 +91,31 @@ DEFAULT_AST_ARGS_ARGUMENTS: dict[str, object] = dict()
 
 def subscript_slice_object[T](value: T) -> T:
     return value
+
+
+class CommentNode(ast.stmt):
+    """Custom AST statement node representing a comment.
+
+    This is not a standard Python AST node. It is ignored by ``compile()``
+    (callers must strip it first, which ``as_ast()`` does automatically),
+    but is rendered by :func:`unparse_with_comments`.
+    """
+
+    _fields = ("text",)
+
+    def __init__(self, text: str, **kwargs: int) -> None:
+        self.text = text
+        super().__init__(**kwargs)  # type: ignore[reportCallIssue]
+
+
+class _CommentUnparser(ast._Unparser):  # type: ignore[reportAttributeAccessIssue]
+    """An unparser that knows how to render :class:`CommentNode`."""
+
+    def visit_CommentNode(self, node: CommentNode) -> None:
+        self.fill("# " + node.text)  # type: ignore[reportAttributeAccessIssue]
+
+
+def unparse_with_comments(node: ast.AST) -> str:
+    """Like :func:`ast.unparse`, but also renders :class:`CommentNode` nodes."""
+    unparser = _CommentUnparser()
+    return unparser.visit(node)  # type: ignore[reportUnknownMemberType,reportUnknownVariableType]
