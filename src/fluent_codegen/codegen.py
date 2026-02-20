@@ -514,6 +514,9 @@ class Block(CodeGenAstList):
     def create_return(self, value: Expression) -> None:
         self.add_statement(Return(value))
 
+    def create_assert(self, test: Expression, msg: Expression | None = None) -> None:
+        self.add_statement(Assert(test, msg))
+
     def create_if(self) -> If:
         """
         Create an If statement, add it to this block, and return it.
@@ -771,6 +774,27 @@ class Return(Statement):
 
     def __repr__(self):
         return f"Return({repr(self.value)}"
+
+
+class Assert(Statement):
+    """An ``assert`` statement with an optional message."""
+
+    child_elements = ["test", "msg"]
+
+    def __init__(self, test: Expression, msg: Expression | None = None):
+        self.test = test
+        self.msg = msg
+
+    def as_ast(self, *, include_comments: bool = False):
+        msg_ast = self.msg.as_ast() if self.msg is not None else None
+        return py_ast.Assert(
+            test=self.test.as_ast(),
+            msg=msg_ast,
+            **DEFAULT_AST_ARGS,
+        )
+
+    def __repr__(self):
+        return f"Assert({repr(self.test)}, {repr(self.msg)})"
 
 
 class If(Statement):

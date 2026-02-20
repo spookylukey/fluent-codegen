@@ -11,6 +11,7 @@ from typing import TypedDict
 
 Add = ast.Add
 And = ast.And
+Assert = ast.Assert
 Assign = ast.Assign
 AnnAssign = ast.AnnAssign
 BoolOp = ast.BoolOp

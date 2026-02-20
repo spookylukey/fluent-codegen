@@ -127,6 +127,47 @@ def test_function_return():
     )
 
 
+def test_create_assert():
+    module = codegen.Module()
+    func = codegen.Function("myfunc", args=["x"], parent_scope=module.scope)
+    func.body.create_assert(func.name("x"))
+    assert_code_equal(
+        func,
+        """
+        def myfunc(x):
+            assert x
+        """,
+    )
+
+
+def test_create_assert_with_message():
+    module = codegen.Module()
+    func = codegen.Function("myfunc", args=["x"], parent_scope=module.scope)
+    func.body.create_assert(func.name("x"), codegen.String("x must be truthy"))
+    assert_code_equal(
+        func,
+        """
+        def myfunc(x):
+            assert x, 'x must be truthy'
+        """,
+    )
+
+
+def test_assert_class_directly():
+    assert_stmt = codegen.Assert(codegen.Number(1))
+    assert_code_equal(assert_stmt, "assert 1")
+
+
+def test_assert_class_with_message_directly():
+    assert_stmt = codegen.Assert(codegen.Number(0), codegen.String("fail"))
+    assert_code_equal(assert_stmt, "assert 0, 'fail'")
+
+
+def test_assert_repr():
+    assert_stmt = codegen.Assert(codegen.Number(1))
+    assert "Assert(" in repr(assert_stmt)
+
+
 def test_function_bad_name():
     module = codegen.Module()
     func = codegen.Function("my func", args=[], parent_scope=module.scope)
