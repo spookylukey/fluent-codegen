@@ -41,7 +41,7 @@ def test_reserve_name():
     name2 = scope.reserve_name("name")
     assert name1 == "name"
     assert name1 != name2
-    assert name2 == "name2"
+    assert name2 == "name_2"
 
 
 def test_reserve_name_function_arg_disallowed():
@@ -81,7 +81,7 @@ def test_reserve_name_after_reserve_function_arg():
     scope = codegen.Scope()
     scope.reserve_function_arg_name("my_arg")
     name = scope.reserve_name("my_arg")
-    assert name == "my_arg2"
+    assert name == "my_arg_2"
 
 
 def test_reserve_function_arg_after_reserve_name():
@@ -390,7 +390,7 @@ def test_create_annotation_duplicate_name_gets_renamed():
     module = codegen.Module()
     module.create_annotation("x", module.scope.name("int"))
     name2 = module.create_annotation("x", module.scope.name("str"))
-    assert_code_equal(name2, "x2")
+    assert_code_equal(name2, "x_2")
 
 
 def test_create_annotation_bad_name():
@@ -470,7 +470,7 @@ def test_create_field_duplicate_name_gets_renamed():
     module = codegen.Module()
     module.create_field("x", module.scope.name("int"))
     name2 = module.create_field("x", module.scope.name("str"))
-    assert_code_equal(name2, "x2")
+    assert_code_equal(name2, "x_2")
 
 
 # --- Function call tests ---
@@ -713,7 +713,7 @@ def test_if_scope():
     assert if_block.scope.is_name_in_use("myvalue")
 
     name_in_if_block = if_block.scope.reserve_name("myvalue")
-    assert name_in_if_block == "myvalue2"
+    assert name_in_if_block == "myvalue_2"
 
 
 def test_block_create_if():
@@ -1108,7 +1108,7 @@ def test_reserve_name_keyword_avoidance():
     scope = codegen.Scope()
     # 'class' is a keyword, so reserve_name should avoid it
     name = scope.reserve_name("class")
-    assert name == "class2"  # skips 'class' because it's a keyword
+    assert name == "class_2"  # skips 'class' because it's a keyword
 
 
 def test_block_add_statement_bare_expression():

@@ -200,7 +200,7 @@ class Scope:
             return not self.is_name_reserved(name)
 
         while not _is_name_allowed(attempt):
-            attempt = cleaned + str(count)
+            attempt = cleaned + "_" + str(count)
             count += 1
 
         return _add(attempt)
