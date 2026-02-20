@@ -78,6 +78,12 @@ alias = ast.alias
 # It's hard to get something sensible we can put for line/col numbers so we put arbitrary values.
 
 
+try:
+    _Unparser = ast._Unparser  # type: ignore
+except AttributeError:  # pragma: no cover
+    from _ast_unparse import Unparser as _Unparser  # pragma: no cover   # type: ignore
+
+
 class DefaultAstArgs(TypedDict):
     lineno: int
     col_offset: int
@@ -109,7 +115,7 @@ class CommentNode(ast.stmt):
         super().__init__(**kwargs)  # type: ignore[reportCallIssue]
 
 
-class _CommentUnparser(ast._Unparser):  # type: ignore[reportAttributeAccessIssue]
+class _CommentUnparser(_Unparser):  # type: ignore[reportAttributeAccessIssue]
     """An unparser that knows how to render :class:`CommentNode`."""
 
     def visit_CommentNode(self, node: CommentNode) -> None:
