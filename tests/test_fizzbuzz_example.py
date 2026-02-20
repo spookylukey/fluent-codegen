@@ -12,7 +12,7 @@ def _build_fizzbuzz_module() -> codegen.Module:
     module = codegen.Module()
     func, _ = module.create_function("fizzbuzz", args=["n"])
 
-    n = codegen.Name("n", func)
+    n = func.name("n")
 
     if_stmt = func.body.create_if()
 
@@ -29,7 +29,7 @@ def _build_fizzbuzz_module() -> codegen.Module:
     branch_5.create_return(codegen.String("Buzz"))
 
     # else: return str(n)
-    if_stmt.else_block.create_return(codegen.function_call("str", [n], {}, func))
+    if_stmt.else_block.create_return(module.scope.name("str").call([n]))
 
     return module
 

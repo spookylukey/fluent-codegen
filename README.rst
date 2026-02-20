@@ -54,7 +54,7 @@ fluent method-chaining for expressions:
    func, _ = module.create_function("fizzbuzz", args=["n"])
 
    # 2. A Name reference to the "n" parameter (Function *is* a Scope)
-   n = codegen.Name("n", func)
+   n = func.name("n")
 
    # 3. Build an if / elif / else chain
    if_stmt = func.body.create_if()
@@ -72,7 +72,7 @@ fluent method-chaining for expressions:
    branch.create_return(codegen.String("Buzz"))
 
    #    else: return str(n)
-   if_stmt.else_block.create_return(codegen.function_call("str", [n], {}, func))
+   if_stmt.else_block.create_return(module.scope.name("str").call([n]))
 
    # 4. Inspect the generated source
    print(module.as_python_source())
