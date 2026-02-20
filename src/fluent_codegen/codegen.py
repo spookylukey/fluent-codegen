@@ -8,6 +8,7 @@ import builtins
 import enum
 import keyword
 import re
+import textwrap
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
@@ -347,9 +348,24 @@ class Block(CodeGenAstList):
             return [py_ast.Pass(**DEFAULT_AST_ARGS)]
         return retval
 
-    def add_comment(self, text: str) -> None:
-        """Add a ``# text`` comment line at the current position in the block."""
-        self.statements.append(text)
+    def add_comment(self, text: str, *, wrap: int | None = None) -> None:
+        """Add a ``# text`` comment line at the current position in the block.
+
+        If *wrap* is given as an integer, long lines are wrapped at word
+        boundaries so that no comment line exceeds *wrap* characters
+        (including the ``# `` prefix).
+        """
+        if wrap is not None:
+            # Account for the "# " prefix (2 chars) that will be added during rendering.
+            effective_width = max(wrap - 2, 1)
+            lines = textwrap.wrap(text, width=effective_width)
+            if not lines:
+                # Empty or whitespace-only text – preserve as a single blank comment.
+                lines = [""]
+            for line in lines:
+                self.statements.append(line)
+        else:
+            self.statements.append(text)
 
     def add_statement(self, statement: Statement | Block | Expression) -> None:
         self.statements.append(statement)

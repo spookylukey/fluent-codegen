@@ -2776,3 +2776,62 @@ def test_comment_only_block():
     ns: dict[str, object] = {}
     exec(code, ns)
     # Should execute without error
+
+
+def test_add_comment_wrap_basic():
+    mod = codegen.Module()
+    mod.add_comment("This is a long comment that should be wrapped into multiple lines", wrap=40)
+    mod.create_import("foo")
+    assert_code_equal(
+        mod,
+        """
+        # This is a long comment that should be
+        # wrapped into multiple lines
+        import foo
+        """,
+    )
+
+
+def test_add_comment_wrap_short_text_unchanged():
+    """Text shorter than wrap width should remain a single comment."""
+    mod = codegen.Module()
+    mod.add_comment("Short", wrap=80)
+    assert_code_equal(
+        mod,
+        """
+        # Short
+        """,
+    )
+
+
+def test_add_comment_wrap_none_default():
+    """Without wrap, long text stays on one line."""
+    mod = codegen.Module()
+    long_text = "word " * 30
+    mod.add_comment(long_text.strip())
+    source = mod.as_python_source()
+    comment_lines = [line for line in source.splitlines() if line.startswith("#")]
+    assert len(comment_lines) == 1
+
+
+def test_add_comment_wrap_in_function_body():
+    mod = codegen.Module()
+    func, _ = mod.create_function("f", args=[])
+    func.body.add_comment("This is a very detailed explanation of what the function does", wrap=40)
+    func.body.create_return(codegen.Number(1))
+    assert_code_equal(
+        mod,
+        """
+        def f():
+            # This is a very detailed explanation of
+            # what the function does
+            return 1
+        """,
+    )
+
+
+def test_add_comment_wrap_empty_string():
+    mod = codegen.Module()
+    mod.add_comment("", wrap=40)
+    source = mod.as_python_source()
+    assert "#" in source
