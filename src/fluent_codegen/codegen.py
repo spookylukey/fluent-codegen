@@ -5,7 +5,6 @@ Utilities for doing Python code generation
 from __future__ import annotations
 
 import builtins
-import contextvars
 import enum
 import keyword
 import re
@@ -24,8 +23,6 @@ from .ast_compat import (
     unparse_with_comments,
 )
 from .utils import allowable_keyword_arg_name, allowable_name
-
-_include_comments: contextvars.ContextVar[bool] = contextvars.ContextVar("_include_comments", default=False)
 
 #: Type alias for comment strings stored in :attr:`Block.statements`.
 Comment = str
@@ -102,19 +99,15 @@ class CodeGenAst(ABC):
     """
 
     @abstractmethod
-    def as_ast(self) -> py_ast.AST: ...
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.AST: ...
 
     child_elements: ClassVar[list[str]]
 
     def as_python_source(self) -> str:
         """Return the Python source code for this AST node."""
-        token = _include_comments.set(True)
-        try:
-            node = self.as_ast()
-            py_ast.fix_missing_locations(node)
-            return unparse_with_comments(node)
-        finally:
-            _include_comments.reset(token)
+        node = self.as_ast(include_comments=True)
+        py_ast.fix_missing_locations(node)
+        return unparse_with_comments(node)
 
 
 class CodeGenAstList(ABC):
@@ -124,19 +117,15 @@ class CodeGenAstList(ABC):
     """
 
     @abstractmethod
-    def as_ast_list(self, allow_empty: bool = True) -> list[py_ast.stmt]: ...
+    def as_ast_list(self, allow_empty: bool = True, *, include_comments: bool = False) -> list[py_ast.stmt]: ...
 
     child_elements: ClassVar[list[str]]
 
     def as_python_source(self) -> str:
         """Return the Python source code for this AST list."""
-        token = _include_comments.set(True)
-        try:
-            mod = py_ast.Module(body=self.as_ast_list(), type_ignores=[], **DEFAULT_AST_ARGS_MODULE)
-            py_ast.fix_missing_locations(mod)
-            return unparse_with_comments(mod)
-        finally:
-            _include_comments.reset(token)
+        mod = py_ast.Module(body=self.as_ast_list(include_comments=True), type_ignores=[], **DEFAULT_AST_ARGS_MODULE)
+        py_ast.fix_missing_locations(mod)
+        return unparse_with_comments(mod)
 
 
 CodeGenAstType = CodeGenAst | CodeGenAstList
@@ -277,7 +266,7 @@ class _Annotation(Statement):
         self.name = name
         self.annotation = annotation
 
-    def as_ast(self):
+    def as_ast(self, *, include_comments: bool = False):
         if not allowable_name(self.name):
             raise AssertionError(f"Expected {self.name} to be a valid Python identifier")
         return py_ast.AnnAssign(
@@ -300,7 +289,7 @@ class _Assignment(Statement):
         self.value = value
         self.type_hint = type_hint
 
-    def as_ast(self):
+    def as_ast(self, *, include_comments: bool = False):
         if not allowable_name(self.name):
             raise AssertionError(f"Expected {self.name} to be a valid Python identifier")
         if self.type_hint is None:
@@ -333,8 +322,7 @@ class Block(CodeGenAstList):
         self.statements: list[Block | Statement | Expression | Comment] = []
         self.parent_block = parent_block
 
-    def as_ast_list(self, allow_empty: bool = True) -> list[py_ast.stmt]:
-        include_comments = _include_comments.get()
+    def as_ast_list(self, allow_empty: bool = True, *, include_comments: bool = False) -> list[py_ast.stmt]:
         retval: list[py_ast.stmt] = []
         for s in self.statements:
             if isinstance(s, str):
@@ -343,9 +331,9 @@ class Block(CodeGenAstList):
                     retval.append(CommentNode(s, **DEFAULT_AST_ARGS))  # type: ignore[reportArgumentType]
                 continue
             if isinstance(s, CodeGenAstList):
-                retval.extend(s.as_ast_list(allow_empty=True))
+                retval.extend(s.as_ast_list(allow_empty=True, include_comments=include_comments))
             elif isinstance(s, Statement):
-                ast_obj = s.as_ast()
+                ast_obj = s.as_ast(include_comments=include_comments)
                 assert isinstance(ast_obj, py_ast.stmt), (
                     "Statement object return {ast_obj} which is not a subclass of py_ast.stmt"
                 )
@@ -353,7 +341,7 @@ class Block(CodeGenAstList):
             else:
                 # Things like bare function/method calls need to be wrapped
                 # in `Expr` to match the way Python parses.
-                retval.append(py_ast.Expr(s.as_ast(), **DEFAULT_AST_ARGS))
+                retval.append(py_ast.Expr(s.as_ast(include_comments=include_comments), **DEFAULT_AST_ARGS))
 
         if len(retval) == 0 and not allow_empty:
             return [py_ast.Pass(**DEFAULT_AST_ARGS)]
@@ -570,17 +558,15 @@ class Module(Block, CodeGenAst):
                 scope.reserve_name(name, is_builtin=True)
         Block.__init__(self, scope)
 
-    def as_ast(self) -> py_ast.Module:
-        return py_ast.Module(body=self.as_ast_list(), type_ignores=[], **DEFAULT_AST_ARGS_MODULE)
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.Module:
+        return py_ast.Module(
+            body=self.as_ast_list(include_comments=include_comments), type_ignores=[], **DEFAULT_AST_ARGS_MODULE
+        )
 
     def as_python_source(self) -> str:
-        token = _include_comments.set(True)
-        try:
-            mod = py_ast.Module(body=self.as_ast_list(), type_ignores=[], **DEFAULT_AST_ARGS_MODULE)
-            py_ast.fix_missing_locations(mod)
-            return unparse_with_comments(mod)
-        finally:
-            _include_comments.reset(token)
+        mod = self.as_ast(include_comments=True)
+        py_ast.fix_missing_locations(mod)
+        return unparse_with_comments(mod)
 
 
 class ArgKind(enum.Enum):
@@ -694,7 +680,7 @@ class Function(Scope, Statement):
             self.reserve_name(arg.name, function_arg=True)
         self._args = combined
 
-    def as_ast(self) -> py_ast.stmt:
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.stmt:
         if not allowable_name(self.func_name):
             raise AssertionError(f"Expected '{self.func_name}' to be a valid Python identifier")
         for arg in self._args:
@@ -733,7 +719,7 @@ class Function(Scope, Statement):
                 defaults=defaults,
                 **DEFAULT_AST_ARGS_ARGUMENTS,
             ),
-            body=self.body.as_ast_list(allow_empty=False),
+            body=self.body.as_ast_list(allow_empty=False, include_comments=include_comments),
             decorator_list=[d.as_ast() for d in self.decorators],
             type_params=[],
             returns=self.return_type.as_ast() if self.return_type is not None else None,
@@ -760,14 +746,14 @@ class Class(Scope, Statement):
         self.bases: list[Expression] = list(bases) if bases else []
         self.decorators: list[Expression] = list(decorators) if decorators else []
 
-    def as_ast(self) -> py_ast.stmt:
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.stmt:
         if not allowable_name(self.class_name):
             raise AssertionError(f"Expected '{self.class_name}' to be a valid Python identifier")
         return py_ast.ClassDef(
             name=self.class_name,
             bases=[b.as_ast() for b in self.bases],
             keywords=[],
-            body=self.body.as_ast_list(allow_empty=False),
+            body=self.body.as_ast_list(allow_empty=False, include_comments=include_comments),
             decorator_list=[d.as_ast() for d in self.decorators],
             type_params=[],
             **DEFAULT_AST_ARGS,
@@ -780,7 +766,7 @@ class Return(Statement):
     def __init__(self, value: Expression):
         self.value = value
 
-    def as_ast(self):
+    def as_ast(self, *, include_comments: bool = False):
         return py_ast.Return(self.value.as_ast(), **DEFAULT_AST_ARGS)
 
     def __repr__(self):
@@ -818,7 +804,7 @@ class If(Statement):
             return self.else_block
         return self
 
-    def as_ast(self) -> py_ast.If:
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.If:
         if len(self.if_blocks) == 0:
             raise AssertionError("Should have called `finalize` on If")
         if_ast = empty_If()
@@ -826,7 +812,7 @@ class If(Statement):
         previous_if = None
         for condition, if_block in zip(self.conditions, self.if_blocks):
             current_if.test = condition.as_ast()
-            current_if.body = if_block.as_ast_list()
+            current_if.body = if_block.as_ast_list(include_comments=include_comments)
             if previous_if is not None:
                 previous_if.orelse.append(current_if)
 
@@ -835,7 +821,7 @@ class If(Statement):
 
         if self.else_block.statements:
             assert previous_if is not None
-            previous_if.orelse = self.else_block.as_ast_list()
+            previous_if.orelse = self.else_block.as_ast_list(include_comments=include_comments)
 
         return if_ast
 
@@ -857,7 +843,7 @@ class With(Statement):
         self._parent_block = parent_block
         self.body = Block(parent_scope, parent_block=parent_block)
 
-    def as_ast(self) -> py_ast.With:
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.With:
         optional_vars = None
         if self.target is not None:
             optional_vars = py_ast.Name(id=self.target.name, ctx=py_ast.Store(), **DEFAULT_AST_ARGS)
@@ -869,7 +855,7 @@ class With(Statement):
                     optional_vars=optional_vars,
                 )
             ],
-            body=self.body.as_ast_list(allow_empty=False),
+            body=self.body.as_ast_list(allow_empty=False, include_comments=include_comments),
             **DEFAULT_AST_ARGS,
         )
 
@@ -883,9 +869,9 @@ class Try(Statement):
         self.except_block = Block(parent_scope)
         self.else_block = Block(parent_scope)
 
-    def as_ast(self) -> py_ast.Try:
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.Try:
         return py_ast.Try(
-            body=self.try_block.as_ast_list(allow_empty=False),
+            body=self.try_block.as_ast_list(allow_empty=False, include_comments=include_comments),
             handlers=[
                 py_ast.ExceptHandler(
                     type=(
@@ -898,11 +884,11 @@ class Try(Statement):
                         )
                     ),
                     name=None,
-                    body=self.except_block.as_ast_list(allow_empty=False),
+                    body=self.except_block.as_ast_list(allow_empty=False, include_comments=include_comments),
                     **DEFAULT_AST_ARGS,
                 )
             ],
-            orelse=self.else_block.as_ast_list(allow_empty=True),
+            orelse=self.else_block.as_ast_list(allow_empty=True, include_comments=include_comments),
             finalbody=[],
             **DEFAULT_AST_ARGS,
         )
@@ -933,7 +919,7 @@ class Import(Statement):
         self.module = module
         self.as_ = as_
 
-    def as_ast(self) -> py_ast.AST:
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.AST:
         if self.as_ is None:
             # No alias needed:
             return py_ast.Import(names=[py_ast.alias(name=self.module)], **DEFAULT_AST_ARGS)
@@ -958,7 +944,7 @@ class ImportFrom(Statement):
         self.import_ = import_
         self.as_ = as_
 
-    def as_ast(self) -> py_ast.AST:
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.AST:
         if self.as_ is None:
             # No alias needed:
             return py_ast.ImportFrom(
@@ -978,7 +964,7 @@ class ImportFrom(Statement):
 
 class Expression(CodeGenAst):
     @abstractmethod
-    def as_ast(self) -> py_ast.expr: ...
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.expr: ...
 
     # Some utilities for easy chaining:
 
@@ -1077,7 +1063,7 @@ class String(Expression):
     def __init__(self, string_value: str):
         self.string_value = string_value
 
-    def as_ast(self) -> py_ast.expr:
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
         return py_ast.Constant(
             self.string_value,
             kind=None,  # 3.8, indicates no prefix, needed only for tests
@@ -1097,7 +1083,7 @@ class Bool(Expression):
     def __init__(self, value: bool):
         self.value = value
 
-    def as_ast(self) -> py_ast.expr:
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
         return py_ast.Constant(self.value, **DEFAULT_AST_ARGS)
 
     def __repr__(self):
@@ -1110,7 +1096,7 @@ class Bytes(Expression):
     def __init__(self, value: bytes):
         self.value = value
 
-    def as_ast(self) -> py_ast.expr:
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
         return py_ast.Constant(self.value, **DEFAULT_AST_ARGS)
 
     def __repr__(self):
@@ -1123,7 +1109,7 @@ class Number(Expression):
     def __init__(self, number: int | float):
         self.number = number
 
-    def as_ast(self) -> py_ast.expr:
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
         return py_ast.Constant(self.number, **DEFAULT_AST_ARGS)
 
     def __repr__(self):
@@ -1136,7 +1122,7 @@ class List(Expression):
     def __init__(self, items: list[Expression]):
         self.items = items
 
-    def as_ast(self) -> py_ast.expr:
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
         return py_ast.List(elts=[i.as_ast() for i in self.items], ctx=py_ast.Load(), **DEFAULT_AST_ARGS)
 
 
@@ -1146,7 +1132,7 @@ class Tuple(Expression):
     def __init__(self, items: Sequence[Expression]):
         self.items = items
 
-    def as_ast(self) -> py_ast.expr:
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
         return py_ast.Tuple(elts=[i.as_ast() for i in self.items], ctx=py_ast.Load(), **DEFAULT_AST_ARGS)
 
 
@@ -1156,7 +1142,7 @@ class Set(Expression):
     def __init__(self, items: Sequence[Expression]):
         self.items = items
 
-    def as_ast(self) -> py_ast.expr:
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
         if len(self.items) == 0:
             # {} is a dict literal in Python, so empty sets must use set([])
             return py_ast.Call(
@@ -1174,7 +1160,7 @@ class Dict(Expression):
     def __init__(self, pairs: Sequence[tuple[Expression, Expression]]):
         self.pairs = pairs
 
-    def as_ast(self) -> py_ast.expr:
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
         return py_ast.Dict(
             keys=[k.as_ast() for k, _ in self.pairs],
             values=[v.as_ast() for _, v in self.pairs],
@@ -1214,7 +1200,7 @@ class StringJoinBase(Expression):
 
 
 class FStringJoin(StringJoinBase):
-    def as_ast(self) -> py_ast.expr:
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
         # f-strings
         values: list[py_ast.expr] = []
         for part in self.parts:
@@ -1233,7 +1219,7 @@ class FStringJoin(StringJoinBase):
 
 
 class ConcatJoin(StringJoinBase):
-    def as_ast(self) -> py_ast.expr:
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
         # Concatenate with +
         left = self.parts[0].as_ast()
         for part in self.parts[1:]:
@@ -1261,7 +1247,7 @@ class Name(Expression):
             raise AssertionError(f"Cannot refer to undefined name '{name}'")
         self.name = name
 
-    def as_ast(self) -> py_ast.expr:
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
         if not allowable_name(self.name, allow_builtin=True):
             raise AssertionError(f"Expected {self.name} to be a valid Python identifier")
         return py_ast.Name(id=self.name, ctx=py_ast.Load(), **DEFAULT_AST_ARGS)
@@ -1282,7 +1268,7 @@ class Attr(Expression):
             raise AssertionError(f"Expected {attribute} to be a valid Python identifier")
         self.attribute = attribute
 
-    def as_ast(self) -> py_ast.expr:
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
         return py_ast.Attribute(value=self.value.as_ast(), attr=self.attribute, **DEFAULT_AST_ARGS)
 
 
@@ -1292,7 +1278,7 @@ class Starred(Expression):
     def __init__(self, value: Expression):
         self.value = value
 
-    def as_ast(self) -> py_ast.expr:
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
         return py_ast.Starred(value=self.value.as_ast(), ctx=py_ast.Load(), **DEFAULT_AST_ARGS)
 
     def __repr__(self):
@@ -1326,7 +1312,7 @@ class Call(Expression):
         self.args = list(args)
         self.kwargs = kwargs
 
-    def as_ast(self) -> py_ast.expr:
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
 
         for name in self.kwargs.keys():
             if not allowable_keyword_arg_name(name):
@@ -1392,7 +1378,7 @@ class Subscript(Expression):
         self.value = value
         self.slice = slice
 
-    def as_ast(self) -> py_ast.expr:
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
         return py_ast.Subscript(
             value=self.value.as_ast(),
             slice=py_ast.subscript_slice_object(self.slice.as_ast()),
@@ -1405,7 +1391,7 @@ create_class_instance = function_call
 
 
 class NoneExpr(Expression):
-    def as_ast(self) -> py_ast.expr:
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
         return py_ast.Constant(value=None, **DEFAULT_AST_ARGS)
 
 
@@ -1422,7 +1408,7 @@ class ArithOp(BinaryOperator, ABC):
 
     op: ClassVar[type[py_ast.operator]]
 
-    def as_ast(self) -> py_ast.expr:
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
         return py_ast.BinOp(
             left=self.left.as_ast(),
             op=self.op(**DEFAULT_AST_ARGS_ADD),
@@ -1468,7 +1454,7 @@ class CompareOp(BinaryOperator, ABC):
 
     op: ClassVar[type[py_ast.cmpop]]
 
-    def as_ast(self) -> py_ast.expr:
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
         return py_ast.Compare(
             left=self.left.as_ast(),
             comparators=[self.right.as_ast()],
@@ -1512,7 +1498,7 @@ class NotIn(CompareOp):
 class BoolOp(BinaryOperator, ABC):
     op: ClassVar[type[py_ast.boolop]]
 
-    def as_ast(self) -> py_ast.expr:
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
         return py_ast.BoolOp(
             op=self.op(),
             values=[self.left.as_ast(), self.right.as_ast()],
