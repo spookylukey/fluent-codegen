@@ -10,7 +10,7 @@ import keyword
 import re
 import textwrap
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import ClassVar, Protocol, assert_never, overload, runtime_checkable
 
@@ -990,7 +990,7 @@ class Expression(CodeGenAst):
     def call(
         self,
         args: Sequence[Expression] | None = None,
-        kwargs: dict[str, Expression] | None = None,
+        kwargs: Mapping[str, Expression] | None = None,
     ) -> Call:
         return Call(self, args or [], kwargs or {})
 
@@ -998,7 +998,7 @@ class Expression(CodeGenAst):
         self,
         attribute: str,
         args: Sequence[Expression] | None = None,
-        kwargs: dict[str, Expression] | None = None,
+        kwargs: Mapping[str, Expression] | None = None,
     ) -> Call:
         return self.attr(attribute).call(args, kwargs)
 
@@ -1125,7 +1125,7 @@ class Number(Expression):
 
 
 class List(Expression):
-    def __init__(self, items: list[Expression]):
+    def __init__(self, items: Sequence[Expression]):
         self.items = items
 
     def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
@@ -1280,7 +1280,7 @@ class Starred(Expression):
 def function_call(
     function_name: str,
     args: Sequence[Expression],
-    kwargs: dict[str, Expression],
+    kwargs: Mapping[str, Expression],
     scope: Scope,
 ) -> Expression:
     if not scope.is_name_in_use(function_name):
@@ -1296,11 +1296,11 @@ class Call(Expression):
         self,
         value: Expression,
         args: Sequence[Expression],
-        kwargs: dict[str, Expression],
+        kwargs: Mapping[str, Expression],
     ):
         self.value = value
         self.args = list(args)
-        self.kwargs = kwargs
+        self.kwargs = dict(kwargs)
 
     def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
 
@@ -1356,7 +1356,7 @@ def method_call(
     obj: Expression,
     method_name: str,
     args: Sequence[Expression],
-    kwargs: dict[str, Expression],
+    kwargs: Mapping[str, Expression],
 ):
     return obj.attr(method_name).call(args=args, kwargs=kwargs)
 
