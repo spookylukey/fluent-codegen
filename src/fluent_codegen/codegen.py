@@ -102,8 +102,6 @@ class CodeGenAst(ABC):
     @abstractmethod
     def as_ast(self, *, include_comments: bool = False) -> py_ast.AST: ...
 
-    child_elements: ClassVar[list[str]]
-
     def as_python_source(self) -> str:
         """Return the Python source code for this AST node."""
         node = self.as_ast(include_comments=True)
@@ -119,8 +117,6 @@ class CodeGenAstList(ABC):
 
     @abstractmethod
     def as_ast_list(self, allow_empty: bool = True, *, include_comments: bool = False) -> list[py_ast.stmt]: ...
-
-    child_elements: ClassVar[list[str]]
 
     def as_python_source(self) -> str:
         """Return the Python source code for this AST list."""
@@ -261,8 +257,6 @@ class SupportsNameAssignment(Protocol):
 class _Annotation(Statement):
     """A bare type annotation without a value, e.g. ``x: int``."""
 
-    child_elements = []
-
     def __init__(self, name: str, annotation: Expression):
         self.name = name
         self.annotation = annotation
@@ -283,8 +277,6 @@ class _Annotation(Statement):
 
 
 class _Assignment(Statement):
-    child_elements = ["value"]
-
     def __init__(self, name: str, value: Expression, /, *, type_hint: Expression | None = None):
         self.name = name
         self.value = value
@@ -313,8 +305,6 @@ class _Assignment(Statement):
 
 
 class Block(CodeGenAstList):
-    child_elements = ["statements"]
-
     def __init__(self, scope: Scope, parent_block: Block | None = None):
         self.scope = scope
         # We allow `Expression` here for things like MethodCall which
@@ -669,8 +659,6 @@ def _validate_arg_order(args: list[FunctionArg]) -> None:
 
 
 class Function(Scope, Statement):
-    child_elements = ["body"]
-
     def __init__(
         self,
         name: str,
@@ -750,8 +738,6 @@ class Function(Scope, Statement):
 
 
 class Class(Scope, Statement):
-    child_elements = ["body"]
-
     def __init__(
         self,
         name: str,
@@ -780,8 +766,6 @@ class Class(Scope, Statement):
 
 
 class Return(Statement):
-    child_elements = ["value"]
-
     def __init__(self, value: Expression):
         self.value = value
 
@@ -794,8 +778,6 @@ class Return(Statement):
 
 class Assert(Statement):
     """An ``assert`` statement with an optional message."""
-
-    child_elements = ["test", "msg"]
 
     def __init__(self, test: Expression, msg: Expression | None = None):
         self.test = test
@@ -814,8 +796,6 @@ class Assert(Statement):
 
 
 class If(Statement):
-    child_elements = ["if_blocks", "conditions", "else_block"]
-
     def __init__(self, parent_scope: Scope, parent_block: Block | None = None):
         # We model a "compound if statement" as a list of if blocks
         # (if/elif/elif etc), each with their own condition, with a final else
@@ -867,8 +847,6 @@ class If(Statement):
 
 
 class With(Statement):
-    child_elements = ["context_expr", "body"]
-
     def __init__(
         self,
         context_expr: Expression,
@@ -901,8 +879,6 @@ class With(Statement):
 
 
 class Try(Statement):
-    child_elements = ["catch_exceptions", "try_block", "except_block", "else_block"]
-
     def __init__(self, catch_exceptions: Sequence[Expression], parent_scope: Scope):
         self.catch_exceptions = catch_exceptions
         self.try_block = Block(parent_scope)
@@ -1098,8 +1074,6 @@ class Expression(CodeGenAst):
 
 
 class String(Expression):
-    child_elements = []
-
     def __init__(self, string_value: str):
         self.string_value = string_value
 
@@ -1118,8 +1092,6 @@ class String(Expression):
 
 
 class Bool(Expression):
-    child_elements = []
-
     def __init__(self, value: bool):
         self.value = value
 
@@ -1131,8 +1103,6 @@ class Bool(Expression):
 
 
 class Bytes(Expression):
-    child_elements = []
-
     def __init__(self, value: bytes):
         self.value = value
 
@@ -1144,8 +1114,6 @@ class Bytes(Expression):
 
 
 class Number(Expression):
-    child_elements = []
-
     def __init__(self, number: int | float):
         self.number = number
 
@@ -1157,8 +1125,6 @@ class Number(Expression):
 
 
 class List(Expression):
-    child_elements = ["items"]
-
     def __init__(self, items: list[Expression]):
         self.items = items
 
@@ -1167,8 +1133,6 @@ class List(Expression):
 
 
 class Tuple(Expression):
-    child_elements = ["items"]
-
     def __init__(self, items: Sequence[Expression]):
         self.items = items
 
@@ -1177,8 +1141,6 @@ class Tuple(Expression):
 
 
 class Set(Expression):
-    child_elements = ["items"]
-
     def __init__(self, items: Sequence[Expression]):
         self.items = items
 
@@ -1195,8 +1157,6 @@ class Set(Expression):
 
 
 class Dict(Expression):
-    child_elements = ["pairs"]
-
     def __init__(self, pairs: Sequence[tuple[Expression, Expression]]):
         self.pairs = pairs
 
@@ -1209,8 +1169,6 @@ class Dict(Expression):
 
 
 class StringJoinBase(Expression):
-    child_elements = ["parts"]
-
     def __init__(self, parts: Sequence[Expression]):
         self.parts = parts
 
@@ -1280,8 +1238,6 @@ StringJoin = FStringJoin
 
 
 class Name(Expression):
-    child_elements = []
-
     def __init__(self, name: str, scope: Scope):
         if not scope.is_name_in_use(name):
             raise AssertionError(f"Cannot refer to undefined name '{name}'")
@@ -1300,8 +1256,6 @@ class Name(Expression):
 
 
 class Attr(Expression):
-    child_elements = ["value"]
-
     def __init__(self, value: Expression, attribute: str) -> None:
         self.value = value
         if not allowable_name(attribute, allow_builtin=True):
@@ -1313,8 +1267,6 @@ class Attr(Expression):
 
 
 class Starred(Expression):
-    child_elements = ["value"]
-
     def __init__(self, value: Expression):
         self.value = value
 
@@ -1340,8 +1292,6 @@ def function_call(
 
 
 class Call(Expression):
-    child_elements = ["value", "args", "kwargs"]
-
     def __init__(
         self,
         value: Expression,
@@ -1412,8 +1362,6 @@ def method_call(
 
 
 class Subscript(Expression):
-    child_elements = ["value", "slice"]
-
     def __init__(self, value: Expression, slice: Expression):
         self.value = value
         self.slice = slice
@@ -1436,8 +1384,6 @@ class NoneExpr(Expression):
 
 
 class BinaryOperator(Expression):
-    child_elements = ["left", "right"]
-
     def __init__(self, left: Expression, right: Expression):
         self.left = left
         self.right = right
@@ -1579,19 +1525,47 @@ def simplify(codegen_ast: CodeGenAstType, simplifier: Callable[[CodeGenAstType, 
 def rewriting_traverse(
     node: CodeGenAstType | Sequence[CodeGenAstType],
     func: Callable[[CodeGenAstType], CodeGenAstType],
+    _visited: set[int] | None = None,
 ):
     """
-    Apply 'func' to node and all sub CodeGenAst nodes
+    Apply 'func' to node and all sub CodeGenAst nodes.
+
+    Discovers child nodes by introspecting instance attributes rather than
+    relying on a manually-maintained list.  A *visited* set (keyed by
+    ``id()``) prevents infinite recursion through circular references
+    (e.g. Block.scope → Function → body → Block).
     """
+    if _visited is None:
+        _visited = set()
     if isinstance(node, (CodeGenAst, CodeGenAstList)):
+        node_id = id(node)
+        if node_id in _visited:
+            return
+        _visited.add(node_id)
         new_node = func(node)
         if new_node is not node:
             morph_into(node, new_node)
-        for k in node.child_elements:
-            rewriting_traverse(getattr(node, k), func)
+        for value in node.__dict__.values():
+            _traverse_value(value, func, _visited)
     elif isinstance(node, (list, tuple)):
         for i in node:
-            rewriting_traverse(i, func)
+            rewriting_traverse(i, func, _visited)
+
+
+def _traverse_value(
+    value: object,
+    func: Callable[[CodeGenAstType], CodeGenAstType],
+    visited: set[int],
+) -> None:
+    """Recurse into a single attribute value, handling containers."""
+    if isinstance(value, (CodeGenAst, CodeGenAstList)):
+        rewriting_traverse(value, func, visited)
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            _traverse_value(item, func, visited)
+    elif isinstance(value, dict):
+        for v in value.values():
+            _traverse_value(v, func, visited)
 
 
 def morph_into(item: object, new_item: object) -> None:

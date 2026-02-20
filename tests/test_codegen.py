@@ -1349,6 +1349,438 @@ def test_rewriting_traverse_tuple():
     codegen.rewriting_traverse(t, lambda n: n)
 
 
+def _collect_traversed_types(root):
+    """Helper: traverse a tree and return list of (class_name) for every node visited."""
+    visited = []
+
+    def visitor(node):
+        visited.append(type(node).__name__)
+        return node
+
+    codegen.rewriting_traverse(root, visitor)
+    return visited
+
+
+def test_rewriting_traverse_complex_module():
+    """Test traversal visits all nodes in a complex module with nested structures."""
+    module = codegen.Module()
+    scope = module.scope
+
+    # Function with decorators, return type, body containing if/else, assignments, returns
+    scope.reserve_name("my_decorator")
+    decorator = codegen.Name("my_decorator", scope)
+    func, _ = module.create_function(
+        "process",
+        args=["items", "flag"],
+        decorators=[decorator],
+        return_type=codegen.Name("str", scope),
+    )
+    n_items = codegen.Name("items", func)
+    n_flag = codegen.Name("flag", func)
+
+    # Assignment with type hint
+    result_name = func.body.scope.reserve_name("result")
+    func.body.create_assignment(result_name, codegen.String(""), type_hint=codegen.Name("str", func))
+
+    # If/elif/else
+    if_stmt = func.body.create_if()
+    branch1 = if_stmt.create_if_branch(n_flag.eq(codegen.Bool(True)))
+    branch1.create_assignment(
+        result_name,
+        codegen.function_call("str", [n_items], {}, func),
+        allow_multiple=True,
+    )
+    branch2 = if_stmt.create_if_branch(n_flag.eq(codegen.Bool(False)))
+    branch2.create_return(codegen.String("none"))
+    if_stmt.else_block.create_return(codegen.String("default"))
+
+    # Return
+    func.body.create_return(codegen.Name("result", func))
+
+    visited = _collect_traversed_types(module)
+
+    # Verify key node types are all visited
+    assert "Module" in visited
+    assert "Function" in visited
+    assert "Block" in visited
+    assert "If" in visited
+    assert "Equals" in visited
+    assert "String" in visited
+    assert "Bool" in visited
+    assert "Return" in visited
+    assert "Call" in visited
+    assert "Name" in visited
+
+
+def test_rewriting_traverse_call_with_kwargs():
+    """Test that kwargs dict values in Call nodes are traversed."""
+    scope = codegen.Scope()
+    func_name = scope.create_name("my_func")
+    call = codegen.Call(
+        func_name,
+        [codegen.String("positional")],
+        {"key1": codegen.String("val1"), "key2": codegen.Number(42)},
+    )
+
+    visited = _collect_traversed_types(call)
+    assert "Call" in visited
+    assert "Name" in visited
+    # The positional arg
+    assert visited.count("String") >= 2  # "positional" and "val1"
+    assert "Number" in visited  # 42 from kwargs
+
+
+def test_rewriting_traverse_replaces_in_kwargs():
+    """Test that rewriting_traverse can replace nodes inside Call kwargs."""
+    scope = codegen.Scope()
+    func_name = scope.create_name("f")
+    call = codegen.Call(
+        func_name,
+        [],
+        {"k": codegen.String("old")},
+    )
+
+    def replace_old(node):
+        if isinstance(node, codegen.String) and node.string_value == "old":
+            return codegen.String("new")
+        return node
+
+    codegen.rewriting_traverse(call, replace_old)
+    assert_code_equal(call, "f(k='new')")
+
+
+def test_rewriting_traverse_function_decorators_and_return_type():
+    """Test that decorators and return_type on Function are traversed."""
+    scope = codegen.Scope()
+    decorator = codegen.String("deco_marker")
+    ret_type = codegen.String("ret_marker")
+    func = codegen.Function("myfunc", parent_scope=scope, decorators=[decorator], return_type=ret_type)
+
+    visited = _collect_traversed_types(func)
+    assert visited.count("String") == 2  # decorator + return_type
+
+
+def test_rewriting_traverse_replaces_in_decorator():
+    """Test replacing a decorator expression via traverse."""
+    scope = codegen.Scope()
+    scope.reserve_name("old_deco")
+    scope.reserve_name("new_deco")
+    func = codegen.Function(
+        "myfunc",
+        parent_scope=scope,
+        decorators=[codegen.Name("old_deco", scope)],
+    )
+
+    def replace_deco(node):
+        if isinstance(node, codegen.Name) and node.name == "old_deco":
+            return codegen.Name("new_deco", scope)
+        return node
+
+    codegen.rewriting_traverse(func, replace_deco)
+    assert func.decorators[0].name == "new_deco"
+
+
+def test_rewriting_traverse_assignment_type_hint():
+    """Test that type_hint on _Assignment is traversed."""
+    module = codegen.Module()
+    name = module.scope.reserve_name("x")
+    module.create_assignment(name, codegen.String("hello"), type_hint=codegen.Name("str", module.scope))
+
+    visited = _collect_traversed_types(module)
+    # The type hint Name("str") should be visited
+    assert visited.count("Name") >= 1
+
+
+def test_rewriting_traverse_annotation():
+    """Test that annotation Expression on _Annotation is traversed."""
+    module = codegen.Module()
+    name = module.scope.reserve_name("x")
+    module.create_annotation(name, codegen.Name("int", module.scope))
+
+    visited = _collect_traversed_types(module)
+    # Module -> Block(statements) -> _Annotation -> annotation(Name)
+    assert "Name" in visited
+
+
+def test_rewriting_traverse_with_statement():
+    """Test traversal into With statement's context_expr, target, and body."""
+    module = codegen.Module()
+    module.scope.reserve_name("ctx_manager")
+    module.scope.reserve_name("f")
+    ctx = codegen.function_call("ctx_manager", [codegen.String("file.txt")], {}, module.scope)
+    with_stmt = module.create_with(ctx, target=codegen.Name("f", module.scope))
+    with_stmt.body.create_return(codegen.String("done"))
+
+    visited = _collect_traversed_types(module)
+    assert "With" in visited
+    assert "Call" in visited
+    assert "Return" in visited
+
+
+def test_rewriting_traverse_try_except():
+    """Test traversal into Try blocks."""
+    module = codegen.Module()
+    exc = codegen.Name("ValueError", module.scope)
+    try_stmt = codegen.Try([exc], module.scope)
+    try_stmt.try_block.create_return(codegen.String("tried"))
+    try_stmt.except_block.create_return(codegen.String("caught"))
+    try_stmt.else_block.create_return(codegen.String("else"))
+    module.add_statement(try_stmt)
+
+    visited = _collect_traversed_types(module)
+    assert "Try" in visited
+    assert visited.count("Block") >= 3  # try, except, else blocks
+    assert visited.count("Return") >= 3
+    assert visited.count("String") >= 3
+
+
+def test_rewriting_traverse_dict_expression():
+    """Test traversal into Dict pairs (tuples of expressions)."""
+    d = codegen.Dict(
+        [
+            (codegen.String("k1"), codegen.Number(1)),
+            (codegen.String("k2"), codegen.Number(2)),
+        ]
+    )
+
+    visited = _collect_traversed_types(d)
+    assert visited.count("String") == 2
+    assert visited.count("Number") == 2
+
+
+def test_rewriting_traverse_nested_binary_ops():
+    """Test deep nesting of binary operators."""
+    # (1 + 2) * (3 - 4)
+    expr = codegen.Number(1).add(codegen.Number(2)).mul(codegen.Number(3).sub(codegen.Number(4)))
+
+    visited = _collect_traversed_types(expr)
+    assert visited.count("Number") == 4
+    assert "Mul" in visited
+    assert "Add" in visited
+    assert "Sub" in visited
+
+
+def test_rewriting_traverse_subscript():
+    """Test traversal into Subscript value and slice."""
+    scope = codegen.Scope()
+    scope.reserve_name("items")
+    expr = codegen.Name("items", scope).subscript(codegen.Number(0))
+
+    visited = _collect_traversed_types(expr)
+    assert "Subscript" in visited
+    assert "Name" in visited
+    assert "Number" in visited
+
+
+def test_rewriting_traverse_attr():
+    """Test traversal into Attr value."""
+    scope = codegen.Scope()
+    scope.reserve_name("obj")
+    expr = codegen.Name("obj", scope).attr("prop")
+
+    visited = _collect_traversed_types(expr)
+    assert "Attr" in visited
+    assert "Name" in visited
+
+
+def test_rewriting_traverse_starred():
+    """Test traversal into Starred value."""
+    scope = codegen.Scope()
+    scope.reserve_name("args")
+    expr = codegen.Name("args", scope).starred()
+
+    visited = _collect_traversed_types(expr)
+    assert "Starred" in visited
+    assert "Name" in visited
+
+
+def test_rewriting_traverse_list_tuple_set():
+    """Test traversal into List, Tuple, Set items."""
+    for cls in [codegen.List, codegen.Tuple, codegen.Set]:
+        coll = cls([codegen.String("a"), codegen.Number(1)])
+        visited = _collect_traversed_types(coll)
+        assert "String" in visited
+        assert "Number" in visited
+
+
+def test_rewriting_traverse_class_with_bases_and_decorators():
+    """Test traversal into Class body, bases, and decorators."""
+    module = codegen.Module()
+    module.scope.reserve_name("BaseClass")
+    module.scope.reserve_name("my_class_deco")
+    base = codegen.Name("BaseClass", module.scope)
+    deco = codegen.Name("my_class_deco", module.scope)
+    cls, _ = module.create_class("MyClass", bases=[base], decorators=[deco])
+
+    visited = _collect_traversed_types(module)
+    assert "Class" in visited
+    assert "Block" in visited
+    # bases and decorators should be visited
+    assert visited.count("Name") >= 2
+
+
+def test_rewriting_traverse_assert():
+    """Test traversal into Assert test and msg."""
+    module = codegen.Module()
+    module.create_assert(codegen.Bool(True), codegen.String("oops"))
+
+    visited = _collect_traversed_types(module)
+    assert "Assert" in visited
+    assert "Bool" in visited
+    assert "String" in visited
+
+
+def test_rewriting_traverse_fstring():
+    """Test traversal into FStringJoin parts."""
+    scope = codegen.Scope()
+    scope.reserve_name("world")
+    fstr = codegen.FStringJoin([codegen.String("hello "), codegen.Name("world", scope)])
+
+    visited = _collect_traversed_types(fstr)
+    assert "FStringJoin" in visited
+    assert "String" in visited
+    assert "Name" in visited
+
+
+def test_rewriting_traverse_deeply_nested_codegen_tree():
+    """
+    Build a complex, deeply-nested codegen tree and verify that rewriting_traverse
+    visits every single CodeGenAst/CodeGenAstList node by replacing all String
+    values with 'REPLACED'.
+    """
+    module = codegen.Module()
+    scope = module.scope
+
+    # Import
+    module.create_import("os")
+    module.create_import_from(from_="sys", import_="argv")
+
+    # Class with decorator and base
+    scope.reserve_name("dataclass")
+    class_deco = codegen.Name("dataclass", scope)
+    base = codegen.Name("object", scope)
+    cls, _ = module.create_class("Config", bases=[base], decorators=[class_deco])
+    field_name = cls.body.scope.reserve_name("name")
+    cls.body.create_assignment(field_name, codegen.String("default_name"))
+
+    # Function with kwargs call, nested if, try/except, with, assert
+    scope.reserve_name("process")
+    func, _ = module.create_function(
+        "run",
+        args=["config"],
+        return_type=codegen.Name("bool", scope),
+    )
+    config = codegen.Name("config", func)
+
+    # Assignment with function call using kwargs
+    result_name = func.body.scope.reserve_name("result")
+    func.body.create_assignment(
+        result_name,
+        codegen.function_call(
+            "process",
+            [config.attr("name")],
+            {"timeout": codegen.Number(30)},
+            func,
+        ),
+    )
+
+    # Nested if
+    if_stmt = func.body.create_if()
+    branch = if_stmt.create_if_branch(codegen.Name("result", func).eq(codegen.String("ok")))
+    branch.create_return(codegen.Bool(True))
+
+    # Try/except in else
+    try_stmt = codegen.Try([codegen.Name("Exception", func)], func)
+    try_stmt.try_block.create_return(codegen.Bool(False))
+    try_stmt.except_block.create_return(codegen.Bool(False))
+    if_stmt.else_block.add_statement(try_stmt)
+
+    # With statement
+    func.reserve_name("open_log")
+    ctx_expr = codegen.function_call("open_log", [codegen.String("log.txt")], {}, func)
+    with_block = func.body.create_with(ctx_expr)
+    with_block.body.create_return(codegen.String("logged"))
+
+    # Assert
+    func.body.create_assert(
+        codegen.Name("result", func).ne(codegen.NoneExpr()),
+        codegen.String("must not be None"),
+    )
+
+    # Now do a rewriting_traverse that replaces all Strings
+    string_count = [0]
+
+    def count_and_replace_strings(node):
+        if isinstance(node, codegen.String):
+            string_count[0] += 1
+            return codegen.String("REPLACED")
+        return node
+
+    codegen.rewriting_traverse(module, count_and_replace_strings)
+
+    # We should have found all string literals in the tree
+    assert string_count[0] >= 5  # default_name, ok, log.txt, logged, must not be None
+
+    # Verify ALL strings are now REPLACED in the generated source
+    source = module.as_python_source()
+    for original in ["default_name", "'ok'", "log.txt", "logged", "must not be None"]:
+        assert original not in source, f"String '{original}' should have been replaced but found in: {source}"
+    assert "REPLACED" in source
+
+
+def test_rewriting_traverse_replace_number_in_nested_kwargs():
+    """
+    Specifically test that numbers deep inside kwargs of a Call inside a
+    function body can be found and replaced.
+    """
+    module = codegen.Module()
+    module.scope.reserve_name("setup")
+    func, _ = module.create_function("f", args=[])
+    func.body.create_assignment(
+        func.body.scope.reserve_name("x"),
+        codegen.function_call(
+            "setup",
+            [],
+            {"timeout": codegen.Number(99), "retries": codegen.Number(3)},
+            func,
+        ),
+    )
+
+    def double_numbers(node):
+        if isinstance(node, codegen.Number):
+            return codegen.Number(node.number * 2)
+        return node
+
+    codegen.rewriting_traverse(module, double_numbers)
+    source = module.as_python_source()
+    assert "198" in source  # 99 * 2
+    assert "6" in source  # 3 * 2
+    assert "99" not in source
+
+
+def test_rewriting_traverse_none_expr():
+    """Test that NoneExpr nodes are visited (they previously lacked child_elements)."""
+    scope = codegen.Scope()
+    scope.reserve_name("x")
+    expr = codegen.Name("x", scope).eq(codegen.NoneExpr())
+
+    visited = _collect_traversed_types(expr)
+    assert "NoneExpr" in visited
+    assert "Equals" in visited
+    assert "Name" in visited
+
+
+def test_rewriting_traverse_import_nodes():
+    """Test that Import and ImportFrom nodes are visited (they previously lacked child_elements)."""
+    module = codegen.Module()
+    module.create_import("os")
+    module.create_import_from(from_="sys", import_="argv")
+
+    visited = _collect_traversed_types(module)
+    assert "Import" in visited
+    assert "ImportFrom" in visited
+
+
 # --- auto() tests ---
 
 
