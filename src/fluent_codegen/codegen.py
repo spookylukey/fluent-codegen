@@ -254,7 +254,7 @@ class SupportsNameAssignment(Protocol):
     def has_assignment_for_name(self, name: str) -> bool: ...
 
 
-class _Annotation(Statement):
+class Annotation(Statement):
     """A bare type annotation without a value, e.g. ``x: int``."""
 
     def __init__(self, name: str, annotation: Expression):
@@ -276,7 +276,7 @@ class _Annotation(Statement):
         return self.name == name
 
 
-class _Assignment(Statement):
+class Assignment(Statement):
     def __init__(self, name: str, value: Expression, /, *, type_hint: Expression | None = None):
         self.name = name
         self.value = value
@@ -449,7 +449,7 @@ class Block(CodeGenAstList):
         else:
             self.scope.register_assignment(name)
 
-        self.add_statement(_Assignment(name, value, type_hint=type_hint))
+        self.add_statement(Assignment(name, value, type_hint=type_hint))
 
     def create_annotation(self, name: str, annotation: Expression) -> Name:
         """
@@ -461,7 +461,7 @@ class Block(CodeGenAstList):
         """
         name_obj = self.scope.create_name(name)
         self.scope.register_assignment(name_obj.name)
-        self.add_statement(_Annotation(name_obj.name, annotation))
+        self.add_statement(Annotation(name_obj.name, annotation))
         return name_obj
 
     def create_field(self, name: str, annotation: Expression, *, default: Expression | None = None) -> Name:
@@ -479,7 +479,7 @@ class Block(CodeGenAstList):
         if default is not None:
             name_obj = self.scope.create_name(name)
             self.scope.register_assignment(name_obj.name)
-            self.add_statement(_Assignment(name_obj.name, default, type_hint=annotation))
+            self.add_statement(Assignment(name_obj.name, default, type_hint=annotation))
             return name_obj
         else:
             return self.create_annotation(name, annotation)
@@ -1561,11 +1561,11 @@ def _traverse_value(
     if isinstance(value, (CodeGenAst, CodeGenAstList)):
         rewriting_traverse(value, func, visited)
     elif isinstance(value, (list, tuple)):
-        for item in value:
-            _traverse_value(item, func, visited)
+        for item in value:  # type: ignore[reportUnknownVariableType]
+            _traverse_value(item, func, visited)  # type: ignore[reportUnknownVariableType]
     elif isinstance(value, dict):
-        for v in value.values():
-            _traverse_value(v, func, visited)
+        for v in value.values():  # type: ignore[reportUnknownVariableType]
+            _traverse_value(v, func, visited)  # type: ignore[reportUnknownVariableType]
 
 
 def morph_into(item: object, new_item: object) -> None:

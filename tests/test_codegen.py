@@ -364,7 +364,7 @@ def test_create_assignment_bad():
     name = module.scope.reserve_name("x")
     module.create_assignment(name, codegen.String("a string"))
     stmt = module.statements[0]
-    assert isinstance(stmt, codegen._Assignment)
+    assert isinstance(stmt, codegen.Assignment)
     stmt.name = "something with a space"
     with pytest.raises(AssertionError):
         as_source_code(module)
@@ -437,19 +437,19 @@ def test_create_annotation_duplicate_name_gets_renamed():
 def test_create_annotation_bad_name():
     module = codegen.Module()
     # Force a bad name through by directly constructing _Annotation
-    from fluent_codegen.codegen import _Annotation
+    from fluent_codegen.codegen import Annotation
 
-    stmt = _Annotation("bad name", module.scope.name("int"))
+    stmt = Annotation("bad name", module.scope.name("int"))
     with pytest.raises(AssertionError):
         as_source_code(stmt)
 
 
 def test_annotation_has_assignment_for_name():
-    from fluent_codegen.codegen import _Annotation
+    from fluent_codegen.codegen import Annotation
 
     scope = codegen.Scope()
     scope.reserve_name("int")
-    stmt = _Annotation("x", scope.name("int"))
+    stmt = Annotation("x", scope.name("int"))
     assert stmt.has_assignment_for_name("x") is True
     assert stmt.has_assignment_for_name("y") is False
 

@@ -9,6 +9,7 @@ function or class) is encountered.
 from __future__ import annotations
 
 from .codegen import (
+    Assignment,
     Block,
     CodeGenAst,
     CodeGenAstList,
@@ -16,7 +17,6 @@ from .codegen import (
     Function,
     Name,
     Scope,
-    _Assignment,
     rewriting_traverse,
 )
 
@@ -49,8 +49,8 @@ def _collect_blocks(func: Function) -> list[Block]:
         if isinstance(value, (CodeGenAst, CodeGenAstList, Scope)):
             _walk(value)
         elif isinstance(value, (list, tuple)):
-            for item in value:
-                _walk_value(item)
+            for item in value:  # type: ignore[reportUnknownVariableType]
+                _walk_value(item)  # type: ignore[reportUnknownVariableType]
 
     # Start from statements inside the body (not the Function itself, which is
     # a Scope we need to skip).
@@ -79,7 +79,7 @@ def _assigned_names(blocks: list[Block]) -> set[str]:
     result: set[str] = set()
     for block in blocks:
         for stmt in block.statements:
-            if isinstance(stmt, _Assignment):
+            if isinstance(stmt, Assignment):
                 result.add(stmt.name)
     return result
 
@@ -94,7 +94,7 @@ def _remove_once(func: Function, blocks: list[Block]) -> bool:
 
     for block in blocks:
         block.statements = [
-            stmt for stmt in block.statements if not (isinstance(stmt, _Assignment) and stmt.name in unused)
+            stmt for stmt in block.statements if not (isinstance(stmt, Assignment) and stmt.name in unused)
         ]
     return True
 
