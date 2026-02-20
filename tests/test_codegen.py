@@ -1306,32 +1306,6 @@ def test_morph_into():
     assert s1.number == 42
 
 
-def test_codegen_ast_not_implemented():
-    """Test that abstract methods raise NotImplementedError."""
-
-    class DummyAst(codegen.CodeGenAst):
-        child_elements = []
-
-        def as_ast(self):
-            raise NotImplementedError(f"{self.__class__!r}.as_ast()")
-
-    d = DummyAst()
-    with pytest.raises(NotImplementedError):
-        d.as_ast()
-
-
-def test_codegen_ast_list_not_implemented():
-    class DummyAstList(codegen.CodeGenAstList):
-        child_elements = []
-
-        def as_ast_list(self, allow_empty=True):
-            raise NotImplementedError(f"{self.__class__!r}.as_ast_list()")
-
-    d = DummyAstList()
-    with pytest.raises(NotImplementedError):
-        d.as_ast_list()
-
-
 def test_block_as_ast_list_with_codegen_ast_list():
     """Test that Block handles CodeGenAstList sub-statements."""
     module = codegen.Module()
@@ -2739,7 +2713,7 @@ def test_comment_compile_constraint():
     code = compile(ast_tree, "<test>", "exec")
     ns: dict[str, object] = {}
     exec(code, ns)
-    assert ns["greet"]("world") == "hello"
+    assert ns["greet"]("world") == "hello"  # type: ignore
 
 
 def test_comment_source_constraint():
