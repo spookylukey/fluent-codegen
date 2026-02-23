@@ -676,6 +676,11 @@ class Function(Scope, Statement):
         if args is not None:
             self.add_args(args)
 
+    @property
+    def args(self) -> Sequence[FunctionArg]:
+        """Return the function's arguments as a read-only sequence."""
+        return tuple(self._args)
+
     def add_args(self, args: Sequence[str | FunctionArg]) -> None:
         """Add arguments to the function, with the same validation as in __init__."""
         normalized = _normalize_args(args)

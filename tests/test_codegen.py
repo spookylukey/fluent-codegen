@@ -268,6 +268,65 @@ def test_function_add_args_reserves_name():
     assert_code_equal(ref, "my_arg")
 
 
+def test_function_args_property_empty():
+    module = codegen.Module()
+    func_name = module.scope.reserve_name("myfunc")
+    func = codegen.Function(func_name, parent_scope=module.scope)
+    assert func.args == ()
+
+
+def test_function_args_property():
+    module = codegen.Module()
+    func_name = module.scope.reserve_name("myfunc")
+    func = codegen.Function(func_name, args=["a", "b"], parent_scope=module.scope)
+    assert len(func.args) == 2
+    assert func.args[0].name == "a"
+    assert func.args[1].name == "b"
+
+
+def test_function_args_property_with_function_arg():
+    module = codegen.Module()
+    func_name = module.scope.reserve_name("myfunc")
+    func = codegen.Function(
+        func_name,
+        args=[
+            codegen.FunctionArg.positional("x"),
+            "y",
+            codegen.FunctionArg.keyword("z", default=codegen.Number(1)),
+        ],
+        parent_scope=module.scope,
+    )
+    assert len(func.args) == 3
+    assert func.args[0].name == "x"
+    assert func.args[0].kind == codegen.ArgKind.POSITIONAL_ONLY
+    assert func.args[1].name == "y"
+    assert func.args[1].kind == codegen.ArgKind.POSITIONAL_OR_KEYWORD
+    assert func.args[2].name == "z"
+    assert func.args[2].kind == codegen.ArgKind.KEYWORD_ONLY
+
+
+def test_function_args_property_after_add_args():
+    module = codegen.Module()
+    func_name = module.scope.reserve_name("myfunc")
+    func = codegen.Function(func_name, args=["a"], parent_scope=module.scope)
+    assert len(func.args) == 1
+    func.add_args(["b", "c"])
+    assert len(func.args) == 3
+    assert func.args[2].name == "c"
+
+
+def test_function_args_property_is_readonly():
+    """Mutating the returned tuple should not affect the function's internal args."""
+    module = codegen.Module()
+    func_name = module.scope.reserve_name("myfunc")
+    func = codegen.Function(func_name, args=["a", "b"], parent_scope=module.scope)
+    args = func.args
+    assert len(args) == 2
+    # tuple is immutable, so this should be a fresh copy each time
+    assert func.args is not func.args or isinstance(func.args, tuple)
+    assert len(func.args) == 2
+
+
 def test_function_args_name_reserved_check():
     module = codegen.Module()
     module.scope.reserve_function_arg_name("my_arg")
