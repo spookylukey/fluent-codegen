@@ -1,3 +1,5 @@
+"""String validation utilities for identifiers and keyword argument names."""
+
 import builtins
 import keyword
 import re

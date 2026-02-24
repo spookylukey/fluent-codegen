@@ -129,6 +129,8 @@ CodeGenAstType = CodeGenAst | CodeGenAstList
 
 
 class Scope:
+    """Track name reservations and assignments within a lexical scope."""
+
     def __init__(self, parent_scope: Scope | None = None):
         self.parent_scope = parent_scope
         self.names: set[str] = set()
@@ -136,6 +138,7 @@ class Scope:
         self._assignments: set[str] = set()
 
     def is_name_in_use(self, name: str) -> bool:
+        """Return whether *name* is already reserved in this scope or any parent."""
         if name in self.names:
             return True
 
@@ -145,6 +148,7 @@ class Scope:
         return self.parent_scope.is_name_in_use(name)
 
     def is_name_reserved_function_arg(self, name: str) -> bool:
+        """Return whether *name* is reserved for use as a function argument."""
         if name in self._function_arg_reserved_names:
             return True
 
@@ -154,6 +158,7 @@ class Scope:
         return self.parent_scope.is_name_reserved_function_arg(name)
 
     def is_name_reserved(self, name: str) -> bool:
+        """Return whether *name* is reserved for any purpose in this scope."""
         return self.is_name_in_use(name) or self.is_name_reserved_function_arg(name)
 
     def reserve_name(
@@ -216,17 +221,20 @@ class Scope:
         self._function_arg_reserved_names.add(name)
 
     def has_assignment(self, name: str) -> bool:
+        """Return whether *name* has been assigned a value in this scope."""
         return name in self._assignments
 
     def register_assignment(self, name: str) -> None:
+        """Record that *name* has been assigned a value in this scope."""
         self._assignments.add(name)
 
     def create_name(self, name: str) -> Name:
+        """Reserve *name* (or a variant) and return a :class:`Name` expression for it."""
         reserved = self.reserve_name(name)
         return Name(reserved, self)
 
     def name(self, name: str) -> Name:
-        # Convenience utility for returning a Name
+        """Return a :class:`Name` expression for an already-reserved name."""
         return Name(name, self)
 
 
@@ -246,11 +254,15 @@ def cleanup_name(name: str) -> str:
 
 
 class Statement(CodeGenAst):
+    """Base class for code-generation nodes that represent Python statements."""
+
     pass
 
 
 @runtime_checkable
 class SupportsNameAssignment(Protocol):
+    """Protocol for nodes that can report whether they assign to a given name."""
+
     def has_assignment_for_name(self, name: str) -> bool: ...
 
 
@@ -277,6 +289,8 @@ class Annotation(Statement):
 
 
 class Assignment(Statement):
+    """A variable assignment statement, optionally with a type annotation."""
+
     def __init__(self, name: str, value: Expression, /, *, type_hint: Expression | None = None):
         self.name = name
         self.value = value
@@ -305,6 +319,8 @@ class Assignment(Statement):
 
 
 class Block(CodeGenAstList):
+    """An ordered sequence of statements sharing a common :class:`Scope`."""
+
     def __init__(self, scope: Scope, parent_block: Block | None = None):
         self.scope = scope
         # We allow `Expression` here for things like MethodCall which
@@ -343,7 +359,7 @@ class Block(CodeGenAstList):
 
         If *wrap* is given as an integer, long lines are wrapped at word
         boundaries so that no comment line exceeds *wrap* characters
-        (including the ``# `` prefix).
+        (including the ``#`` prefix and space).
         """
         if wrap is not None:
             # Account for the "# " prefix (2 chars) that will be added during rendering.
@@ -358,6 +374,7 @@ class Block(CodeGenAstList):
             self.statements.append(text)
 
     def add_statement(self, statement: Statement | Block | Expression) -> None:
+        """Append a statement, block, or bare expression to this block."""
         self.statements.append(statement)
         if isinstance(statement, Block):
             if statement.parent_block is None:
@@ -369,7 +386,7 @@ class Block(CodeGenAstList):
                     )
 
     def create_import(self, module: str, as_: str | None = None) -> tuple[Import, Name]:
-
+        """Create an ``import`` statement, reserve the resulting name, and add it to this block."""
         return_name_object: Name
         if as_ is not None:
             # "import foo as bar" results in `bar` name being assigned.
@@ -400,7 +417,7 @@ class Block(CodeGenAstList):
         return import_statement, return_name_object
 
     def create_import_from(self, *, from_: str, import_: str, as_: str | None = None) -> tuple[ImportFrom, Name]:
-
+        """Create a ``from ... import`` statement, reserve the resulting name, and add it to this block."""
         return_name_object: Name
         if as_ is not None:
             # "from foo import bar as baz" results in `baz` name being assigned.
@@ -518,9 +535,11 @@ class Block(CodeGenAstList):
         return cls, name_obj
 
     def create_return(self, value: Expression) -> None:
+        """Add a ``return`` statement to this block."""
         self.add_statement(Return(value))
 
     def create_assert(self, test: Expression, msg: Expression | None = None) -> None:
+        """Add an ``assert`` statement to this block."""
         self.add_statement(Assert(test, msg))
 
     def create_if(self) -> If:
@@ -551,6 +570,7 @@ class Block(CodeGenAstList):
         return with_statement
 
     def has_assignment_for_name(self, name: str) -> bool:
+        """Return whether *name* is assigned anywhere in this block or its parents."""
         for s in self.statements:
             if isinstance(s, SupportsNameAssignment) and s.has_assignment_for_name(name):
                 return True
@@ -560,6 +580,8 @@ class Block(CodeGenAstList):
 
 
 class Module(Block, CodeGenAst):
+    """Top-level module block with its own :class:`Scope` pre-loaded with builtins."""
+
     def __init__(self, reserve_builtins: bool = True):
         scope = Scope(parent_scope=None)
         if reserve_builtins:
@@ -659,6 +681,8 @@ def _validate_arg_order(args: list[FunctionArg]) -> None:
 
 
 class Function(Scope, Statement):
+    """A function definition statement that also acts as a :class:`Scope` for its body."""
+
     def __init__(
         self,
         name: str,
@@ -739,10 +763,13 @@ class Function(Scope, Statement):
         )
 
     def create_return(self, value: Expression):
+        """Add a ``return`` statement to the function body."""
         self.body.create_return(value)
 
 
 class Class(Scope, Statement):
+    """A class definition statement that also acts as a :class:`Scope` for its body."""
+
     def __init__(
         self,
         name: str,
@@ -771,6 +798,8 @@ class Class(Scope, Statement):
 
 
 class Return(Statement):
+    """A ``return`` statement."""
+
     def __init__(self, value: Expression):
         self.value = value
 
@@ -801,6 +830,8 @@ class Assert(Statement):
 
 
 class If(Statement):
+    """A compound ``if``/``elif``/``else`` statement."""
+
     def __init__(self, parent_scope: Scope, parent_block: Block | None = None):
         # We model a "compound if statement" as a list of if blocks
         # (if/elif/elif etc), each with their own condition, with a final else
@@ -822,6 +853,7 @@ class If(Statement):
         return new_if
 
     def finalize(self) -> Block | Statement:
+        """Return a simplified node: the else block if there are no conditions, otherwise *self*."""
         if not self.if_blocks:
             # Unusual case of no conditions, only default case, but it
             # simplifies other code to be able to handle this uniformly. We can
@@ -852,6 +884,8 @@ class If(Statement):
 
 
 class With(Statement):
+    """A ``with`` statement."""
+
     def __init__(
         self,
         context_expr: Expression,
@@ -884,6 +918,8 @@ class With(Statement):
 
 
 class Try(Statement):
+    """A ``try``/``except``/``else`` statement."""
+
     def __init__(self, catch_exceptions: Sequence[Expression], parent_scope: Scope):
         self.catch_exceptions = catch_exceptions
         self.try_block = Block(parent_scope)
@@ -950,9 +986,10 @@ class Import(Statement):
 
 class ImportFrom(Statement):
     """
-    `from import' statement, supporting:
-    - from foo import bar
-    - from foo import bar as baz
+    ``from ... import`` statement, supporting:
+
+    - ``from foo import bar``
+    - ``from foo import bar as baz``
 
     Use via `Block.create_import_from`
 
@@ -984,12 +1021,15 @@ class ImportFrom(Statement):
 
 
 class Expression(CodeGenAst):
+    """Base class for code-generation nodes that represent Python expressions."""
+
     @abstractmethod
     def as_ast(self, *, include_comments: bool = False) -> py_ast.expr: ...
 
     # Some utilities for easy chaining:
 
     def attr(self, attribute: str, /) -> Attr:
+        """Return an :class:`Attr` expression for accessing *attribute* on this expression."""
         return Attr(self, attribute)
 
     def call(
@@ -997,6 +1037,7 @@ class Expression(CodeGenAst):
         args: Sequence[Expression] | None = None,
         kwargs: Mapping[str, Expression] | None = None,
     ) -> Call:
+        """Return a :class:`Call` expression invoking this expression."""
         return Call(self, args or [], kwargs or {})
 
     def method_call(
@@ -1005,80 +1046,103 @@ class Expression(CodeGenAst):
         args: Sequence[Expression] | None = None,
         kwargs: Mapping[str, Expression] | None = None,
     ) -> Call:
+        """Return a :class:`Call` expression for a method call on this expression."""
         return self.attr(attribute).call(args, kwargs)
 
     def subscript(self, slice: Expression, /) -> Subscript:
+        """Return a :class:`Subscript` expression indexing this expression."""
         return Subscript(self, slice)
 
     # Arithmetic operators
 
     def add(self, other: Expression, /) -> Add:
+        """Return an :class:`Add` (``+``) expression."""
         return Add(self, other)
 
     def sub(self, other: Expression, /) -> Sub:
+        """Return a :class:`Sub` (``-``) expression."""
         return Sub(self, other)
 
     def mul(self, other: Expression, /) -> Mul:
+        """Return a :class:`Mul` (``*``) expression."""
         return Mul(self, other)
 
     def div(self, other: Expression, /) -> Div:
+        """Return a :class:`Div` (``/``) expression."""
         return Div(self, other)
 
     def floordiv(self, other: Expression, /) -> FloorDiv:
+        """Return a :class:`FloorDiv` (``//``) expression."""
         return FloorDiv(self, other)
 
     def mod(self, other: Expression, /) -> Mod:
+        """Return a :class:`Mod` (``%``) expression."""
         return Mod(self, other)
 
     def pow(self, other: Expression, /) -> Pow:
+        """Return a :class:`Pow` (``**``) expression."""
         return Pow(self, other)
 
     def matmul(self, other: Expression, /) -> MatMul:
+        """Return a :class:`MatMul` (``@``) expression."""
         return MatMul(self, other)
 
     # Comparison operators
 
     def eq(self, other: Expression, /) -> Equals:
+        """Return an :class:`Equals` (``==``) expression."""
         return Equals(self, other)
 
     def ne(self, other: Expression, /) -> NotEquals:
+        """Return a :class:`NotEquals` (``!=``) expression."""
         return NotEquals(self, other)
 
     def lt(self, other: Expression, /) -> Lt:
+        """Return a :class:`Lt` (``<``) expression."""
         return Lt(self, other)
 
     def gt(self, other: Expression, /) -> Gt:
+        """Return a :class:`Gt` (``>``) expression."""
         return Gt(self, other)
 
     def le(self, other: Expression, /) -> LtE:
+        """Return a :class:`LtE` (``<=``) expression."""
         return LtE(self, other)
 
     def ge(self, other: Expression, /) -> GtE:
+        """Return a :class:`GtE` (``>=``) expression."""
         return GtE(self, other)
 
     # Boolean operators
 
     def and_(self, other: Expression, /) -> And:
+        """Return an :class:`And` (``and``) expression."""
         return And(self, other)
 
     def or_(self, other: Expression, /) -> Or:
+        """Return an :class:`Or` (``or``) expression."""
         return Or(self, other)
 
     # Membership operators
 
     def in_(self, other: Expression, /) -> In:
+        """Return an :class:`In` (``in``) expression."""
         return In(self, other)
 
     def not_in(self, other: Expression, /) -> NotIn:
+        """Return a :class:`NotIn` (``not in``) expression."""
         return NotIn(self, other)
 
     # Unpacking
 
     def starred(self) -> Starred:
+        """Return a :class:`Starred` (``*self``) unpacking expression."""
         return Starred(self)
 
 
 class String(Expression):
+    """A string literal expression."""
+
     def __init__(self, string_value: str):
         self.string_value = string_value
 
@@ -1097,6 +1161,8 @@ class String(Expression):
 
 
 class Bool(Expression):
+    """A boolean literal expression (``True`` or ``False``)."""
+
     def __init__(self, value: bool):
         self.value = value
 
@@ -1108,6 +1174,8 @@ class Bool(Expression):
 
 
 class Bytes(Expression):
+    """A bytes literal expression."""
+
     def __init__(self, value: bytes):
         self.value = value
 
@@ -1119,6 +1187,8 @@ class Bytes(Expression):
 
 
 class Number(Expression):
+    """A numeric literal expression (``int`` or ``float``)."""
+
     def __init__(self, number: int | float):
         self.number = number
 
@@ -1130,6 +1200,8 @@ class Number(Expression):
 
 
 class List(Expression):
+    """A list literal expression."""
+
     def __init__(self, items: Sequence[Expression]):
         self.items = items
 
@@ -1138,6 +1210,8 @@ class List(Expression):
 
 
 class Tuple(Expression):
+    """A tuple literal expression."""
+
     def __init__(self, items: Sequence[Expression]):
         self.items = items
 
@@ -1146,6 +1220,8 @@ class Tuple(Expression):
 
 
 class Set(Expression):
+    """A set literal expression, using ``set([])`` for the empty case."""
+
     def __init__(self, items: Sequence[Expression]):
         self.items = items
 
@@ -1162,6 +1238,8 @@ class Set(Expression):
 
 
 class Dict(Expression):
+    """A dict literal expression."""
+
     def __init__(self, pairs: Sequence[tuple[Expression, Expression]]):
         self.pairs = pairs
 
@@ -1174,6 +1252,8 @@ class Dict(Expression):
 
 
 class StringJoinBase(Expression):
+    """Base class for string concatenation expressions."""
+
     def __init__(self, parts: Sequence[Expression]):
         self.parts = parts
 
@@ -1203,6 +1283,8 @@ class StringJoinBase(Expression):
 
 
 class FStringJoin(StringJoinBase):
+    """Join string parts using an f-string expression."""
+
     def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
         # f-strings
         values: list[py_ast.expr] = []
@@ -1222,6 +1304,8 @@ class FStringJoin(StringJoinBase):
 
 
 class ConcatJoin(StringJoinBase):
+    """Join string parts using ``+`` concatenation."""
+
     def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
         # Concatenate with +
         left = self.parts[0].as_ast()
@@ -1243,6 +1327,8 @@ StringJoin = FStringJoin
 
 
 class Name(Expression):
+    """A reference to a named variable that must already be reserved in its :class:`Scope`."""
+
     def __init__(self, name: str, scope: Scope):
         if not scope.is_name_in_use(name):
             raise AssertionError(f"Cannot refer to undefined name '{name}'")
@@ -1261,6 +1347,8 @@ class Name(Expression):
 
 
 class Attr(Expression):
+    """An attribute access expression (e.g. ``obj.attr``)."""
+
     def __init__(self, value: Expression, attribute: str) -> None:
         self.value = value
         if not allowable_name(attribute, allow_builtin=True):
@@ -1272,6 +1360,8 @@ class Attr(Expression):
 
 
 class Starred(Expression):
+    """A starred (unpacking) expression (e.g. ``*args``)."""
+
     def __init__(self, value: Expression):
         self.value = value
 
@@ -1288,6 +1378,7 @@ def function_call(
     kwargs: Mapping[str, Expression],
     scope: Scope,
 ) -> Expression:
+    """Create a function call expression, validating that the name exists in *scope*."""
     if not scope.is_name_in_use(function_name):
         raise AssertionError(f"Cannot call unknown function '{function_name}'")
     if function_name in SENSITIVE_FUNCTIONS:
@@ -1297,6 +1388,8 @@ def function_call(
 
 
 class Call(Expression):
+    """A function or method call expression."""
+
     def __init__(
         self,
         value: Expression,
@@ -1363,10 +1456,13 @@ def method_call(
     args: Sequence[Expression],
     kwargs: Mapping[str, Expression],
 ):
+    """Create a method call expression on *obj*."""
     return obj.attr(method_name).call(args=args, kwargs=kwargs)
 
 
 class Subscript(Expression):
+    """A subscript (indexing) expression (e.g. ``obj[key]``)."""
+
     def __init__(self, value: Expression, slice: Expression):
         self.value = value
         self.slice = slice
@@ -1384,11 +1480,15 @@ create_class_instance = function_call
 
 
 class NoneExpr(Expression):
+    """A ``None`` literal expression."""
+
     def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
         return py_ast.Constant(value=None, **DEFAULT_AST_ARGS)
 
 
 class BinaryOperator(Expression):
+    """Base class for binary operator expressions with a left and right operand."""
+
     def __init__(self, left: Expression, right: Expression):
         self.left = left
         self.right = right
@@ -1409,34 +1509,50 @@ class ArithOp(BinaryOperator, ABC):
 
 
 class Add(ArithOp):
+    """Addition (``+``) operator."""
+
     op = py_ast.Add
 
 
 class Sub(ArithOp):
+    """Subtraction (``-``) operator."""
+
     op = py_ast.Sub
 
 
 class Mul(ArithOp):
+    """Multiplication (``*``) operator."""
+
     op = py_ast.Mult
 
 
 class Div(ArithOp):
+    """True division (``/``) operator."""
+
     op = py_ast.Div
 
 
 class FloorDiv(ArithOp):
+    """Floor division (``//``) operator."""
+
     op = py_ast.FloorDiv
 
 
 class Mod(ArithOp):
+    """Modulo (``%``) operator."""
+
     op = py_ast.Mod
 
 
 class Pow(ArithOp):
+    """Exponentiation (``**``) operator."""
+
     op = py_ast.Pow
 
 
 class MatMul(ArithOp):
+    """Matrix multiplication (``@``) operator."""
+
     op = py_ast.MatMult
 
 
@@ -1455,38 +1571,56 @@ class CompareOp(BinaryOperator, ABC):
 
 
 class Equals(CompareOp):
+    """Equality (``==``) comparison."""
+
     op = py_ast.Eq
 
 
 class NotEquals(CompareOp):
+    """Inequality (``!=``) comparison."""
+
     op = py_ast.NotEq
 
 
 class Lt(CompareOp):
+    """Less-than (``<``) comparison."""
+
     op = py_ast.Lt
 
 
 class Gt(CompareOp):
+    """Greater-than (``>``) comparison."""
+
     op = py_ast.Gt
 
 
 class LtE(CompareOp):
+    """Less-than-or-equal (``<=``) comparison."""
+
     op = py_ast.LtE
 
 
 class GtE(CompareOp):
+    """Greater-than-or-equal (``>=``) comparison."""
+
     op = py_ast.GtE
 
 
 class In(CompareOp):
+    """Membership (``in``) comparison."""
+
     op = py_ast.In
 
 
 class NotIn(CompareOp):
+    """Non-membership (``not in``) comparison."""
+
     op = py_ast.NotIn
 
 
 class BoolOp(BinaryOperator, ABC):
+    """Boolean operator (``and`` / ``or``)."""
+
     op: ClassVar[type[py_ast.boolop]]
 
     def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
@@ -1498,10 +1632,14 @@ class BoolOp(BinaryOperator, ABC):
 
 
 class And(BoolOp):
+    """Logical ``and`` operator."""
+
     op = py_ast.And
 
 
 class Or(BoolOp):
+    """Logical ``or`` operator."""
+
     op = py_ast.Or
 
 
@@ -1514,6 +1652,7 @@ def traverse(ast_node: py_ast.AST, func: Callable[[py_ast.AST], None]):
 
 
 def simplify(codegen_ast: CodeGenAstType, simplifier: Callable[[CodeGenAstType, list[bool]], CodeGenAst]):
+    """Repeatedly apply *simplifier* to *codegen_ast* until no more changes are made."""
     changes = [True]
 
     # Wrap `simplifier` (which takes additional `changes` arg)
@@ -1574,9 +1713,7 @@ def _traverse_value(
 
 
 def morph_into(item: object, new_item: object) -> None:
-    # This naughty little function allows us to make `item` behave like
-    # `new_item` in every way, except it maintains the identity of `item`, so
-    # that we don't have to rewrite a tree of objects with new objects.
+    """Mutate *item* in-place to behave identically to *new_item* while preserving identity."""
     item.__class__ = new_item.__class__
     item.__dict__ = new_item.__dict__
 
