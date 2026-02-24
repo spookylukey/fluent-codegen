@@ -28,6 +28,7 @@ version = "0.3.0"
 dependencies = []
 
 [project.urls]
+Documentation = "https://fluent-codegen.readthedocs.io/en/latest/"
 Repository = "https://github.com/spookylukey/fluent-codegen"
 
 

@@ -3,6 +3,8 @@ fluent-codegen
 
 A Python library for generating Python code via AST construction.
 
+`Documentation <https://fluent-codegen.readthedocs.io/en/latest/>`__
+
 Overview
 --------
 
