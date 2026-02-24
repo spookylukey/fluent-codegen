@@ -14,7 +14,7 @@ keywords = [
   "metaprogramming",
 ]
 classifiers = [
-  "Development Status :: 3 - Alpha",
+  "Development Status :: 4 - Beta",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3 :: Only",
@@ -74,7 +74,7 @@ dev = [
     "pyright==1.1.406",
     "pytest>=7.4.4",
     "pytest-cov>=7.0.0",
-    "ruff>=0.4.0",
+    "ruff>=0.15.1",
     "tox>=4.36.0",
     "tox-uv>=1.29.0",
 ]
