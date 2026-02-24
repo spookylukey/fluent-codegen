@@ -1536,7 +1536,9 @@ def test_rewriting_traverse_replaces_in_decorator():
         return node
 
     codegen.rewriting_traverse(func, replace_deco)
-    assert func.decorators[0].name == "new_deco"
+    decorator = func.decorators[0]
+    assert isinstance(decorator, codegen.Name)
+    assert decorator.name == "new_deco"
 
 
 def test_rewriting_traverse_assignment_type_hint():
