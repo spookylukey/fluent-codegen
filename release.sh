@@ -1,6 +1,12 @@
 #!/bin/sh
 set -e
 
+die()  { echo "ERROR: $*" >&2; exit 1; }
+
+if ! git diff --quiet || ! git diff --cached --quiet; then
+    die "Working tree is dirty — commit or stash changes first"
+fi
+
 # Pre-flight checks
 uv sync
 pre-commit run --all --all-files || exit 1
