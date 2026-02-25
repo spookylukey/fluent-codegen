@@ -79,7 +79,7 @@ def _assigned_names(blocks: list[Block]) -> set[str]:
     result: set[str] = set()
     for block in blocks:
         for stmt in block.statements:
-            if isinstance(stmt, Assignment):
+            if isinstance(stmt, Assignment) and stmt.name is not None:
                 result.add(stmt.name)
     return result
 

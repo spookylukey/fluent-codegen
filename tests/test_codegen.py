@@ -465,6 +465,101 @@ def test_multiple_create_assignment_in_inherited_scope():
     try_.except_block.create_assignment(name, codegen.Number(2), allow_multiple=True)
 
 
+# --- Target assignment tests ---
+
+
+def test_assign_to_attr():
+    module = codegen.Module()
+    name = module.scope.reserve_name("foo")
+    target = codegen.Name(name, module.scope).attr("bar")
+    module.add_statement(codegen.Assignment(target, codegen.String("baz")))
+    assert_code_equal(
+        module,
+        """
+        foo.bar = 'baz'
+        """,
+    )
+
+
+def test_assign_to_subscript():
+    module = codegen.Module()
+    name = module.scope.reserve_name("foo")
+    target = codegen.Name(name, module.scope).subscript(codegen.String("bar"))
+    module.add_statement(codegen.Assignment(target, codegen.String("baz")))
+    assert_code_equal(
+        module,
+        """
+        foo['bar'] = 'baz'
+        """,
+    )
+
+
+def test_assign_to_nested_attr():
+    module = codegen.Module()
+    name = module.scope.reserve_name("foo")
+    target = codegen.Name(name, module.scope).attr("bar").attr("baz")
+    module.add_statement(codegen.Assignment(target, codegen.Number(42)))
+    assert_code_equal(
+        module,
+        """
+        foo.bar.baz = 42
+        """,
+    )
+
+
+def test_assign_to_subscript_of_attr():
+    module = codegen.Module()
+    name = module.scope.reserve_name("foo")
+    target = codegen.Name(name, module.scope).attr("bar").subscript(codegen.String("key"))
+    module.add_statement(codegen.Assignment(target, codegen.Number(1)))
+    assert_code_equal(
+        module,
+        """
+        foo.bar['key'] = 1
+        """,
+    )
+
+
+def test_assign_to_attr_of_subscript():
+    module = codegen.Module()
+    name = module.scope.reserve_name("foo")
+    target = codegen.Name(name, module.scope).subscript(codegen.Number(0)).attr("bar")
+    module.add_statement(codegen.Assignment(target, codegen.Number(1)))
+    assert_code_equal(
+        module,
+        """
+        foo[0].bar = 1
+        """,
+    )
+
+
+def test_assign_to_name_target_with_type_hint():
+    module = codegen.Module()
+    name = module.scope.reserve_name("foo")
+    target = codegen.Name(name, module.scope)
+    module.add_statement(codegen.Assignment(target, codegen.String("baz"), type_hint=module.scope.name("str")))
+    assert_code_equal(
+        module,
+        """
+        foo: str = 'baz'
+        """,
+    )
+
+
+def test_assign_to_attr_with_type_hint_rejected():
+    module = codegen.Module()
+    name = module.scope.reserve_name("foo")
+    target = codegen.Name(name, module.scope).attr("bar")
+    with pytest.raises(AssertionError, match="Type hints are only supported"):
+        codegen.Assignment(target, codegen.String("baz"), type_hint=module.scope.name("str"))
+
+
+def test_assign_target_rejects_arbitrary_expression():
+    target = codegen.String("not a target")
+    with pytest.raises((AssertionError, TypeError)):
+        codegen.Assignment(target, codegen.Number(1))  # type: ignore[arg-type]
+
+
 # --- Annotation tests ---
 
 

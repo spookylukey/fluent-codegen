@@ -291,12 +291,39 @@ class Annotation(Statement):
 class Assignment(Statement):
     """A variable assignment statement, optionally with a type annotation."""
 
-    def __init__(self, name: str, value: Expression, /, *, type_hint: Expression | None = None):
-        self.name = name
+    def __init__(self, target: str | Target, value: Expression, /, *, type_hint: Expression | None = None):
+        if isinstance(target, str):
+            self.name: str | None = target
+            self.target: Target | None = None
+        elif isinstance(target, (Name, Attr, Subscript)):  # type: ignore[reportUnnecessaryIsInstance]
+            self.name = _target_name(target)
+            self.target = target
+            if type_hint is not None and not isinstance(target, Name):
+                raise AssertionError("Type hints are only supported for simple name assignment targets")
+        else:
+            raise AssertionError(f"Invalid assignment target: {target!r}")
         self.value = value
         self.type_hint = type_hint
 
     def as_ast(self, *, include_comments: bool = False):
+        if self.target is not None:
+            target_ast = _target_as_store_ast(self.target)
+            if self.type_hint is None:
+                return py_ast.Assign(
+                    targets=[target_ast],
+                    value=self.value.as_ast(),
+                    **DEFAULT_AST_ARGS,
+                )
+            else:
+                return py_ast.AnnAssign(
+                    target=target_ast,
+                    annotation=self.type_hint.as_ast(),
+                    simple=1,
+                    value=self.value.as_ast(),
+                    **DEFAULT_AST_ARGS,
+                )
+        # Legacy str-based path
+        assert self.name is not None
         if not allowable_name(self.name):
             raise AssertionError(f"Expected {self.name} to be a valid Python identifier")
         if self.type_hint is None:
@@ -309,7 +336,7 @@ class Assignment(Statement):
             return py_ast.AnnAssign(
                 target=py_ast.Name(id=self.name, ctx=py_ast.Store(), **DEFAULT_AST_ARGS),
                 annotation=self.type_hint.as_ast(),
-                simple=1,  # not sure what this does...
+                simple=1,
                 value=self.value.as_ast(),
                 **DEFAULT_AST_ARGS,
             )
@@ -1474,6 +1501,27 @@ class Subscript(Expression):
             ctx=py_ast.Load(),
             **DEFAULT_AST_ARGS,
         )
+
+
+#: Type alias for valid assignment target expressions.
+#: A :class:`Name`, :class:`Attr`, or :class:`Subscript` expression.
+Target = Name | Attr | Subscript
+
+
+def _target_as_store_ast(target: Target) -> py_ast.Name | py_ast.Attribute | py_ast.Subscript:
+    """Convert a Target expression to an AST node with Store context."""
+    node = target.as_ast()
+    if isinstance(node, (py_ast.Name, py_ast.Attribute, py_ast.Subscript)):
+        node.ctx = py_ast.Store()
+        return node
+    raise AssertionError(f"Unexpected AST node type for target: {type(node)}")  # pragma: no cover
+
+
+def _target_name(target: Target) -> str | None:
+    """Extract the top-level assigned name from a Target, if it is a plain Name."""
+    if isinstance(target, Name):
+        return target.name
+    return None
 
 
 create_class_instance = function_call
