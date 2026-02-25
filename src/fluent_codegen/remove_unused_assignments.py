@@ -8,6 +8,8 @@ function or class) is encountered.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Sequence
+
 from .codegen import (
     Assignment,
     Block,
@@ -17,7 +19,6 @@ from .codegen import (
     Function,
     Name,
     Scope,
-    rewriting_traverse,
 )
 
 
@@ -61,8 +62,53 @@ def _collect_blocks(func: Function) -> list[Block]:
     return blocks
 
 
+def traverse(
+    node: CodeGenAstType | Sequence[CodeGenAstType],
+    func: Callable[[CodeGenAstType], CodeGenAstType],
+    *,
+    _visited: set[int] | None = None,
+    exclude_assignment_target: bool = False,
+):
+    """
+    Apply 'func' to node and all sub CodeGenAst nodes.
+
+    Discovers child nodes by introspecting instance attributes rather than
+    relying on a manually-maintained list.  A *visited* set (keyed by
+    ``id()``) prevents infinite recursion through circular references
+    (e.g. Block.scope → Function → body → Block).
+
+    if `include_func` is not None, it should be a callable that
+    decides whether or not to visit a node and it's descendants
+    """
+    if _visited is None:
+        _visited = set()
+    node_id = id(node)
+    if node_id in _visited:
+        return
+    _visited.add(node_id)
+    if isinstance(node, (CodeGenAst, CodeGenAstList)):
+        func(node)
+        if exclude_assignment_target and isinstance(node, Assignment):
+            exclude_keys = ("target",)
+        else:
+            exclude_keys = ()
+
+        for key, value in node.__dict__.items():
+            if key in exclude_keys:
+                continue
+            traverse(value, func, _visited=_visited, exclude_assignment_target=exclude_assignment_target)
+    elif isinstance(node, (list, tuple)):
+        for i in node:
+            traverse(i, func, _visited=_visited, exclude_assignment_target=exclude_assignment_target)
+    elif isinstance(node, dict):
+        for v in node.values():  # type: ignore[reportUnknownVariableType]
+            traverse(v, func, _visited=_visited, exclude_assignment_target=exclude_assignment_target)  # type: ignore[reportUnknownVariableType]
+
+
 def _collect_name_references(func: Function) -> set[str]:
-    """Return the set of all name strings referenced as ``Name`` expressions."""
+    """Return the set of all name strings referenced as ``Name`` expressions,
+    apart from those in LHS of an Assignment
+    """
     names: set[str] = set()
 
     def _visitor(node: CodeGenAstType) -> CodeGenAstType:
@@ -70,12 +116,12 @@ def _collect_name_references(func: Function) -> set[str]:
             names.add(node.name)
         return node
 
-    rewriting_traverse(func.body, _visitor)
+    traverse(func.body, _visitor, exclude_assignment_target=True)
     return names
 
 
 def _assigned_names(blocks: list[Block]) -> set[str]:
-    """Return all names that appear on the LHS of an ``_Assignment``."""
+    """Return all names that appear on the LHS of an ``Assignment``."""
     result: set[str] = set()
     for block in blocks:
         for stmt in block.statements:
@@ -92,11 +138,17 @@ def _remove_once(func: Function, blocks: list[Block]) -> bool:
     if not unused:
         return False
 
+    any_changed = False
     for block in blocks:
-        block.statements = [
+        original_length = len(block.statements)
+        new_statements = [
             stmt for stmt in block.statements if not (isinstance(stmt, Assignment) and set(stmt.names) <= unused)
         ]
-    return True
+        if len(new_statements) < original_length:
+            block.statements = new_statements
+            any_changed = True
+
+    return any_changed
 
 
 def remove_unused_assignments(func: Function) -> None:

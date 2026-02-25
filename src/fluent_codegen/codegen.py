@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Protocol, assert_never, overload, runtime_checkable
 
 if sys.version_info >= (3, 13):
-    from typing import TypeIs
+    from typing import TypeIs  # pragma: no cover
 else:
     from typing_extensions import TypeIs  # pragma: no cover
 
@@ -297,54 +297,30 @@ class Annotation(Statement):
 class Assignment(Statement):
     """A variable assignment statement, optionally with a type annotation."""
 
-    def __init__(self, target: str | Target, value: Expression, /, *, type_hint: Expression | None = None):
-        if isinstance(target, str):
-            self.names: list[str] = [target]
-            self.target: Target | None = None
-        elif is_target(target):
-            self.names = _target_names(target)
-            self.target = target
-            if type_hint is not None and not isinstance(target, Name):
-                raise AssertionError("Type hints are only supported for simple name assignment targets")
-        else:
-            raise AssertionError(f"Invalid assignment target: {target!r}")
+    def __init__(self, target: Target, value: Expression, /, *, type_hint: Expression | None = None):
+        if not is_target(target):
+            raise AssertionError("Invalid assignment target")
+        self.names: list[str] = _target_names(target)
+        self.target: Target = target
+        if type_hint is not None and not isinstance(target, Name):
+            raise AssertionError("Type hints are only supported for simple name assignment targets")
         self.value = value
         self.type_hint = type_hint
 
     def as_ast(self, *, include_comments: bool = False):
-        if self.target is not None:
-            if self.type_hint is None:
-                return py_ast.Assign(
-                    targets=[_target_as_store_ast(self.target)],
-                    value=self.value.as_ast(),
-                    **DEFAULT_AST_ARGS,
-                )
-            else:
-                # type_hint is only allowed for Name targets (enforced in __init__)
-                assert isinstance(self.target, Name)
-                target_ast = _target_as_store_ast(self.target)
-                assert isinstance(target_ast, py_ast.Name)
-                return py_ast.AnnAssign(
-                    target=target_ast,
-                    annotation=self.type_hint.as_ast(),
-                    simple=1,
-                    value=self.value.as_ast(),
-                    **DEFAULT_AST_ARGS,
-                )
-        # Legacy str-based path
-        assert len(self.names) == 1
-        name = self.names[0]
-        if not allowable_name(name):
-            raise AssertionError(f"Expected {name} to be a valid Python identifier")
         if self.type_hint is None:
             return py_ast.Assign(
-                targets=[py_ast.Name(id=name, ctx=py_ast.Store(), **DEFAULT_AST_ARGS)],
+                targets=[_target_as_store_ast(self.target)],
                 value=self.value.as_ast(),
                 **DEFAULT_AST_ARGS,
             )
         else:
+            # type_hint is only allowed for Name targets (enforced in __init__)
+            assert isinstance(self.target, Name)
+            target_ast = _target_as_store_ast(self.target)
+            assert isinstance(target_ast, py_ast.Name)
             return py_ast.AnnAssign(
-                target=py_ast.Name(id=name, ctx=py_ast.Store(), **DEFAULT_AST_ARGS),
+                target=target_ast,
                 annotation=self.type_hint.as_ast(),
                 simple=1,
                 value=self.value.as_ast(),
@@ -485,25 +461,37 @@ class Block(CodeGenAstList):
 
     # Safe alternatives to Block.statements being manipulated directly:
     def create_assignment(
-        self, name: str | Name, value: Expression, *, type_hint: Expression | None = None, allow_multiple: bool = False
+        self,
+        target: str | Target,
+        value: Expression,
+        *,
+        type_hint: Expression | None = None,
+        allow_multiple: bool = False,
     ):
         """
         Adds an assigment of the form:
 
            x = value
-        """
-        if isinstance(name, Name):
-            name = name.name
-        if not self.scope.is_name_in_use(name):
-            raise AssertionError(f"Cannot assign to unreserved name '{name}'")
 
-        if self.scope.has_assignment(name):
-            if not allow_multiple:
-                raise AssertionError(f"Have already assigned to '{name}' in this scope")
-        else:
+        or more complex like:
+
+           x[0] = value
+           x, y = value
+        """
+        if isinstance(target, str):
+            if not self.scope.is_name_in_use(target):
+                raise AssertionError(f"Cannot assign to unreserved name '{target}'")
+
+            target = self.scope.name(target)
+
+        names = _target_names(target)
+        for name in names:
+            if self.scope.has_assignment(name):
+                if not allow_multiple:
+                    raise AssertionError(f"Have already assigned to '{name}' in this scope")
             self.scope.register_assignment(name)
 
-        self.add_statement(Assignment(name, value, type_hint=type_hint))
+        self.add_statement(Assignment(target, value, type_hint=type_hint))
 
     def create_annotation(self, name: str, annotation: Expression) -> Name:
         """
@@ -533,7 +521,7 @@ class Block(CodeGenAstList):
         if default is not None:
             name_obj = self.scope.create_name(name)
             self.scope.register_assignment(name_obj.name)
-            self.add_statement(Assignment(name_obj.name, default, type_hint=annotation))
+            self.add_statement(Assignment(name_obj, default, type_hint=annotation))
             return name_obj
         else:
             return self.create_annotation(name, annotation)
@@ -1760,10 +1748,10 @@ def rewriting_traverse(
     """
     if _visited is None:
         _visited = set()
+    node_id = id(node)
+    if node_id in _visited:
+        return
     if isinstance(node, (CodeGenAst, CodeGenAstList)):
-        node_id = id(node)
-        if node_id in _visited:
-            return
         _visited.add(node_id)
         new_node = func(node)
         if new_node is not node:

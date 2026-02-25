@@ -420,13 +420,8 @@ def test_create_assignment_with_name_object():
 
 def test_create_assignment_bad():
     module = codegen.Module()
-    name = module.scope.reserve_name("x")
-    module.create_assignment(name, codegen.String("a string"))
-    stmt = module.statements[0]
-    assert isinstance(stmt, codegen.Assignment)
-    stmt.names = ["something with a space"]
     with pytest.raises(AssertionError):
-        as_source_code(module)
+        module.create_assignment("something with a space", codegen.String("a string"))
 
 
 def test_create_assignment_type_hint():
