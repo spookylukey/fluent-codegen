@@ -299,10 +299,10 @@ class Assignment(Statement):
 
     def __init__(self, target: str | Target, value: Expression, /, *, type_hint: Expression | None = None):
         if isinstance(target, str):
-            self.name: str | None = target
+            self.names: list[str] = [target]
             self.target: Target | None = None
         elif is_target(target):
-            self.name = _target_name(target)
+            self.names = _target_names(target)
             self.target = target
             if type_hint is not None and not isinstance(target, Name):
                 raise AssertionError("Type hints are only supported for simple name assignment targets")
@@ -313,14 +313,17 @@ class Assignment(Statement):
 
     def as_ast(self, *, include_comments: bool = False):
         if self.target is not None:
-            target_ast = _target_as_store_ast(self.target)
             if self.type_hint is None:
                 return py_ast.Assign(
-                    targets=[target_ast],
+                    targets=[_target_as_store_ast(self.target)],
                     value=self.value.as_ast(),
                     **DEFAULT_AST_ARGS,
                 )
             else:
+                # type_hint is only allowed for Name targets (enforced in __init__)
+                assert isinstance(self.target, Name)
+                target_ast = _target_as_store_ast(self.target)
+                assert isinstance(target_ast, py_ast.Name)
                 return py_ast.AnnAssign(
                     target=target_ast,
                     annotation=self.type_hint.as_ast(),
@@ -329,18 +332,19 @@ class Assignment(Statement):
                     **DEFAULT_AST_ARGS,
                 )
         # Legacy str-based path
-        assert self.name is not None
-        if not allowable_name(self.name):
-            raise AssertionError(f"Expected {self.name} to be a valid Python identifier")
+        assert len(self.names) == 1
+        name = self.names[0]
+        if not allowable_name(name):
+            raise AssertionError(f"Expected {name} to be a valid Python identifier")
         if self.type_hint is None:
             return py_ast.Assign(
-                targets=[py_ast.Name(id=self.name, ctx=py_ast.Store(), **DEFAULT_AST_ARGS)],
+                targets=[py_ast.Name(id=name, ctx=py_ast.Store(), **DEFAULT_AST_ARGS)],
                 value=self.value.as_ast(),
                 **DEFAULT_AST_ARGS,
             )
         else:
             return py_ast.AnnAssign(
-                target=py_ast.Name(id=self.name, ctx=py_ast.Store(), **DEFAULT_AST_ARGS),
+                target=py_ast.Name(id=name, ctx=py_ast.Store(), **DEFAULT_AST_ARGS),
                 annotation=self.type_hint.as_ast(),
                 simple=1,
                 value=self.value.as_ast(),
@@ -348,7 +352,7 @@ class Assignment(Statement):
             )
 
     def has_assignment_for_name(self, name: str) -> bool:
-        return self.name == name
+        return name in self.names
 
 
 class Block(CodeGenAstList):
@@ -1510,17 +1514,28 @@ class Subscript(Expression):
 
 
 #: Type alias for valid assignment target expressions.
-#: A :class:`Name`, :class:`Attr`, or :class:`Subscript` expression.
-Target = Name | Attr | Subscript
+#: A :class:`Name`, :class:`Attr`, or :class:`Subscript` expression,
+#: or a tuple of targets (for unpacking assignments).
+Target = Name | Attr | Subscript | tuple["Target", ...]
 
 
 def is_target(value: object) -> TypeIs[Target]:
     """Return whether *value* is a valid assignment :data:`Target`."""
-    return isinstance(value, (Name, Attr, Subscript))
+    if isinstance(value, (Name, Attr, Subscript)):
+        return True
+    if isinstance(value, tuple):
+        return all(is_target(element) for element in value)  # pyright: ignore[reportUnknownArgumentType,reportUnknownVariableType]
+    return False
 
 
-def _target_as_store_ast(target: Target) -> py_ast.Name | py_ast.Attribute | py_ast.Subscript:
+def _target_as_store_ast(target: Target) -> py_ast.expr:
     """Convert a Target expression to an AST node with Store context."""
+    if isinstance(target, tuple):
+        return py_ast.Tuple(
+            elts=[_target_as_store_ast(t) for t in target],
+            ctx=py_ast.Store(),
+            **DEFAULT_AST_ARGS,
+        )
     node = target.as_ast()
     if isinstance(node, (py_ast.Name, py_ast.Attribute, py_ast.Subscript)):
         node.ctx = py_ast.Store()
@@ -1528,11 +1543,16 @@ def _target_as_store_ast(target: Target) -> py_ast.Name | py_ast.Attribute | py_
     raise AssertionError(f"Unexpected AST node type for target: {type(node)}")  # pragma: no cover
 
 
-def _target_name(target: Target) -> str | None:
-    """Extract the top-level assigned name from a Target, if it is a plain Name."""
+def _target_names(target: Target) -> list[str]:
+    """Collect all plain :class:`Name` identifiers from a *target*."""
     if isinstance(target, Name):
-        return target.name
-    return None
+        return [target.name]
+    if isinstance(target, tuple):
+        names: list[str] = []
+        for t in target:
+            names.extend(_target_names(t))
+        return names
+    return []
 
 
 create_class_instance = function_call

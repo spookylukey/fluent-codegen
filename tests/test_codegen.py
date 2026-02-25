@@ -424,7 +424,7 @@ def test_create_assignment_bad():
     module.create_assignment(name, codegen.String("a string"))
     stmt = module.statements[0]
     assert isinstance(stmt, codegen.Assignment)
-    stmt.name = "something with a space"
+    stmt.names = ["something with a space"]
     with pytest.raises(AssertionError):
         as_source_code(module)
 
@@ -554,10 +554,85 @@ def test_assign_to_attr_with_type_hint_rejected():
         codegen.Assignment(target, codegen.String("baz"), type_hint=module.scope.name("str"))
 
 
+def test_assign_tuple_unpack():
+    module = codegen.Module()
+    x = module.scope.reserve_name("x")
+    y = module.scope.reserve_name("y")
+    target = (codegen.Name(x, module.scope), codegen.Name(y, module.scope))
+    module.add_statement(codegen.Assignment(target, codegen.Name(module.scope.reserve_name("vals"), module.scope)))
+    assert_code_equal(
+        module,
+        """
+        x, y = vals
+        """,
+    )
+
+
+def test_assign_tuple_unpack_with_attr_and_subscript():
+    module = codegen.Module()
+    foo = module.scope.reserve_name("foo")
+    bar = module.scope.reserve_name("bar")
+    target = (
+        codegen.Name(foo, module.scope).attr("x"),
+        codegen.Name(bar, module.scope).subscript(codegen.Number(0)),
+    )
+    module.add_statement(codegen.Assignment(target, codegen.Name(module.scope.reserve_name("vals"), module.scope)))
+    assert_code_equal(
+        module,
+        """
+        foo.x, bar[0] = vals
+        """,
+    )
+
+
+def test_assign_nested_tuple_unpack():
+    module = codegen.Module()
+    a = module.scope.reserve_name("a")
+    b = module.scope.reserve_name("b")
+    c = module.scope.reserve_name("c")
+    s = module.scope
+    target = (
+        codegen.Name(a, s),
+        (codegen.Name(b, s), codegen.Name(c, s)),
+    )
+    module.add_statement(codegen.Assignment(target, codegen.Name(module.scope.reserve_name("vals"), s)))
+    assert_code_equal(
+        module,
+        """
+        a, (b, c) = vals
+        """,
+    )
+
+
+def test_assign_tuple_unpack_rejects_type_hint():
+    module = codegen.Module()
+    x = module.scope.reserve_name("x")
+    y = module.scope.reserve_name("y")
+    target = (codegen.Name(x, module.scope), codegen.Name(y, module.scope))
+    with pytest.raises(AssertionError, match="Type hints are only supported"):
+        codegen.Assignment(target, codegen.Number(1), type_hint=module.scope.name("str"))
+
+
+def test_assign_tuple_unpack_has_assignment_for_name():
+    module = codegen.Module()
+    x = module.scope.reserve_name("x")
+    y = module.scope.reserve_name("y")
+    target = (codegen.Name(x, module.scope), codegen.Name(y, module.scope))
+    stmt = codegen.Assignment(target, codegen.Number(1))
+    assert stmt.has_assignment_for_name("x")
+    assert stmt.has_assignment_for_name("y")
+    assert not stmt.has_assignment_for_name("z")
+
+
 def test_assign_target_rejects_arbitrary_expression():
     target = codegen.String("not a target")
     with pytest.raises((AssertionError, TypeError)):
         codegen.Assignment(target, codegen.Number(1))  # type: ignore[arg-type]
+
+
+def test_assign_tuple_unpack_rejects_non_target_element():
+    with pytest.raises(AssertionError, match="Invalid assignment target"):
+        codegen.Assignment((codegen.String("bad"),), codegen.Number(1))  # type: ignore[arg-type]
 
 
 # --- Annotation tests ---

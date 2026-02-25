@@ -79,8 +79,8 @@ def _assigned_names(blocks: list[Block]) -> set[str]:
     result: set[str] = set()
     for block in blocks:
         for stmt in block.statements:
-            if isinstance(stmt, Assignment) and stmt.name is not None:
-                result.add(stmt.name)
+            if isinstance(stmt, Assignment):
+                result.update(stmt.names)
     return result
 
 
@@ -94,7 +94,7 @@ def _remove_once(func: Function, blocks: list[Block]) -> bool:
 
     for block in blocks:
         block.statements = [
-            stmt for stmt in block.statements if not (isinstance(stmt, Assignment) and stmt.name in unused)
+            stmt for stmt in block.statements if not (isinstance(stmt, Assignment) and set(stmt.names) <= unused)
         ]
     return True
 
