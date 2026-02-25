@@ -1690,26 +1690,13 @@ def rewriting_traverse(
         if new_node is not node:
             morph_into(node, new_node)
         for value in node.__dict__.values():
-            _traverse_value(value, func, _visited)
+            rewriting_traverse(value, func, _visited)
     elif isinstance(node, (list, tuple)):
         for i in node:
             rewriting_traverse(i, func, _visited)
-
-
-def _traverse_value(
-    value: object,
-    func: Callable[[CodeGenAstType], CodeGenAstType],
-    visited: set[int],
-) -> None:
-    """Recurse into a single attribute value, handling containers."""
-    if isinstance(value, (CodeGenAst, CodeGenAstList)):
-        rewriting_traverse(value, func, visited)
-    elif isinstance(value, (list, tuple)):
-        for item in value:  # type: ignore[reportUnknownVariableType]
-            _traverse_value(item, func, visited)  # type: ignore[reportUnknownVariableType]
-    elif isinstance(value, dict):
-        for v in value.values():  # type: ignore[reportUnknownVariableType]
-            _traverse_value(v, func, visited)  # type: ignore[reportUnknownVariableType]
+    elif isinstance(node, dict):
+        for v in node.values():  # type: ignore[reportUnknownVariableType]
+            rewriting_traverse(v, func, _visited)  # type: ignore[reportUnknownVariableType]
 
 
 def morph_into(item: object, new_item: object) -> None:
