@@ -8,11 +8,17 @@ import builtins
 import enum
 import keyword
 import re
+import sys
 import textwrap
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import ClassVar, Protocol, assert_never, overload, runtime_checkable
+
+if sys.version_info >= (3, 13):
+    from typing import TypeIs
+else:
+    from typing_extensions import TypeIs  # pragma: no cover
 
 from . import ast_compat as py_ast
 from .ast_compat import (
@@ -295,7 +301,7 @@ class Assignment(Statement):
         if isinstance(target, str):
             self.name: str | None = target
             self.target: Target | None = None
-        elif isinstance(target, (Name, Attr, Subscript)):  # type: ignore[reportUnnecessaryIsInstance]
+        elif is_target(target):
             self.name = _target_name(target)
             self.target = target
             if type_hint is not None and not isinstance(target, Name):
@@ -1506,6 +1512,11 @@ class Subscript(Expression):
 #: Type alias for valid assignment target expressions.
 #: A :class:`Name`, :class:`Attr`, or :class:`Subscript` expression.
 Target = Name | Attr | Subscript
+
+
+def is_target(value: object) -> TypeIs[Target]:
+    """Return whether *value* is a valid assignment :data:`Target`."""
+    return isinstance(value, (Name, Attr, Subscript))
 
 
 def _target_as_store_ast(target: Target) -> py_ast.Name | py_ast.Attribute | py_ast.Subscript:

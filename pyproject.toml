@@ -25,7 +25,9 @@ classifiers = [
   "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 version = "0.3.0"
-dependencies = []
+dependencies = [
+    "typing_extensions>=4.10; python_version<'3.13'",
+]
 
 [project.urls]
 Documentation = "https://fluent-codegen.readthedocs.io/en/latest/"
