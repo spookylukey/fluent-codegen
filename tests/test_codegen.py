@@ -2297,6 +2297,36 @@ def test_expression_not_in_method():
     assert_code_equal(result, "'c' not in ['a', 'b']")
 
 
+def test_expression_is_method():
+    result = codegen.Scope().create_name("x").is_(codegen.auto(None))
+    assert isinstance(result, codegen.Is)
+    assert_code_equal(result, "x is None")
+
+
+def test_expression_is_not_method():
+    result = codegen.Scope().create_name("x").is_not(codegen.auto(None))
+    assert isinstance(result, codegen.IsNot)
+    assert_code_equal(result, "x is not None")
+
+
+def test_expression_not_method():
+    result = codegen.Bool(True).not_()
+    assert isinstance(result, codegen.Not)
+    assert_code_equal(result, "not True")
+
+
+def test_expression_pos_method():
+    result = codegen.Number(1).pos()
+    assert isinstance(result, codegen.UAdd)
+    assert_code_equal(result, "+1")
+
+
+def test_expression_neg_method():
+    result = codegen.Number(1).neg()
+    assert isinstance(result, codegen.USub)
+    assert_code_equal(result, "-1")
+
+
 def test_expression_matmul_method():
     result = codegen.Scope().create_name("a").matmul(codegen.auto(1))
     assert isinstance(result, codegen.MatMul)

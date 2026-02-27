@@ -1158,6 +1158,30 @@ class Expression(CodeGenAst):
         """Return a :class:`NotIn` (``not in``) expression."""
         return NotIn(self, other)
 
+    # Identity operators
+
+    def is_(self, other: Expression, /) -> Is:
+        """Return an :class:`Is` (``is``) expression."""
+        return Is(self, other)
+
+    def is_not(self, other: Expression, /) -> IsNot:
+        """Return an :class:`IsNot` (``is not``) expression."""
+        return IsNot(self, other)
+
+    # Unary operators
+
+    def not_(self) -> Not:
+        """Return a :class:`Not` (``not self``) expression."""
+        return Not(self)
+
+    def pos(self) -> UAdd:
+        """Return a :class:`UAdd` (``+self``) expression."""
+        return UAdd(self)
+
+    def neg(self) -> USub:
+        """Return a :class:`USub` (``-self``) expression."""
+        return USub(self)
+
     # Unpacking
 
     def starred(self) -> Starred:
@@ -1685,6 +1709,18 @@ class NotIn(CompareOp):
     op = py_ast.NotIn
 
 
+class Is(CompareOp):
+    """Identity (``is``) comparison."""
+
+    op = py_ast.Is
+
+
+class IsNot(CompareOp):
+    """Non-identity (``is not``) comparison."""
+
+    op = py_ast.IsNot
+
+
 class BoolOp(BinaryOperator, ABC):
     """Boolean operator (``and`` / ``or``)."""
 
@@ -1708,6 +1744,40 @@ class Or(BoolOp):
     """Logical ``or`` operator."""
 
     op = py_ast.Or
+
+
+class UnaryOperator(Expression, ABC):
+    """Base class for unary operator expressions."""
+
+    op: ClassVar[type[py_ast.unaryop]]
+
+    def __init__(self, operand: Expression):
+        self.operand = operand
+
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
+        return py_ast.UnaryOp(
+            op=self.op(**DEFAULT_AST_ARGS_ADD),
+            operand=self.operand.as_ast(),
+            **DEFAULT_AST_ARGS,
+        )
+
+
+class Not(UnaryOperator):
+    """Logical ``not`` operator."""
+
+    op = py_ast.Not
+
+
+class UAdd(UnaryOperator):
+    """Unary positive (``+``) operator."""
+
+    op = py_ast.UAdd
+
+
+class USub(UnaryOperator):
+    """Unary negation (``-``) operator."""
+
+    op = py_ast.USub
 
 
 def traverse(ast_node: py_ast.AST, func: Callable[[py_ast.AST], None]):
