@@ -460,6 +460,87 @@ def test_multiple_create_assignment_in_inherited_scope():
     try_.except_block.create_assignment(name, codegen.Number(2), allow_multiple=True)
 
 
+# --- Block.assign shortcut tests ---
+
+
+def test_assign_simple():
+    module = codegen.Module()
+    name = module.assign("x", codegen.String("hello"))
+    assert isinstance(name, codegen.Name)
+    assert name.name == "x"
+    assert_code_equal(
+        module,
+        """
+        x = 'hello'
+        """,
+    )
+
+
+def test_assign_simple_with_type_hint():
+    module = codegen.Module()
+    name = module.assign("x", codegen.String("hello"), type_hint=module.scope.name("str"))
+    assert isinstance(name, codegen.Name)
+    assert_code_equal(
+        module,
+        """
+        x: str = 'hello'
+        """,
+    )
+
+
+def test_assign_shortcut_tuple_unpack():
+    module = codegen.Module()
+    names = module.assign(
+        ("a", "b"), codegen.Name("divmod", module.scope).call([codegen.Number(10), codegen.Number(3)])
+    )
+    assert isinstance(names, tuple)
+    assert len(names) == 2
+    assert names[0].name == "a"
+    assert names[1].name == "b"
+    assert_code_equal(
+        module,
+        """
+        a, b = divmod(10, 3)
+        """,
+    )
+
+
+def test_assign_reserves_name():
+    module = codegen.Module()
+    module.assign("x", codegen.Number(1))
+    assert module.scope.is_name_in_use("x")
+
+
+def test_assign_tuple_reserves_names():
+    module = codegen.Module()
+    module.assign(("a", "b"), codegen.Number(1))
+    assert module.scope.is_name_in_use("a")
+    assert module.scope.is_name_in_use("b")
+
+
+def test_assign_name_deduplication():
+    module = codegen.Module()
+    module.scope.reserve_name("x")
+    name = module.assign("x", codegen.Number(1))
+    assert name.name == "x_2"
+
+
+def test_assign_returned_name_usable():
+    module = codegen.Module()
+    func, _ = module.create_function("f", args=["x"])
+    x = func.name("x")
+    result = func.body.assign("result", x.mul(codegen.Number(2)))
+    func.body.create_return(result.add(codegen.Number(1)))
+    assert_code_equal(
+        module,
+        """
+        def f(x):
+            result = x * 2
+            return result + 1
+        """,
+    )
+
+
 # --- Target assignment tests ---
 
 

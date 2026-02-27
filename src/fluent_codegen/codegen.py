@@ -493,6 +493,51 @@ class Block(CodeGenAstList):
 
         self.add_statement(Assignment(target, value, type_hint=type_hint))
 
+    @overload
+    def assign(self, target: str, value: Expression, *, type_hint: Expression | None = ...) -> Name: ...
+
+    @overload
+    def assign(
+        self, target: tuple[str, ...], value: Expression, *, type_hint: Expression | None = ...
+    ) -> tuple[Name, ...]: ...
+
+    def assign(
+        self,
+        target: str | tuple[str, ...],
+        value: Expression,
+        *,
+        type_hint: Expression | None = None,
+    ) -> Name | tuple[Name, ...]:
+        """
+        Shortcut that reserves names and creates an assignment in one step.
+
+        When *target* is a single ``str``, reserves the name and assigns to it,
+        returning the new :class:`Name`::
+
+            result = block.assign("x", some_expr)
+            # equivalent to:
+            #   x = scope.create_name("x")
+            #   block.create_assignment(x, some_expr)
+
+        When *target* is a ``tuple`` of ``str``, reserves each name and creates
+        a tuple-unpacking assignment, returning a tuple of :class:`Name`
+        objects::
+
+            a, b = block.assign(("a", "b"), some_pair_expr)
+            # equivalent to:
+            #   a = scope.create_name("a")
+            #   b = scope.create_name("b")
+            #   block.create_assignment((a, b), some_pair_expr)
+        """
+        if isinstance(target, str):
+            name_obj = self.scope.create_name(target)
+            self.create_assignment(name_obj, value, type_hint=type_hint)
+            return name_obj
+        else:
+            name_objs = tuple(self.scope.create_name(t) for t in target)
+            self.create_assignment(name_objs, value)
+            return name_objs
+
     def create_annotation(self, name: str, annotation: Expression) -> Name:
         """
         Adds a bare type annotation of the form::

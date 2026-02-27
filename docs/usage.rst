@@ -107,6 +107,8 @@ names in the scope:
      - A :class:`~fluent_codegen.codegen.Function` definition
    * - ``create_class(name, bases)``
      - A :class:`~fluent_codegen.codegen.Class` definition
+   * - ``assign(name, value)``
+     - Reserve name + ``name = value`` (shortcut)
    * - ``create_assignment(name, value)``
      - ``name = value``
    * - ``create_annotation(name, type)``
@@ -338,8 +340,9 @@ The same pattern works with ``create_function``, ``create_class``, and
 Assignments and variables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-To create a local variable, first reserve a name in the scope, then assign to
-it:
+The easiest way to create a local variable is
+:meth:`~fluent_codegen.codegen.Block.assign`, which reserves the name **and**
+emits the assignment in one call:
 
 .. code-block:: python
 
@@ -347,14 +350,10 @@ it:
    func, _ = module.create_function("compute", args=["x"])
    x = func.name("x")
 
-   # Reserve the name "result" in the function scope
-   result_name = func.create_name("result")
+   # assign reserves "result" and adds  result = x * 2
+   result = func.body.assign("result", x.mul(codegen.Number(2)))
 
-   # Assign: result = x * 2
-   func.body.create_assignment(result_name, x.mul(codegen.Number(2)))
-
-   # Return: return result + 1
-   func.body.create_return(result_name.add(codegen.Number(1)))
+   func.body.create_return(result.add(codegen.Number(1)))
 
    print(module.as_python_source())
 
@@ -363,6 +362,39 @@ Output::
    def compute(x):
        result = x * 2
        return result + 1
+
+``assign`` returns the :class:`~fluent_codegen.codegen.Name` so you can
+reference the variable immediately.  It also accepts a ``type_hint`` keyword
+argument:
+
+.. code-block:: python
+
+   result = func.body.assign("result", expr, type_hint=codegen.Name("int", func))
+   # result: int = expr
+
+For **tuple-unpacking assignments**, pass a tuple of strings as the target:
+
+.. code-block:: python
+
+   q, r = func.body.assign(("q", "r"), codegen.Name("divmod", module.scope).call([
+       codegen.Number(10), codegen.Number(3),
+   ]))
+   # q, r = divmod(10, 3)
+
+The return type follows the input: a ``str`` target returns a single
+:class:`~fluent_codegen.codegen.Name`; a ``tuple[str, ...]`` target returns
+a ``tuple[Name, ...]``.
+
+If you need more control — for example assigning to an attribute or subscript
+target, or allowing multiple assignments to the same name — use the lower-level
+steps directly:
+
+.. code-block:: python
+
+   # Reserve the name yourself, then assign
+   result_name = func.create_name("result")
+   func.body.create_assignment(result_name, x.mul(codegen.Number(2)))
+   func.body.create_return(result_name.add(codegen.Number(1)))
 
 
 Classes and decorators
