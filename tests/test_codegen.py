@@ -505,6 +505,16 @@ def test_assign_shortcut_tuple_unpack():
     )
 
 
+def test_assign_tuple_unpack_type_hint():
+    module = codegen.Module()
+    with pytest.raises(AssertionError):
+        module.assign(
+            ("a", "b"),  # type: ignore
+            codegen.auto([1, 2]),
+            type_hint=module.scope.name("int"),
+        )
+
+
 def test_assign_reserves_name():
     module = codegen.Module()
     module.assign("x", codegen.Number(1))

@@ -497,9 +497,7 @@ class Block(CodeGenAstList):
     def assign(self, target: str, value: Expression, *, type_hint: Expression | None = ...) -> Name: ...
 
     @overload
-    def assign(
-        self, target: tuple[str, ...], value: Expression, *, type_hint: Expression | None = ...
-    ) -> tuple[Name, ...]: ...
+    def assign(self, target: tuple[str, ...], value: Expression) -> tuple[Name, ...]: ...
 
     def assign(
         self,
@@ -534,6 +532,8 @@ class Block(CodeGenAstList):
             self.create_assignment(name_obj, value, type_hint=type_hint)
             return name_obj
         else:
+            if type_hint is not None:
+                raise AssertionError("Can't use type hint with tuple unpacking assignment")
             name_objs = tuple(self.scope.create_name(t) for t in target)
             self.create_assignment(name_objs, value)
             return name_objs
