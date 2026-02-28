@@ -386,8 +386,10 @@ class Block(CodeGenAstList):
         else:
             self.statements.append(text)
 
-    def add_statement(self, statement: Statement | Block | Expression) -> None:
+    def add_statement(self, statement: Statement | Block | ExpressionLike) -> None:
         """Append a statement, block, or bare expression to this block."""
+        if isinstance(statement, E):
+            statement = ExL_to_Ex(statement)
         self.statements.append(statement)
         if isinstance(statement, Block):
             if statement.parent_block is None:
@@ -463,9 +465,9 @@ class Block(CodeGenAstList):
     def create_assignment(
         self,
         target: str | Target,
-        value: Expression,
+        value: ExpressionLike,
         *,
-        type_hint: Expression | None = None,
+        type_hint: ExpressionLike | None = None,
         allow_multiple: bool = False,
     ):
         """
@@ -491,20 +493,22 @@ class Block(CodeGenAstList):
                     raise AssertionError(f"Have already assigned to '{name}' in this scope")
             self.scope.register_assignment(name)
 
-        self.add_statement(Assignment(target, value, type_hint=type_hint))
+        self.add_statement(
+            Assignment(target, ExL_to_Ex(value), type_hint=ExL_to_Ex(type_hint) if type_hint is not None else None)
+        )
 
     @overload
-    def assign(self, target: str, value: Expression, *, type_hint: Expression | None = ...) -> Name: ...
+    def assign(self, target: str, value: ExpressionLike, *, type_hint: Expression | None = ...) -> Name: ...
 
     @overload
-    def assign(self, target: tuple[str, ...], value: Expression) -> tuple[Name, ...]: ...
+    def assign(self, target: tuple[str, ...], value: ExpressionLike) -> tuple[Name, ...]: ...
 
     def assign(
         self,
         target: str | tuple[str, ...],
-        value: Expression,
+        value: ExpressionLike,
         *,
-        type_hint: Expression | None = None,
+        type_hint: ExpressionLike | None = None,
     ) -> Name | tuple[Name, ...]:
         """
         Shortcut that reserves names and creates an assignment in one step.
@@ -538,7 +542,7 @@ class Block(CodeGenAstList):
             self.create_assignment(name_objs, value)
             return name_objs
 
-    def create_annotation(self, name: str, annotation: Expression) -> Name:
+    def create_annotation(self, name: str, annotation: ExpressionLike) -> Name:
         """
         Adds a bare type annotation of the form::
 
@@ -548,10 +552,10 @@ class Block(CodeGenAstList):
         """
         name_obj = self.scope.create_name(name)
         self.scope.register_assignment(name_obj.name)
-        self.add_statement(Annotation(name_obj.name, annotation))
+        self.add_statement(Annotation(name_obj.name, ExL_to_Ex(annotation)))
         return name_obj
 
-    def create_field(self, name: str, annotation: Expression, *, default: Expression | None = None) -> Name:
+    def create_field(self, name: str, annotation: ExpressionLike, *, default: ExpressionLike | None = None) -> Name:
         """
         Create a typed field, typically used in dataclass bodies.
 
@@ -566,7 +570,7 @@ class Block(CodeGenAstList):
         if default is not None:
             name_obj = self.scope.create_name(name)
             self.scope.register_assignment(name_obj.name)
-            self.add_statement(Assignment(name_obj, default, type_hint=annotation))
+            self.add_statement(Assignment(name_obj, ExL_to_Ex(default), type_hint=ExL_to_Ex(annotation)))
             return name_obj
         else:
             return self.create_annotation(name, annotation)
@@ -575,8 +579,8 @@ class Block(CodeGenAstList):
         self,
         name: str,
         args: Sequence[str | FunctionArg],
-        decorators: Sequence[Expression] | None = None,
-        return_type: Expression | None = None,
+        decorators: Sequence[ExpressionLike] | None = None,
+        return_type: ExpressionLike | None = None,
     ) -> tuple[Function, Name]:
         """
         Reserve a name for a function, create the Function and add the function statement
@@ -584,7 +588,11 @@ class Block(CodeGenAstList):
         """
         name_obj = self.scope.create_name(name)
         func = Function(
-            name_obj.name, args=args, parent_scope=self.scope, decorators=decorators, return_type=return_type
+            name_obj.name,
+            args=args,
+            parent_scope=self.scope,
+            decorators=[ExL_to_Ex(d) for d in decorators] if decorators is not None else None,
+            return_type=ExL_to_Ex(return_type) if return_type is not None else None,
         )
         self.add_statement(func)
         return func, name_obj
@@ -592,25 +600,30 @@ class Block(CodeGenAstList):
     def create_class(
         self,
         name: str,
-        bases: Sequence[Expression] | None = None,
-        decorators: Sequence[Expression] | None = None,
+        bases: Sequence[ExpressionLike] | None = None,
+        decorators: Sequence[ExpressionLike] | None = None,
     ) -> tuple[Class, Name]:
         """
         Reserve a name for a class, create the Class and add the class statement
         to the block.
         """
         name_obj = self.scope.create_name(name)
-        cls = Class(name_obj.name, parent_scope=self.scope, bases=bases, decorators=decorators)
+        cls = Class(
+            name_obj.name,
+            parent_scope=self.scope,
+            bases=[ExL_to_Ex(b) for b in bases] if bases is not None else None,
+            decorators=[ExL_to_Ex(d) for d in decorators] if decorators is not None else None,
+        )
         self.add_statement(cls)
         return cls, name_obj
 
-    def create_return(self, value: Expression) -> None:
+    def create_return(self, value: ExpressionLike) -> None:
         """Add a ``return`` statement to this block."""
-        self.add_statement(Return(value))
+        self.add_statement(Return(ExL_to_Ex(value)))
 
-    def create_assert(self, test: Expression, msg: Expression | None = None) -> None:
+    def create_assert(self, test: ExpressionLike, msg: ExpressionLike | None = None) -> None:
         """Add an ``assert`` statement to this block."""
-        self.add_statement(Assert(test, msg))
+        self.add_statement(Assert(ExL_to_Ex(test), ExL_to_Ex(msg) if msg is not None else None))
 
     def create_if(self) -> If:
         """
@@ -1232,6 +1245,11 @@ class Expression(CodeGenAst):
     def starred(self) -> Starred:
         """Return a :class:`Starred` (``*self``) unpacking expression."""
         return Starred(self)
+
+    # E-object:
+    @property
+    def e(self) -> E:
+        return E(self)
 
 
 class String(Expression):
@@ -1960,6 +1978,100 @@ def auto(value: PythonObj) -> Expression:
     elif isinstance(value, dict):  # type: ignore[reportUnnecessaryIsInstance]
         return Dict([(auto(k), auto(v)) for k, v in value.items()])
     assert_never(value)
+
+
+type ELike = E | PythonObj
+"""
+E-objects or things used in similar contexts (Python literals)
+"""
+
+type ExpressionLike = Expression | E
+"""
+Expression objects, or things used in similar contexts (E-objects)
+"""
+
+
+class E:
+    def __init__(self, expr: Expression) -> None:
+        self._the_expr = expr
+
+    def __getattr__(self, name: str) -> E:
+        return E(self._the_expr.attr(name))
+
+    def __call__(self, *args: ELike, **kwargs: ELike) -> E:
+        exp_args = [ELike_to_Expression(arg) for arg in args]
+        exp_kwargs = {key: ELike_to_Expression(val) for key, val in kwargs.items()}
+        return E(self._the_expr.call(exp_args, exp_kwargs))
+
+    # Arithmetic operators
+
+    def __add__(self, other: ELike) -> E:
+        return E(self._the_expr.add(ELike_to_Expression(other)))
+
+    def __radd__(self, other: ELike) -> E:
+        return E(ELike_to_Expression(other).add(self._the_expr))
+
+    def __sub__(self, other: ELike) -> E:
+        return E(self._the_expr.sub(ELike_to_Expression(other)))
+
+    def __rsub__(self, other: ELike) -> E:
+        return E(ELike_to_Expression(other).sub(self._the_expr))
+
+    def __mul__(self, other: ELike) -> E:
+        return E(self._the_expr.mul(ELike_to_Expression(other)))
+
+    def __rmul__(self, other: ELike) -> E:
+        return E(ELike_to_Expression(other).mul(self._the_expr))
+
+    def __div__(self, other: ELike) -> E:
+        return E(self._the_expr.div(ELike_to_Expression(other)))
+
+    def __rdiv__(self, other: ELike) -> E:
+        return E(ELike_to_Expression(other).div(self._the_expr))
+
+    def __floordiv__(self, other: ELike) -> E:
+        return E(self._the_expr.floordiv(ELike_to_Expression(other)))
+
+    def __rfloordiv__(self, other: ELike) -> E:
+        return E(ELike_to_Expression(other).floordiv(self._the_expr))
+
+    def __mod__(self, other: ELike) -> E:
+        return E(self._the_expr.mod(ELike_to_Expression(other)))
+
+    def __rmod__(self, other: ELike) -> E:
+        return E(ELike_to_Expression(other).mod(self._the_expr))
+
+    def __pow__(self, other: ELike) -> E:
+        return E(self._the_expr.pow(ELike_to_Expression(other)))
+
+    def __rpow__(self, other: ELike) -> E:
+        return E(ELike_to_Expression(other).pow(self._the_expr))
+
+    def __matmul__(self, other: ELike) -> E:
+        return E(self._the_expr.matmul(ELike_to_Expression(other)))
+
+    def __rmatmul__(self, other: ELike) -> E:
+        return E(ELike_to_Expression(other).matmul(self._the_expr))
+
+    # Comparison operators
+
+    def __eq__(self, other: ELike) -> E:  # type: ignore
+        return E(self._the_expr.eq(ELike_to_Expression(other)))
+
+
+def ExpressionLike_to_Expression(val: ExpressionLike) -> Expression:
+    if isinstance(val, E):
+        return val._the_expr  # type: ignore[reportPrivateUsage]
+    return val
+
+
+ExL_to_Ex = ExpressionLike_to_Expression
+
+
+def ELike_to_Expression(val: ELike) -> Expression:
+    if isinstance(val, E):
+        return val._the_expr  # type: ignore[reportPrivateUsage]
+    return auto(val)
 
 
 class constants:
