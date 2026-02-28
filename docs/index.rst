@@ -27,7 +27,9 @@ that produce correct Python source or compilable AST.
 
    installation
    usage
+   e-objects
    advanced
+   static-typing
    api
    changelog
 

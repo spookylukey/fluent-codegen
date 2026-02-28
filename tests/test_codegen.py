@@ -20,12 +20,19 @@ def as_source_code(codegen_ast: codegen.CodeGenAstType) -> str:
     return codegen_ast.as_python_source()
 
 
-def assert_code_equal(code1: str | codegen.CodeGenAstType, code2: str | codegen.CodeGenAstType):
-    if not isinstance(code1, str):
+def assert_code_equal(code1: str | codegen.CodeGenAstType | codegen.E, code2: str | codegen.CodeGenAstType | codegen.E):
+    if isinstance(code1, codegen.E):
+        code1 = to_expr(code1).as_python_source()
+    elif not isinstance(code1, str):
         code1 = code1.as_python_source()
-    if not isinstance(code2, str):
+    if isinstance(code2, codegen.E):
+        code2 = to_expr(code2).as_python_source()
+    elif not isinstance(code2, str):
         code2 = code2.as_python_source()
     assert normalize_python(code1) == normalize_python(code2)
+
+
+to_expr = codegen.ELike_to_Expression
 
 
 # Hypothesis strategies
@@ -2160,6 +2167,16 @@ def test_auto_nested():
     assert "'test'" in source
 
 
+def test_auto_expression():
+    result = auto([1, 2, codegen.Number(3)])
+    assert as_source_code(result) == "[1, 2, 3]"
+
+
+def test_auto_e_object():
+    result = auto([1, 2, codegen.Number(3).e])
+    assert as_source_code(result) == "[1, 2, 3]"
+
+
 def test_auto_unsupported_type():
     with pytest.raises(AssertionError):
         auto(object())  # type: ignore[arg-type]
@@ -3597,3 +3614,133 @@ def test_add_comment_wrap_empty_string():
     mod.add_comment("", wrap=40)
     source = mod.as_python_source()
     assert "#" in source
+
+
+# -- E-objects
+
+
+def test_e_objects_basic():
+    mod = codegen.Module()
+    name = mod.scope.create_name("n")
+
+    # Method calls
+    assert_code_equal(
+        name.e.startswith("H"),
+        """
+        n.startswith('H')
+        """,
+    )
+
+    # Basic arithmetic and equality.
+    assert_code_equal(
+        ((name.e + 20) * 3 - 5) % 2 == 4,
+        """
+        ((n + 20) * 3 - 5) % 2 == 4
+        """,
+    )
+
+    # Equality on the other side. This produces the `== 4` on the right, not the
+    # left, because __eq__ is supposed to be symmetric and there is no `__req__`
+    # so we can't track which side it should be on.
+
+    # The other operators do track side though.
+    assert_code_equal(
+        (4 == 3 * (10 + name.e)),  # type: ignore
+        """
+        3 * (10 + n) == 4
+        """,
+    )
+
+
+def test_e_objects_example():
+    mod = codegen.Module()
+    _, math_lib = mod.create_import("math")
+    x = mod.scope.create_name("x")
+    y = mod.scope.create_name("y")
+    assert_code_equal(
+        math_lib.e.sqrt(x.e**2 + y.e**2),
+        """
+        math.sqrt(x ** 2 + y ** 2)
+        """,
+    )
+
+
+def test_e_objects_arithmetic_operators():
+    # Exercise all code paths for arithmetic operators.
+    mod = codegen.Module()
+    name = mod.scope.create_name("n")
+    assert_code_equal(
+        16 @ (14 ** (12 % (10 // (8 / (6 * (4 - (2 + (name.e + 1)) - 3) * 5) / 7) // 9) % 11) ** 13) @ 15,
+        """
+        16 @ 14 ** (12 % (10 // (8 / (6 * (4 - (2 + (n + 1)) - 3) * 5) / 7) // 9) % 11) ** 13 @ 15
+        """,
+    )
+
+    assert_code_equal(
+        -name.e,
+        """
+        -n
+        """,
+    )
+    assert_code_equal(
+        +name.e,
+        """
+        +n
+        """,
+    )
+
+
+def test_e_objects_bitwise_operators():
+    # Exercise all code paths for arithmetic operators.
+    mod = codegen.Module()
+    name = mod.scope.create_name("n")
+    assert_code_equal(
+        (((((~name.e) & 1) | 2) ^ 3) << 4) >> 5,
+        """
+        ((~n & 1 | 2) ^ 3) << 4 >> 5
+        """,
+    )
+
+
+def test_e_objects_comparison_operators():
+    # Exercise all code paths for arithmetic operators.
+    mod = codegen.Module()
+    name = mod.scope.create_name("n")
+    assert_code_equal(
+        5 >= (4 <= (3 > (2 < (1 != (0 == name.e))))),  # type: ignore
+        # Note the ordering is switched, but it should
+        # evaluate to the same thing.
+        """
+        (((((n == 0) != 1) > 2) < 3) >= 4) <= 5
+        """,
+    )
+
+    assert_code_equal(
+        ((((((name.e == 0) != 1) < 2) > 3) <= 4) >= 5),
+        """
+        (((((n == 0) != 1) < 2) > 3) <= 4) >= 5
+        """,
+    )
+
+
+def test_e_objects_mixed_with_expression():
+    mod = codegen.Module()
+    x = mod.assign("x", auto(1))
+    y = mod.assign("y", x.e + 10)
+    mod.add_statement(y.e.my_method(123, z=456))
+    assert_code_equal(
+        mod,
+        """
+        x = 1
+        y = x + 10
+        y.my_method(123, z=456)
+        """,
+    )
+
+    mod.add_statement(y.e.my_method(123, z=456) + 1)
+
+
+def test_Expression_from_e():
+    e = codegen.E(auto(1)) + 2
+    exp = codegen.Expression.from_e(e)
+    assert_code_equal(exp, "1 + 2")

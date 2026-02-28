@@ -13,6 +13,7 @@ import textwrap
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from functools import cached_property
 from typing import ClassVar, Protocol, assert_never, overload, runtime_checkable
 
 if sys.version_info >= (3, 13):
@@ -69,9 +70,53 @@ Comment = str
 #    decisions that aim to ensure things like function argument names are
 #    consistent and so can be predicted easily.
 
-# Outside of fluent-compiler, this code will likely be useful for situations
-# which have similar aims.
+# Outside of the original project `fluent-compiler`, this code will likely be
+# useful for situations which have similar aims.
 
+# It is has since evolved further aims:
+
+# 5. Usability
+#
+#    We add convenience wrappers to make it easier to see what the output
+#    is going to look like.
+
+
+# --- Layers
+
+# Within this module, there are about 3 conceptual layers, though not completely
+# separated out:
+
+# 1. At the bottom layer, there are CodeGenAst classes, such as `Number`,
+#    `String`, `If` etc. These are thin wrappers around Python `ast` classes.
+#
+# 2. Block, Scope and Expression, which provide higher level convenience.
+#    In particular:
+#
+#    - Scope provides management of names, to avoid name clashes. (For this
+#      reason the `Name` class, which is a `CodeGenAst`, actually depends
+#      on `Scope`, to make it harder to create Names that clash.)
+#
+#    - Block makes it easier to build up a list of statements.
+#
+#    - Expression is a base class that provides a convenient chained method
+#      syntax for creating further expressions.
+#
+# 3. E-objects: These add another layer of convenience, allowing you to build up
+#    Python code using Python syntax rather than the chained method
+#    calls on Expression which can be awkward if you know statically what operations
+#    are to be done.
+#
+
+# Note that:
+# - the bottom layer does not accept `E-objects` in its constructors
+#
+# - the middle layer accepts both Expression and E-objects to support
+#   the convenience of building up expressions easily.
+#
+# - the top layer, E-objects, allows mixing Expression and also allows mixing
+#   native Python objects which get converted to E-objects.
+
+# ---
 
 SENSITIVE_FUNCTIONS = {
     # builtin functions that we should never be calling from our code
@@ -386,8 +431,10 @@ class Block(CodeGenAstList):
         else:
             self.statements.append(text)
 
-    def add_statement(self, statement: Statement | Block | Expression) -> None:
+    def add_statement(self, statement: Statement | Block | ExpressionLike) -> None:
         """Append a statement, block, or bare expression to this block."""
+        if isinstance(statement, E):
+            statement = E_to_Expression(statement)
         self.statements.append(statement)
         if isinstance(statement, Block):
             if statement.parent_block is None:
@@ -463,9 +510,9 @@ class Block(CodeGenAstList):
     def create_assignment(
         self,
         target: str | Target,
-        value: Expression,
+        value: ExpressionLike,
         *,
-        type_hint: Expression | None = None,
+        type_hint: ExpressionLike | None = None,
         allow_multiple: bool = False,
     ):
         """
@@ -491,20 +538,24 @@ class Block(CodeGenAstList):
                     raise AssertionError(f"Have already assigned to '{name}' in this scope")
             self.scope.register_assignment(name)
 
-        self.add_statement(Assignment(target, value, type_hint=type_hint))
+        self.add_statement(
+            Assignment(
+                target, E_to_Expression(value), type_hint=E_to_Expression(type_hint) if type_hint is not None else None
+            )
+        )
 
     @overload
-    def assign(self, target: str, value: Expression, *, type_hint: Expression | None = ...) -> Name: ...
+    def assign(self, target: str, value: ExpressionLike, *, type_hint: ExpressionLike | None = ...) -> Name: ...
 
     @overload
-    def assign(self, target: tuple[str, ...], value: Expression) -> tuple[Name, ...]: ...
+    def assign(self, target: tuple[str, ...], value: ExpressionLike) -> tuple[Name, ...]: ...
 
     def assign(
         self,
         target: str | tuple[str, ...],
-        value: Expression,
+        value: ExpressionLike,
         *,
-        type_hint: Expression | None = None,
+        type_hint: ExpressionLike | None = None,
     ) -> Name | tuple[Name, ...]:
         """
         Shortcut that reserves names and creates an assignment in one step.
@@ -538,7 +589,7 @@ class Block(CodeGenAstList):
             self.create_assignment(name_objs, value)
             return name_objs
 
-    def create_annotation(self, name: str, annotation: Expression) -> Name:
+    def create_annotation(self, name: str, annotation: ExpressionLike) -> Name:
         """
         Adds a bare type annotation of the form::
 
@@ -548,10 +599,10 @@ class Block(CodeGenAstList):
         """
         name_obj = self.scope.create_name(name)
         self.scope.register_assignment(name_obj.name)
-        self.add_statement(Annotation(name_obj.name, annotation))
+        self.add_statement(Annotation(name_obj.name, E_to_Expression(annotation)))
         return name_obj
 
-    def create_field(self, name: str, annotation: Expression, *, default: Expression | None = None) -> Name:
+    def create_field(self, name: str, annotation: ExpressionLike, *, default: ExpressionLike | None = None) -> Name:
         """
         Create a typed field, typically used in dataclass bodies.
 
@@ -566,7 +617,7 @@ class Block(CodeGenAstList):
         if default is not None:
             name_obj = self.scope.create_name(name)
             self.scope.register_assignment(name_obj.name)
-            self.add_statement(Assignment(name_obj, default, type_hint=annotation))
+            self.add_statement(Assignment(name_obj, E_to_Expression(default), type_hint=E_to_Expression(annotation)))
             return name_obj
         else:
             return self.create_annotation(name, annotation)
@@ -575,8 +626,8 @@ class Block(CodeGenAstList):
         self,
         name: str,
         args: Sequence[str | FunctionArg],
-        decorators: Sequence[Expression] | None = None,
-        return_type: Expression | None = None,
+        decorators: Sequence[ExpressionLike] | None = None,
+        return_type: ExpressionLike | None = None,
     ) -> tuple[Function, Name]:
         """
         Reserve a name for a function, create the Function and add the function statement
@@ -584,7 +635,11 @@ class Block(CodeGenAstList):
         """
         name_obj = self.scope.create_name(name)
         func = Function(
-            name_obj.name, args=args, parent_scope=self.scope, decorators=decorators, return_type=return_type
+            name_obj.name,
+            args=args,
+            parent_scope=self.scope,
+            decorators=[E_to_Expression(d) for d in decorators] if decorators is not None else None,
+            return_type=E_to_Expression(return_type) if return_type is not None else None,
         )
         self.add_statement(func)
         return func, name_obj
@@ -592,25 +647,30 @@ class Block(CodeGenAstList):
     def create_class(
         self,
         name: str,
-        bases: Sequence[Expression] | None = None,
-        decorators: Sequence[Expression] | None = None,
+        bases: Sequence[ExpressionLike] | None = None,
+        decorators: Sequence[ExpressionLike] | None = None,
     ) -> tuple[Class, Name]:
         """
         Reserve a name for a class, create the Class and add the class statement
         to the block.
         """
         name_obj = self.scope.create_name(name)
-        cls = Class(name_obj.name, parent_scope=self.scope, bases=bases, decorators=decorators)
+        cls = Class(
+            name_obj.name,
+            parent_scope=self.scope,
+            bases=[E_to_Expression(b) for b in bases] if bases is not None else None,
+            decorators=[E_to_Expression(d) for d in decorators] if decorators is not None else None,
+        )
         self.add_statement(cls)
         return cls, name_obj
 
-    def create_return(self, value: Expression) -> None:
+    def create_return(self, value: ExpressionLike) -> None:
         """Add a ``return`` statement to this block."""
-        self.add_statement(Return(value))
+        self.add_statement(Return(E_to_Expression(value)))
 
-    def create_assert(self, test: Expression, msg: Expression | None = None) -> None:
+    def create_assert(self, test: ExpressionLike, msg: ExpressionLike | None = None) -> None:
         """Add an ``assert`` statement to this block."""
-        self.add_statement(Assert(test, msg))
+        self.add_statement(Assert(E_to_Expression(test), E_to_Expression(msg) if msg is not None else None))
 
     def create_if(self) -> If:
         """
@@ -626,7 +686,7 @@ class Block(CodeGenAstList):
         self.add_statement(if_statement)
         return if_statement
 
-    def create_with(self, context_expr: Expression, target: Name | None = None) -> With:
+    def create_with(self, context_expr: ExpressionLike, target: Name | None = None) -> With:
         """
         Create a With statement, add it to this block, and return it
 
@@ -635,7 +695,7 @@ class Block(CodeGenAstList):
             with_stmt = block.create_with(expr, "f")
             with_stmt.body.create_return(value)
         """
-        with_statement = With(context_expr, target=target, parent_scope=self.scope, parent_block=self)
+        with_statement = With(E_to_Expression(context_expr), target=target, parent_scope=self.scope, parent_block=self)
         self.add_statement(with_statement)
         return with_statement
 
@@ -689,24 +749,39 @@ class FunctionArg:
 
     @classmethod
     def positional(
-        cls, name: str, *, default: Expression | None = None, annotation: Expression | None = None
+        cls, name: str, *, default: ExpressionLike | None = None, annotation: ExpressionLike | None = None
     ) -> FunctionArg:
         """Create a positional-only argument."""
-        return cls(name=name, kind=ArgKind.POSITIONAL_ONLY, default=default, annotation=annotation)
+        return cls(
+            name=name,
+            kind=ArgKind.POSITIONAL_ONLY,
+            default=E_to_Expression(default) if default is not None else None,
+            annotation=E_to_Expression(annotation) if annotation is not None else None,
+        )
 
     @classmethod
     def keyword(
-        cls, name: str, *, default: Expression | None = None, annotation: Expression | None = None
+        cls, name: str, *, default: ExpressionLike | None = None, annotation: ExpressionLike | None = None
     ) -> FunctionArg:
         """Create a keyword-only argument."""
-        return cls(name=name, kind=ArgKind.KEYWORD_ONLY, default=default, annotation=annotation)
+        return cls(
+            name=name,
+            kind=ArgKind.KEYWORD_ONLY,
+            default=E_to_Expression(default) if default is not None else None,
+            annotation=E_to_Expression(annotation) if annotation is not None else None,
+        )
 
     @classmethod
     def standard(
-        cls, name: str, *, default: Expression | None = None, annotation: Expression | None = None
+        cls, name: str, *, default: ExpressionLike | None = None, annotation: ExpressionLike | None = None
     ) -> FunctionArg:
         """Create a positional-or-keyword argument (the Python default)."""
-        return cls(name=name, kind=ArgKind.POSITIONAL_OR_KEYWORD, default=default, annotation=annotation)
+        return cls(
+            name=name,
+            kind=ArgKind.POSITIONAL_OR_KEYWORD,
+            default=E_to_Expression(default) if default is not None else None,
+            annotation=E_to_Expression(annotation) if annotation is not None else None,
+        )
 
 
 def _normalize_args(args: Sequence[str | FunctionArg]) -> list[FunctionArg]:
@@ -832,9 +907,9 @@ class Function(Scope, Statement):
             **DEFAULT_AST_ARGS,
         )
 
-    def create_return(self, value: Expression):
+    def create_return(self, value: ExpressionLike):
         """Add a ``return`` statement to the function body."""
-        self.body.create_return(value)
+        self.body.create_return(E_to_Expression(value))
 
 
 class Class(Scope, Statement):
@@ -913,13 +988,13 @@ class If(Statement):
         self.else_block = Block(parent_scope, parent_block=self._parent_block)
         self._parent_scope = parent_scope
 
-    def create_if_branch(self, condition: Expression) -> Block:
+    def create_if_branch(self, condition: ExpressionLike) -> Block:
         """
         Create new if branch with a condition.
         """
         new_if = Block(self._parent_scope, parent_block=self._parent_block)
         self.if_blocks.append(new_if)
-        self.conditions.append(condition)
+        self.conditions.append(E_to_Expression(condition))
         return new_if
 
     def finalize(self) -> Block | Statement:
@@ -1096,6 +1171,11 @@ class Expression(CodeGenAst):
     @abstractmethod
     def as_ast(self, *, include_comments: bool = False) -> py_ast.expr: ...
 
+    # Conversion:
+    @classmethod
+    def from_e(cls, obj: Expression | E) -> Expression:
+        return E_to_Expression(obj)
+
     # Some utilities for easy chaining:
 
     def attr(self, attribute: str, /) -> Attr:
@@ -1104,80 +1184,84 @@ class Expression(CodeGenAst):
 
     def call(
         self,
-        args: Sequence[Expression] | None = None,
-        kwargs: Mapping[str, Expression] | None = None,
+        args: Sequence[ExpressionLike] | None = None,
+        kwargs: Mapping[str, ExpressionLike] | None = None,
     ) -> Call:
         """Return a :class:`Call` expression invoking this expression."""
-        return Call(self, args or [], kwargs or {})
+        return Call(
+            self,
+            [E_to_Expression(arg) for arg in args] if args is not None else [],
+            {k: E_to_Expression(val) for k, val in kwargs.items()} if kwargs is not None else {},
+        )
 
     def method_call(
         self,
         attribute: str,
-        args: Sequence[Expression] | None = None,
-        kwargs: Mapping[str, Expression] | None = None,
+        args: Sequence[ExpressionLike] | None = None,
+        kwargs: Mapping[str, ExpressionLike] | None = None,
     ) -> Call:
         """Return a :class:`Call` expression for a method call on this expression."""
         return self.attr(attribute).call(args, kwargs)
 
-    def subscript(self, slice: Expression, /) -> Subscript:
+    def subscript(self, slice: ExpressionLike, /) -> Subscript:
         """Return a :class:`Subscript` expression indexing this expression."""
-        return Subscript(self, slice)
+        return Subscript(self, E_to_Expression(slice))
 
     # Arithmetic operators
 
-    def add(self, other: Expression, /) -> Add:
+    def add(self, other: ExpressionLike, /) -> Add:
         """Return an :class:`Add` (``+``) expression."""
-        return Add(self, other)
+        return Add(self, E_to_Expression(other))
 
-    def sub(self, other: Expression, /) -> Sub:
+    def sub(self, other: ExpressionLike, /) -> Sub:
         """Return a :class:`Sub` (``-``) expression."""
-        return Sub(self, other)
+        return Sub(self, E_to_Expression(other))
 
-    def mul(self, other: Expression, /) -> Mul:
+    def mul(self, other: ExpressionLike, /) -> Mul:
         """Return a :class:`Mul` (``*``) expression."""
-        return Mul(self, other)
+        return Mul(self, E_to_Expression(other))
 
-    def div(self, other: Expression, /) -> Div:
+    def div(self, other: ExpressionLike, /) -> Div:
         """Return a :class:`Div` (``/``) expression."""
-        return Div(self, other)
+        return Div(self, E_to_Expression(other))
 
-    def floordiv(self, other: Expression, /) -> FloorDiv:
+    def floordiv(self, other: ExpressionLike, /) -> FloorDiv:
         """Return a :class:`FloorDiv` (``//``) expression."""
-        return FloorDiv(self, other)
+        return FloorDiv(self, E_to_Expression(other))
 
-    def mod(self, other: Expression, /) -> Mod:
+    def mod(self, other: ExpressionLike, /) -> Mod:
         """Return a :class:`Mod` (``%``) expression."""
-        return Mod(self, other)
+        return Mod(self, E_to_Expression(other))
 
-    def pow(self, other: Expression, /) -> Pow:
+    def pow(self, other: ExpressionLike, /) -> Pow:
         """Return a :class:`Pow` (``**``) expression."""
-        return Pow(self, other)
+        return Pow(self, E_to_Expression(other))
 
-    def matmul(self, other: Expression, /) -> MatMul:
+    def matmul(self, other: ExpressionLike, /) -> MatMul:
         """Return a :class:`MatMul` (``@``) expression."""
-        return MatMul(self, other)
+        return MatMul(self, E_to_Expression(other))
 
     # Bitwise operators
 
-    def bitand(self, other: Expression, /) -> BitAnd:
+    def bitand(self, other: ExpressionLike, /) -> BitAnd:
         """Return a :class:`BitAnd` (``&``) expression."""
-        return BitAnd(self, other)
+        return BitAnd(self, E_to_Expression(other))
 
-    def bitor(self, other: Expression, /) -> BitOr:
+    def bitor(self, other: ExpressionLike, /) -> BitOr:
         """Return a :class:`BitOr` (``|``) expression."""
-        return BitOr(self, other)
+        return BitOr(self, E_to_Expression(other))
 
-    def xor(self, other: Expression, /) -> BitXor:
+    def xor(self, other: ExpressionLike, /) -> BitXor:
         """Return a :class:`BitXor` (``^``) expression."""
-        return BitXor(self, other)
+        return BitXor(self, E_to_Expression(other))
 
-    def lshift(self, other: Expression, /) -> LShift:
+    def lshift(self, other: ExpressionLike, /) -> LShift:
         """Return a :class:`LShift` (``<<``) expression."""
-        return LShift(self, other)
+        return LShift(self, E_to_Expression(other))
 
-    def rshift(self, other: Expression, /) -> RShift:
+    def rshift(self, other: ExpressionLike, /) -> RShift:
         """Return a :class:`RShift` (``>>``) expression."""
-        return RShift(self, other)
+        return RShift(self, E_to_Expression(other))
 
     def invert(self) -> Invert:
         """Return an :class:`Invert` (``~self``) expression."""
@@ -1185,59 +1269,59 @@ class Expression(CodeGenAst):
 
     # Comparison operators
 
-    def eq(self, other: Expression, /) -> Equals:
+    def eq(self, other: ExpressionLike, /) -> Equals:
         """Return an :class:`Equals` (``==``) expression."""
-        return Equals(self, other)
+        return Equals(self, E_to_Expression(other))
 
-    def ne(self, other: Expression, /) -> NotEquals:
+    def ne(self, other: ExpressionLike, /) -> NotEquals:
         """Return a :class:`NotEquals` (``!=``) expression."""
-        return NotEquals(self, other)
+        return NotEquals(self, E_to_Expression(other))
 
-    def lt(self, other: Expression, /) -> Lt:
+    def lt(self, other: ExpressionLike, /) -> Lt:
         """Return a :class:`Lt` (``<``) expression."""
-        return Lt(self, other)
+        return Lt(self, E_to_Expression(other))
 
-    def gt(self, other: Expression, /) -> Gt:
+    def gt(self, other: ExpressionLike, /) -> Gt:
         """Return a :class:`Gt` (``>``) expression."""
-        return Gt(self, other)
+        return Gt(self, E_to_Expression(other))
 
-    def le(self, other: Expression, /) -> LtE:
+    def le(self, other: ExpressionLike, /) -> LtE:
         """Return a :class:`LtE` (``<=``) expression."""
-        return LtE(self, other)
+        return LtE(self, E_to_Expression(other))
 
-    def ge(self, other: Expression, /) -> GtE:
+    def ge(self, other: ExpressionLike, /) -> GtE:
         """Return a :class:`GtE` (``>=``) expression."""
-        return GtE(self, other)
+        return GtE(self, E_to_Expression(other))
 
     # Boolean operators
 
-    def and_(self, other: Expression, /) -> And:
+    def and_(self, other: ExpressionLike, /) -> And:
         """Return an :class:`And` (``and``) expression."""
-        return And(self, other)
+        return And(self, E_to_Expression(other))
 
-    def or_(self, other: Expression, /) -> Or:
+    def or_(self, other: ExpressionLike, /) -> Or:
         """Return an :class:`Or` (``or``) expression."""
-        return Or(self, other)
+        return Or(self, E_to_Expression(other))
 
     # Membership operators
 
-    def in_(self, other: Expression, /) -> In:
+    def in_(self, other: ExpressionLike, /) -> In:
         """Return an :class:`In` (``in``) expression."""
-        return In(self, other)
+        return In(self, E_to_Expression(other))
 
-    def not_in(self, other: Expression, /) -> NotIn:
+    def not_in(self, other: ExpressionLike, /) -> NotIn:
         """Return a :class:`NotIn` (``not in``) expression."""
-        return NotIn(self, other)
+        return NotIn(self, E_to_Expression(other))
 
     # Identity operators
 
-    def is_(self, other: Expression, /) -> Is:
+    def is_(self, other: ExpressionLike, /) -> Is:
         """Return an :class:`Is` (``is``) expression."""
-        return Is(self, other)
+        return Is(self, E_to_Expression(other))
 
-    def is_not(self, other: Expression, /) -> IsNot:
+    def is_not(self, other: ExpressionLike, /) -> IsNot:
         """Return an :class:`IsNot` (``is not``) expression."""
-        return IsNot(self, other)
+        return IsNot(self, E_to_Expression(other))
 
     # Unary operators
 
@@ -1258,6 +1342,11 @@ class Expression(CodeGenAst):
     def starred(self) -> Starred:
         """Return a :class:`Starred` (``*self``) unpacking expression."""
         return Starred(self)
+
+    # E-object:
+    @cached_property
+    def e(self) -> E:
+        return E(self)
 
 
 class String(Expression):
@@ -1957,17 +2046,9 @@ def empty_If() -> py_ast.If:
     return py_ast.If(test=None, orelse=[], **DEFAULT_AST_ARGS)  # type: ignore[reportArgumentType]
 
 
-type PythonObj = (
-    bool
-    | str
-    | bytes
-    | int
-    | float
-    | None
-    | list[PythonObj]
-    | tuple[PythonObj, ...]
-    | set[PythonObj]
-    | dict[PythonObj, PythonObj]
+type SimplePythonObj = bool | str | bytes | int | float | None
+type Autoable = (
+    SimplePythonObj | Expression | E | list[Autoable] | tuple[Autoable, ...] | set[Autoable] | dict[Autoable, Autoable]
 )
 
 
@@ -1984,21 +2065,28 @@ def auto(value: float) -> Number: ...
 @overload
 def auto(value: None) -> NoneExpr: ...
 @overload
-def auto(value: list[PythonObj]) -> List: ...
+def auto(value: Expression) -> Expression: ...
 @overload
-def auto(value: tuple[PythonObj, ...]) -> Tuple: ...
+def auto(value: E) -> Expression: ...
 @overload
-def auto(value: set[PythonObj]) -> Set: ...
+def auto(value: list[Autoable]) -> List: ...
 @overload
-def auto(value: dict[PythonObj, PythonObj]) -> Dict: ...
+def auto(value: tuple[Autoable, ...]) -> Tuple: ...
+@overload
+def auto(value: set[Autoable]) -> Set: ...
+@overload
+def auto(value: dict[Autoable, Autoable]) -> Dict: ...
 
 
-def auto(value: PythonObj) -> Expression:
+def auto(value: Autoable) -> Expression:
     """
     Create a codegen Expression from a plain Python object.
 
     Supports bool, str, bytes, int, float, None, and recursively
     list, tuple, set, and dict.
+
+    It also supports a mixture - containers than have both plain Python objects
+    and values that are already Expression or E-objects.
     """
     if isinstance(value, bool):
         return Bool(value)
@@ -2010,6 +2098,10 @@ def auto(value: PythonObj) -> Expression:
         return Number(value)
     elif value is None:
         return constants.None_
+    elif isinstance(value, Expression):
+        return value
+    elif isinstance(value, E):
+        return E_to_Expression(value)
     elif isinstance(value, list):
         return List([auto(item) for item in value])
     elif isinstance(value, tuple):
@@ -2019,6 +2111,153 @@ def auto(value: PythonObj) -> Expression:
     elif isinstance(value, dict):  # type: ignore[reportUnnecessaryIsInstance]
         return Dict([(auto(k), auto(v)) for k, v in value.items()])
     assert_never(value)
+
+
+type ELike = E | Autoable
+"""
+E-objects or things used in similar contexts (Python literals)
+"""
+
+type ExpressionLike = Expression | E
+"""
+Expression objects, or things used in similar contexts (E-objects)
+"""
+
+
+class E:
+    def __init__(self, expr: Expression) -> None:
+        self._the_expr = expr
+
+    def __getattr__(self, name: str) -> E:
+        return E(self._the_expr.attr(name))
+
+    def __call__(self, *args: ELike, **kwargs: ELike) -> E:
+        exp_args = [ELike_to_Expression(arg) for arg in args]
+        exp_kwargs = {key: ELike_to_Expression(val) for key, val in kwargs.items()}
+        return E(self._the_expr.call(exp_args, exp_kwargs))
+
+    # Arithmetic operators
+
+    def __add__(self, other: ELike) -> E:
+        return E(self._the_expr.add(ELike_to_Expression(other)))
+
+    def __radd__(self, other: ELike) -> E:
+        return E(ELike_to_Expression(other).add(self._the_expr))
+
+    def __sub__(self, other: ELike) -> E:
+        return E(self._the_expr.sub(ELike_to_Expression(other)))
+
+    def __rsub__(self, other: ELike) -> E:
+        return E(ELike_to_Expression(other).sub(self._the_expr))
+
+    def __mul__(self, other: ELike) -> E:
+        return E(self._the_expr.mul(ELike_to_Expression(other)))
+
+    def __rmul__(self, other: ELike) -> E:
+        return E(ELike_to_Expression(other).mul(self._the_expr))
+
+    def __truediv__(self, other: ELike) -> E:
+        return E(self._the_expr.div(ELike_to_Expression(other)))
+
+    def __rtruediv__(self, other: ELike) -> E:
+        return E(ELike_to_Expression(other).div(self._the_expr))
+
+    def __floordiv__(self, other: ELike) -> E:
+        return E(self._the_expr.floordiv(ELike_to_Expression(other)))
+
+    def __rfloordiv__(self, other: ELike) -> E:
+        return E(ELike_to_Expression(other).floordiv(self._the_expr))
+
+    def __mod__(self, other: ELike) -> E:
+        return E(self._the_expr.mod(ELike_to_Expression(other)))
+
+    def __rmod__(self, other: ELike) -> E:
+        return E(ELike_to_Expression(other).mod(self._the_expr))
+
+    def __pow__(self, other: ELike) -> E:
+        return E(self._the_expr.pow(ELike_to_Expression(other)))
+
+    def __rpow__(self, other: ELike) -> E:
+        return E(ELike_to_Expression(other).pow(self._the_expr))
+
+    def __matmul__(self, other: ELike) -> E:
+        return E(self._the_expr.matmul(ELike_to_Expression(other)))
+
+    def __rmatmul__(self, other: ELike) -> E:
+        return E(ELike_to_Expression(other).matmul(self._the_expr))
+
+    # Bitwise:
+
+    def __and__(self, other: ELike) -> E:
+        return E(self._the_expr.bitand(ELike_to_Expression(other)))
+
+    def __or__(self, other: ELike) -> E:
+        return E(self._the_expr.bitor(ELike_to_Expression(other)))
+
+    def __xor__(self, other: ELike) -> E:
+        return E(self._the_expr.xor(ELike_to_Expression(other)))
+
+    def __lshift__(self, other: ELike) -> E:
+        return E(self._the_expr.lshift(ELike_to_Expression(other)))
+
+    def __rshift__(self, other: ELike) -> E:
+        return E(self._the_expr.rshift(ELike_to_Expression(other)))
+
+    def __invert__(self) -> E:
+        return E(self._the_expr.invert())
+
+    # Comparison operators
+
+    def __eq__(self, other: ELike) -> E:  # type: ignore
+        return E(self._the_expr.eq(ELike_to_Expression(other)))
+
+    def __ne__(self, other: ELike) -> E:  # type: ignore
+        return E(self._the_expr.ne(ELike_to_Expression(other)))
+
+    def __lt__(self, other: ELike) -> E:  # type: ignore
+        return E(self._the_expr.lt(ELike_to_Expression(other)))
+
+    def __gt__(self, other: ELike) -> E:  # type: ignore
+        return E(self._the_expr.gt(ELike_to_Expression(other)))
+
+    def __le__(self, other: ELike) -> E:  # type: ignore
+        return E(self._the_expr.le(ELike_to_Expression(other)))
+
+    def __ge__(self, other: ELike) -> E:  # type: ignore
+        return E(self._the_expr.ge(ELike_to_Expression(other)))
+
+    # Boolean operators - these cannot exists, and/or are short-circuiting
+    # operators that cannot be overridden
+
+    # Membership
+
+    # It looks like we can't override __contains__ effectively
+    # to do what we need to support `in` and `not in`
+    # - Python coerces to bool afterwards,
+    # - `__bool__` has to return True/False
+    # - we can't do `not in`
+
+    # Identity operators - again can't be overridden
+
+    # # Unary operators
+
+    def __pos__(self) -> E:
+        return E(self._the_expr.pos())
+
+    def __neg__(self) -> E:
+        return E(self._the_expr.neg())
+
+
+def E_to_Expression(val: E | Expression) -> Expression:
+    if isinstance(val, E):
+        return val._the_expr  # type: ignore[reportPrivateUsage]
+    return val
+
+
+def ELike_to_Expression(val: ELike) -> Expression:
+    if isinstance(val, E):
+        return val._the_expr  # type: ignore[reportPrivateUsage]
+    return auto(val)
 
 
 class constants:
