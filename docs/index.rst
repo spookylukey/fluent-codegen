@@ -27,6 +27,7 @@ that produce correct Python source or compilable AST.
 
    installation
    usage
+   advanced
    api
    changelog
 
