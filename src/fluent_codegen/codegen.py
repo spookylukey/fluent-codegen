@@ -288,6 +288,13 @@ class Scope:
         """Return a :class:`Name` expression for an already-reserved name."""
         return Name(name, self)
 
+    @cached_property
+    def enames(self) -> Enames:
+        """
+        Returns an Enames object, which provides easy access to names as E-objects.
+        """
+        return Enames(self)
+
 
 _IDENTIFIER_SANITIZER_RE = re.compile("[^a-zA-Z0-9_]")
 _IDENTIFIER_START_RE = re.compile("^[a-zA-Z_]")
@@ -728,6 +735,10 @@ class Module(Block, CodeGenAst):
         mod = self.as_ast(include_comments=True)
         py_ast.fix_missing_locations(mod)
         return unparse_with_comments(mod)
+
+    @cached_property
+    def enames(self) -> Enames:
+        return self.scope.enames
 
 
 class ArgKind(enum.Enum):
@@ -2258,6 +2269,14 @@ def ELike_to_Expression(val: ELike) -> Expression:
     if isinstance(val, E):
         return val._the_expr  # type: ignore[reportPrivateUsage]
     return auto(val)
+
+
+class Enames:
+    def __init__(self, scope: Scope) -> None:
+        self.__scope = scope
+
+    def __getattr__(self, name: str) -> E:
+        return E(self.__scope.name(name))
 
 
 class constants:

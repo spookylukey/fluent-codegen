@@ -3744,3 +3744,11 @@ def test_Expression_from_e():
     e = codegen.E(auto(1)) + 2
     exp = codegen.Expression.from_e(e)
     assert_code_equal(exp, "1 + 2")
+
+
+def test_enames():
+    mod = codegen.Module()
+    mod.assign("x", auto(1))
+
+    assert_code_equal(mod.enames.x + 1, "x + 1")
+    assert_code_equal(mod.enames.str(1), "str(1)")

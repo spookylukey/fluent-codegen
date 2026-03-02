@@ -54,6 +54,30 @@ operators so that they all:
 - delegate to the appropriate methods on ``Expression`` to build the expression.
 - return the result as an E-object.
 
+Enames
+======
+
+As a shortcut to getting hold of an E-object, you can use the ``enames``
+property which is available on ``Scope`` and ``Module``:
+
+.. code-block:: python
+
+   mod = codegen.Module()
+   func, func_name = mod.create_function('inc', ['val'])
+   func.create_return(func.enames.val + 1)
+
+   # Output code:
+   #
+   #    def inc(val):
+   #        return val + 1
+
+This is also a convenient way to get hold of builtins that are already
+registered as names in the ``Module`` scope (and inherited by other scopes that
+are added to ``Module`` objects)
+
+.. code-block:: python
+
+   mod.enames.str(1)   #  Outputs `str(1)`
 
 Mixing types
 ============
