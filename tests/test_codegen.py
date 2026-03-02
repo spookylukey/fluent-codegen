@@ -2272,11 +2272,6 @@ def test_auto_set():
     assert isinstance(result, codegen.Set)
 
 
-def test_auto_frozenset():
-    result = codegen.auto(frozenset({1}))
-    assert isinstance(result, codegen.Set)
-
-
 # --- Arithmetic operator tests, Comparison operator tests, Boolean operator tests
 
 # The classes are tested indirectly by the utilty methods on `Expression`,

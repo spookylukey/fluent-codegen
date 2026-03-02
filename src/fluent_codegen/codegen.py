@@ -1905,7 +1905,6 @@ type PythonObj = (
     | list[PythonObj]
     | tuple[PythonObj, ...]
     | set[PythonObj]
-    | frozenset[PythonObj]
     | dict[PythonObj, PythonObj]
 )
 
@@ -1929,8 +1928,6 @@ def auto(value: tuple[PythonObj, ...]) -> Tuple: ...
 @overload
 def auto(value: set[PythonObj]) -> Set: ...
 @overload
-def auto(value: frozenset[PythonObj]) -> Set: ...
-@overload
 def auto(value: dict[PythonObj, PythonObj]) -> Dict: ...
 
 
@@ -1939,7 +1936,7 @@ def auto(value: PythonObj) -> Expression:
     Create a codegen Expression from a plain Python object.
 
     Supports bool, str, bytes, int, float, None, and recursively
-    list, tuple, set, frozenset, and dict.
+    list, tuple, set, and dict.
     """
     if isinstance(value, bool):
         return Bool(value)
@@ -1955,7 +1952,7 @@ def auto(value: PythonObj) -> Expression:
         return List([auto(item) for item in value])
     elif isinstance(value, tuple):
         return Tuple([auto(item) for item in value])
-    elif isinstance(value, (set, frozenset)):
+    elif isinstance(value, set):
         return Set([auto(item) for item in sorted(value, key=repr)])
     elif isinstance(value, dict):  # type: ignore[reportUnnecessaryIsInstance]
         return Dict([(auto(k), auto(v)) for k, v in value.items()])
