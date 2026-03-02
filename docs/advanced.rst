@@ -34,7 +34,8 @@ utility performs dead-code elimination on a function body:
    remove_unused_assignments(func)
 
 This iteratively removes assignments whose targets are never read, which is
-useful when your code-generation logic creates variables speculatively.
+useful when your code-generation logic creates variables speculatively. It is
+only safe to use if the statements that create the assignments have no side effects
 
 
 AST traversal and rewriting
