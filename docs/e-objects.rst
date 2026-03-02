@@ -110,11 +110,13 @@ This is an error. To avoid confusion between strings and what they mean, you
 have to be more explicit at this level. You could mean either:
 
 .. code-block:: python
+
    x = mod.assign("x", mod.name("y"))  #  x = y
 
 Or:
 
 .. code-block:: python
+
    x = mod.assign("x", codegen.String("y"))  # x = "y"
 
 If you need to explicitly convert from E-objects to ``Expression``, you can use
@@ -147,6 +149,8 @@ work due to overriding the ``|`` operator:
 
 But the following will fail:
 
+.. code-block:: python
+
    mod.assign("y", {"key": "value"})
 
 The above can be fixed by explicit use of ``auto()`` around the dict.
@@ -163,6 +167,8 @@ Some operators cannot be overridden by implementing dunder methods:
 
 - ``in`` and ``not in`` membership operators can’t be supported.
 
+For these, you need to fall back to converting to ``Expression`` with
+``Expression.from_e``, and using method chaining.
 
 Comparisons
 -----------
@@ -173,8 +179,8 @@ right and a Python object on the left, it comes out backwards:
 
 .. code-block:: python
 
-   x.e == 1   # produces `x == 1`
-   1 == x.e   # produces `x == 1`
+   x.e == 1   #      produces `x == 1`
+   1 == x.e   # also produces `x == 1`
 
 In addition, the second form will be deduced by type checkers to have type
 ``bool``, when in fact it produces an E-object. So the first form should be
