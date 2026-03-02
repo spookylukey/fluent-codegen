@@ -2420,6 +2420,14 @@ def test_expression_matmul_method():
     assert_code_equal(result, "a @ 1")
 
 
+# --- Bitwise operators
+
+
+def test_expression_bitwise_and_or():
+    result = auto(1).bitand(auto(2)).bitor(auto(3)).xor(auto(4)).rshift(auto(5)).lshift(auto(6))
+    assert_code_equal(result, "1 & 2 | 3 ")
+
+
 # --- Starred tests ---
 
 

@@ -1157,6 +1157,8 @@ class Expression(CodeGenAst):
         """Return a :class:`MatMul` (``@``) expression."""
         return MatMul(self, other)
 
+    # Bitwise operators - TODO
+
     # Comparison operators
 
     def eq(self, other: Expression, /) -> Equals:
