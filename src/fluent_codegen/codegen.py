@@ -738,6 +738,11 @@ class Module(Block, CodeGenAst):
 
     @cached_property
     def enames(self) -> Enames:
+        """
+        Provides access to scope names as E-objects
+
+        e.g. Module().enames.str   for the `str` Name that is registered as a builtin.
+        """
         return self.scope.enames
 
 
@@ -1357,6 +1362,9 @@ class Expression(CodeGenAst):
     # E-object:
     @cached_property
     def e(self) -> E:
+        """
+        Returns this Expression as an E-object for easier expression generation.
+        """
         return E(self)
 
 

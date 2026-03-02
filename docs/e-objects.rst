@@ -120,7 +120,16 @@ Or:
 If you need to explicitly convert from E-objects to ``Expression``, you can use
 ``Expression.from_e``.
 
-TODO static typing.
+Note that E-objects and Expression objects are very different, and while you can
+mix them in some of the calls, you cannot use an E-object as if it were an
+``Expression``. For example, if you have an ``Expression``, you can use
+``.attr("foo")`` to generate an attribute access to the ``.foo`` attribute. With
+an E-object, however, ``.attr("foo")`` will generate a method call to
+``.attr("foo")``! For this reason, it can be helpful to keep the ``.e`` call
+visible in your code, or use a name convention like ``…_e`` to remind that an
+object is an E-object, not an ``Expression``.
+
+
 
 Limitations
 ===========
