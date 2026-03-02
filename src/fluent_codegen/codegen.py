@@ -1157,7 +1157,31 @@ class Expression(CodeGenAst):
         """Return a :class:`MatMul` (``@``) expression."""
         return MatMul(self, other)
 
-    # Bitwise operators - TODO
+    # Bitwise operators
+
+    def bitand(self, other: Expression, /) -> BitAnd:
+        """Return a :class:`BitAnd` (``&``) expression."""
+        return BitAnd(self, other)
+
+    def bitor(self, other: Expression, /) -> BitOr:
+        """Return a :class:`BitOr` (``|``) expression."""
+        return BitOr(self, other)
+
+    def xor(self, other: Expression, /) -> BitXor:
+        """Return a :class:`BitXor` (``^``) expression."""
+        return BitXor(self, other)
+
+    def lshift(self, other: Expression, /) -> LShift:
+        """Return a :class:`LShift` (``<<``) expression."""
+        return LShift(self, other)
+
+    def rshift(self, other: Expression, /) -> RShift:
+        """Return a :class:`RShift` (``>>``) expression."""
+        return RShift(self, other)
+
+    def invert(self) -> Invert:
+        """Return an :class:`Invert` (``~self``) expression."""
+        return Invert(self)
 
     # Comparison operators
 
@@ -1694,6 +1718,36 @@ class MatMul(ArithOp):
     op = py_ast.MatMult
 
 
+class BitAnd(ArithOp):
+    """Bitwise AND (``&``) operator."""
+
+    op = py_ast.BitAnd
+
+
+class BitOr(ArithOp):
+    """Bitwise OR (``|``) operator."""
+
+    op = py_ast.BitOr
+
+
+class BitXor(ArithOp):
+    """Bitwise XOR (``^``) operator."""
+
+    op = py_ast.BitXor
+
+
+class LShift(ArithOp):
+    """Left shift (``<<``) operator."""
+
+    op = py_ast.LShift
+
+
+class RShift(ArithOp):
+    """Right shift (``>>``) operator."""
+
+    op = py_ast.RShift
+
+
 class CompareOp(BinaryOperator, ABC):
     """Comparison operator (ast.Compare)."""
 
@@ -1825,6 +1879,12 @@ class USub(UnaryOperator):
     """Unary negation (``-``) operator."""
 
     op = py_ast.USub
+
+
+class Invert(UnaryOperator):
+    """Bitwise inversion (``~``) operator."""
+
+    op = py_ast.Invert
 
 
 def traverse(ast_node: py_ast.AST, func: Callable[[py_ast.AST], None]):

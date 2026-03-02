@@ -2425,7 +2425,12 @@ def test_expression_matmul_method():
 
 def test_expression_bitwise_and_or():
     result = auto(1).bitand(auto(2)).bitor(auto(3)).xor(auto(4)).rshift(auto(5)).lshift(auto(6))
-    assert_code_equal(result, "1 & 2 | 3 ")
+    assert_code_equal(result, "((1 & 2 | 3) ^ 4) >> 5 << 6")
+
+
+def test_expression_bitwise_invert():
+    result = auto(1).invert()
+    assert_code_equal(result, "~1")
 
 
 # --- Starred tests ---
