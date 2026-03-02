@@ -2155,6 +2155,11 @@ class E:
         exp_kwargs = {key: ELike_to_Expression(val) for key, val in kwargs.items()}
         return E(self._the_expr.call(exp_args, exp_kwargs))
 
+    # Subscript
+
+    def __getitem__(self, key: ELike) -> E:
+        return E(self._the_expr.subscript(ELike_to_Expression(key)))
+
     # Arithmetic operators
 
     def __add__(self, other: ELike) -> E:

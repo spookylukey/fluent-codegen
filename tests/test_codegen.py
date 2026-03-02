@@ -3723,6 +3723,17 @@ def test_e_objects_comparison_operators():
     )
 
 
+def test_e_objects_subscript():
+    mod = codegen.Module()
+    name = mod.scope.create_name("n")
+    assert_code_equal(
+        name.e[0]["test"][1, 2],
+        """
+        n[0]['test'][1, 2]
+        """,
+    )
+
+
 def test_e_objects_mixed_with_expression():
     mod = codegen.Module()
     x = mod.assign("x", auto(1))
