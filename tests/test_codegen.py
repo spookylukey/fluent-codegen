@@ -8,6 +8,7 @@ from hypothesis import example, given
 from hypothesis.strategies import text
 
 from fluent_codegen import codegen
+from fluent_codegen.codegen import auto
 from fluent_codegen.utils import allowable_name
 
 
@@ -510,7 +511,7 @@ def test_assign_tuple_unpack_type_hint():
     with pytest.raises(AssertionError):
         module.assign(
             ("a", "b"),  # type: ignore
-            codegen.auto([1, 2]),
+            auto([1, 2]),
             type_hint=module.scope.name("int"),
         )
 
@@ -2102,55 +2103,55 @@ def test_rewriting_traverse_import_nodes():
 
 
 def test_auto_string():
-    result = codegen.auto("hello")
+    result = auto("hello")
     assert isinstance(result, codegen.String)
     assert_code_equal(result, "'hello'")
 
 
 def test_auto_int():
-    result = codegen.auto(42)
+    result = auto(42)
     assert isinstance(result, codegen.Number)
     assert_code_equal(result, "42")
 
 
 def test_auto_float():
-    result = codegen.auto(3.14)
+    result = auto(3.14)
     assert isinstance(result, codegen.Number)
     assert_code_equal(result, "3.14")
 
 
 def test_auto_none():
-    result = codegen.auto(None)
+    result = auto(None)
     assert isinstance(result, codegen.NoneExpr)
     assert_code_equal(result, "None")
 
 
 def test_auto_list():
-    result = codegen.auto([1, "two", 3.0])
+    result = auto([1, "two", 3.0])
     assert isinstance(result, codegen.List)
     assert_code_equal(result, "[1, 'two', 3.0]")
 
 
 def test_auto_list_empty():
-    result = codegen.auto([])
+    result = auto([])
     assert isinstance(result, codegen.List)
     assert_code_equal(result, "[]")
 
 
 def test_auto_dict():
-    result = codegen.auto({"a": 1})
+    result = auto({"a": 1})
     assert isinstance(result, codegen.Dict)
     assert_code_equal(result, "{'a': 1}")
 
 
 def test_auto_dict_empty():
-    result = codegen.auto({})
+    result = auto({})
     assert isinstance(result, codegen.Dict)
     assert_code_equal(result, "{}")
 
 
 def test_auto_nested():
-    result = codegen.auto({"items": [1, 2], "name": "test"})
+    result = auto({"items": [1, 2], "name": "test"})
     assert isinstance(result, codegen.Dict)
     source = as_source_code(result)
     assert "'items'" in source
@@ -2161,7 +2162,7 @@ def test_auto_nested():
 
 def test_auto_unsupported_type():
     with pytest.raises(AssertionError):
-        codegen.auto(object())  # type: ignore[arg-type]
+        auto(object())  # type: ignore[arg-type]
 
 
 # --- Bool tests ---
@@ -2183,13 +2184,13 @@ def test_bool_repr():
 
 
 def test_auto_bool_true():
-    result = codegen.auto(True)
+    result = auto(True)
     assert isinstance(result, codegen.Bool)
     assert_code_equal(result, "True")
 
 
 def test_auto_bool_false():
-    result = codegen.auto(False)
+    result = auto(False)
     assert isinstance(result, codegen.Bool)
     assert_code_equal(result, "False")
 
@@ -2212,7 +2213,7 @@ def test_bytes_repr():
 
 
 def test_auto_bytes():
-    result = codegen.auto(b"hello")
+    result = auto(b"hello")
     assert isinstance(result, codegen.Bytes)
     assert_code_equal(result, "b'hello'")
 
@@ -2236,13 +2237,13 @@ def test_tuple_single():
 
 
 def test_auto_tuple():
-    result = codegen.auto((1, "two", None))
+    result = auto((1, "two", None))
     assert isinstance(result, codegen.Tuple)
     assert_code_equal(result, "(1, 'two', None)")
 
 
 def test_auto_tuple_empty():
-    result = codegen.auto(())
+    result = auto(())
     assert isinstance(result, codegen.Tuple)
     assert_code_equal(result, "()")
 
@@ -2268,7 +2269,7 @@ def test_set_empty():
 
 def test_auto_set():
     # Sets are unordered, so we test membership rather than exact output
-    result = codegen.auto({1, 2})
+    result = auto({1, 2})
     assert isinstance(result, codegen.Set)
 
 
@@ -2384,13 +2385,13 @@ def test_expression_not_in_method():
 
 
 def test_expression_is_method():
-    result = codegen.Scope().create_name("x").is_(codegen.auto(None))
+    result = codegen.Scope().create_name("x").is_(auto(None))
     assert isinstance(result, codegen.Is)
     assert_code_equal(result, "x is None")
 
 
 def test_expression_is_not_method():
-    result = codegen.Scope().create_name("x").is_not(codegen.auto(None))
+    result = codegen.Scope().create_name("x").is_not(auto(None))
     assert isinstance(result, codegen.IsNot)
     assert_code_equal(result, "x is not None")
 
@@ -2414,7 +2415,7 @@ def test_expression_neg_method():
 
 
 def test_expression_matmul_method():
-    result = codegen.Scope().create_name("a").matmul(codegen.auto(1))
+    result = codegen.Scope().create_name("a").matmul(auto(1))
     assert isinstance(result, codegen.MatMul)
     assert_code_equal(result, "a @ 1")
 
