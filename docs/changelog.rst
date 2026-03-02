@@ -1,5 +1,13 @@
 Changelog
 =========
 
-See the `RELEASE.rst <https://github.com/spookylukey/fluent-codegen/blob/master/RELEASE.rst>`_
-file in the repository for the full release history.
+Main additions and breaking changes listed here.
+
+0.4.0 - 2026-03-02
+------------------
+
+- Added E-object system
+
+0.3.0 - 2026-02-24
+------------------
+
