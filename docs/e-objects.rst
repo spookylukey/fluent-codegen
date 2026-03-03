@@ -73,7 +73,7 @@ property which is available on ``Scope`` and ``Module``:
 
 This is also a convenient way to get hold of builtins that are already
 registered as names in the ``Module`` scope (and inherited by other scopes that
-are added to ``Module`` objects)
+are added to ``Module`` objects):
 
 .. code-block:: python
 
@@ -154,6 +154,69 @@ But the following will fail:
    mod.assign("y", {"key": "value"})
 
 The above can be fixed by explicit use of ``auto()`` around the dict.
+
+Static typing issues
+--------------------
+
+E-objects allow you to write code that looks like normal Python code, and while
+your static type checker is checking it, it is doing so in a very different way
+to normal Python.
+
+For example, take the following Python code:
+
+
+.. code-block:: python
+
+   import math
+   import decimal
+
+   print(math.sqrt("2"))
+   print(math.arctan(decimal.Decimal(1)))
+
+
+A type checker will immediate tell you that ``"2"`` is an invalid input to the
+``sqrt`` function, and that ``arctan()`` doesn’t exist at all. But consider the
+equivalent using E-objects:
+
+.. code-block:: python
+
+   mod = codegen.Module()
+
+   _, math_lib = mod.create_import("math")
+   _, decimal_lib = mod.create_import("decimal")
+
+   mod.enames.print(math_lib.e.sqrt("2"))
+   mod.enames.print(math_lib.e.arctan(decimal_lib.e.Decimal(1)))
+
+
+This looks similar, but gives no type check errors. All the objects involved are
+correctly inferred as having type ``E``, and ``E`` objects allows any method to be
+called with any ``E`` objects as values.
+
+This is exactly the same as the equivalent without E-objects:
+
+.. code-block:: python
+
+   mod.scope.name("print").call([math_lib.attr("sqrt").call([codegen.String("2")])])
+
+However, the use of strings like ``"print"`` and ``"sqrt"`` may make you more
+aware of the code generation and the limited nature of type checking, while
+E-objects can make you think there is more checking than there really is.
+
+You do still get type checking for incorrect usage of the E-object API itself.
+For example, if you do this:
+
+.. code-block:: python
+
+   import decimal
+
+   mod.enames.print(math_lib.e.sqrt(decimal.Decimal(1)))
+
+…you will get an error (something like “Argument of type "Decimal" cannot be
+assigned to parameter "args" of type "ELike" in function "__call__"”), informing
+you that ``Decimal`` objects can’t be auto-converted to ``Expression``, unlike
+integers and floats.
+
 
 Unsupported operators
 ---------------------
