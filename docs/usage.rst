@@ -37,7 +37,7 @@ Module — the top-level container
 
 Every code-generation session starts with a :class:`~fluent_codegen.codegen.Module`.
 A Module is both a :class:`~fluent_codegen.codegen.Block` (a list of statements)
-and a :class:`~fluent_codegen.codegen.Scope` (a namespace for names).
+and contains a :class:`~fluent_codegen.codegen.Scope` (a namespace for names).
 
 .. code-block:: python
 
@@ -45,8 +45,9 @@ and a :class:`~fluent_codegen.codegen.Scope` (a namespace for names).
 
    module = codegen.Module()
 
-By default the module's scope pre-reserves all Python builtins, so you can
-never accidentally shadow ``str``, ``len``, etc.
+By default the module's scope pre-reserves all Python builtins, so you can never
+accidentally shadow ``str``, ``len``, etc. You can also access these builtins as
+``Name`` objects using ``Module.scope.name()``.
 
 When you're done building, call:
 
@@ -369,14 +370,14 @@ argument:
 
 .. code-block:: python
 
-   result = func.body.assign("result", expr, type_hint=codegen.Name("int", func))
+   result = func.body.assign("result", expr, type_hint=module.scope.name("int"))
    # result: int = expr
 
 For **tuple-unpacking assignments**, pass a tuple of strings as the target:
 
 .. code-block:: python
 
-   q, r = func.body.assign(("q", "r"), codegen.Name("divmod", module.scope).call([
+   q, r = func.body.assign(("q", "r"), module.scope.name("divmod").call([
        codegen.Number(10), codegen.Number(3),
    ]))
    # q, r = divmod(10, 3)
@@ -410,9 +411,9 @@ Classes and decorators
        decorators=[dc],
    )
 
-   cls.body.create_field("x", codegen.Name("float", module.scope))
-   cls.body.create_field("y", codegen.Name("float", module.scope))
-   cls.body.create_field("z", codegen.Name("float", module.scope),
+   cls.body.create_field("x", module.scope.name("float"))
+   cls.body.create_field("y", module.scope.name("float"))
+   cls.body.create_field("z", module.scope.name("float"),
                          default=codegen.Number(0.0))
 
    print(module.as_python_source())

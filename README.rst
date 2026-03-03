@@ -28,7 +28,15 @@ Key features
    tracking
 -  **Simplified API** — high-level classes (``Function``, ``If``,
    ``Try``, ``StringJoin``, etc.) that map to Python constructs without
-   requiring knowledge of the raw ``ast`` module
+   requiring knowledge of the raw ``ast`` module, plus two levels
+   of helpers for building up expressions:
+
+   - a `chaining API on “Expression” nodes
+     <https://fluent-codegen.readthedocs.io/en/latest/usage.html#expression-the-fluent-chaining-api>`_
+
+   - the `E-objects system for using something closer to Python syntax
+     <https://fluent-codegen.readthedocs.io/en/latest/e-objects.html>`_
+
 -  **Security guardrails** — blocks calls to sensitive builtins
    (``exec``, ``eval``, etc.)
 
