@@ -1339,7 +1339,7 @@ def test_block_create_for():
     func, _ = module.create_function("myfunc", args=["items"])
     items = func.name("items")
     item = func.create_name("item")
-    for_stmt = func.body.create_for(item, items)
+    for_stmt, _ = func.body.create_for(item, items)
     for_stmt.body.add_statement(module.scope.name("print").call([item]))
     assert_code_equal(
         module,
@@ -1357,7 +1357,7 @@ def test_block_create_for_scope():
     func.reserve_name("myvalue")
     items = func.name("items")
     item = func.create_name("item")
-    for_stmt = func.body.create_for(item, items)
+    for_stmt, _ = func.body.create_for(item, items)
     assert for_stmt.body.scope.is_name_in_use("myvalue")
 
 
@@ -1366,7 +1366,7 @@ def test_block_create_for_parent_block():
     func, _ = module.create_function("myfunc", args=["items"])
     items = func.name("items")
     item = func.create_name("item")
-    for_stmt = func.body.create_for(item, items)
+    for_stmt, _ = func.body.create_for(item, items)
     assert for_stmt.body.parent_block is func.body
 
 
@@ -1375,8 +1375,7 @@ def test_block_create_for_with_else():
     func, _ = module.create_function("find", args=["items", "target"])
     items = func.name("items")
     target = func.name("target")
-    item = func.create_name("item")
-    for_stmt = func.body.create_for(item, items)
+    for_stmt, item = func.body.create_for("item", items)
     if_stmt = for_stmt.body.create_if()
     branch = if_stmt.create_if_branch(item.eq(target))
     branch.create_return(item)
@@ -1398,9 +1397,7 @@ def test_block_create_for_tuple_unpack():
     module = codegen.Module()
     func, _ = module.create_function("myfunc", args=["mapping"])
     mapping = func.name("mapping")
-    k = func.create_name("k")
-    v = func.create_name("v")
-    for_stmt = func.body.create_for((k, v), mapping.method_call("items"))
+    for_stmt, (k, v) = func.body.create_for(("k", "v"), mapping.method_call("items"))
     for_stmt.body.add_statement(module.scope.name("print").call([k, v]))
     assert_code_equal(
         module,
@@ -1412,6 +1409,12 @@ def test_block_create_for_tuple_unpack():
     )
 
 
+def test_block_create_for_bad_tuple():
+    module = codegen.Module()
+    with pytest.raises(AssertionError):
+        for_stmt, (k, v) = module.create_for(("k", 1), auto([]))  # type: ignore
+
+
 # --- Break and Continue tests ---
 
 
@@ -1419,8 +1422,7 @@ def test_break_in_for():
     module = codegen.Module()
     func, _ = module.create_function("myfunc", args=["items"])
     items = func.name("items")
-    item = func.create_name("item")
-    for_stmt = func.body.create_for(item, items)
+    for_stmt, item = func.body.create_for("item", items)
     if_stmt = for_stmt.body.create_if()
     branch = if_stmt.create_if_branch(item.eq(codegen.Number(0)))
     branch.add_statement(codegen.Break())
@@ -1439,8 +1441,7 @@ def test_continue_in_for():
     module = codegen.Module()
     func, _ = module.create_function("myfunc", args=["items"])
     items = func.name("items")
-    item = func.create_name("item")
-    for_stmt = func.body.create_for(item, items)
+    for_stmt, item = func.body.create_for("item", items)
     if_stmt = for_stmt.body.create_if()
     branch = if_stmt.create_if_branch(item.lt(codegen.Number(0)))
     branch.add_statement(codegen.Continue())
@@ -1461,8 +1462,7 @@ def test_create_break():
     module = codegen.Module()
     func, _ = module.create_function("myfunc", args=["items"])
     items = func.name("items")
-    item = func.create_name("item")
-    for_stmt = func.body.create_for(item, items)
+    for_stmt, item = func.body.create_for("item", items)
     for_stmt.body.create_break()
     assert_code_equal(
         module,
@@ -1478,8 +1478,7 @@ def test_create_continue():
     module = codegen.Module()
     func, _ = module.create_function("myfunc", args=["items"])
     items = func.name("items")
-    item = func.create_name("item")
-    for_stmt = func.body.create_for(item, items)
+    for_stmt, item = func.body.create_for("item", items)
     for_stmt.body.create_continue()
     assert_code_equal(
         module,
@@ -1495,8 +1494,7 @@ def test_break_and_continue_combined():
     module = codegen.Module()
     func, _ = module.create_function("myfunc", args=["items"])
     items = func.name("items")
-    item = func.create_name("item")
-    for_stmt = func.body.create_for(item, items)
+    for_stmt, item = func.body.create_for("item", items)
     if_stmt = for_stmt.body.create_if()
     skip_branch = if_stmt.create_if_branch(item.lt(codegen.Number(0)))
     skip_branch.add_statement(codegen.Continue())
@@ -2180,9 +2178,8 @@ def test_rewriting_traverse_try_except():
 def test_rewriting_traverse_for_statement():
     """Test traversal into For statement's target, iterable, body, and else block."""
     module = codegen.Module()
-    item = module.scope.create_name("item")
     items = module.scope.create_name("items")
-    for_stmt = module.create_for(item, items)
+    for_stmt, item = module.create_for("item", items)
     for_stmt.body.add_statement(module.scope.name("print").call([item]))
     for_stmt.else_block.create_return(codegen.Number(0))
 

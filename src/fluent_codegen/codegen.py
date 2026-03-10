@@ -714,19 +714,42 @@ class Block(CodeGenAstList):
         self.add_statement(with_statement)
         return with_statement
 
-    def create_for(self, target: Target, iterable: ExpressionLike) -> For:
+    @overload
+    def create_for(self, target: str, iterable: ExpressionLike) -> tuple[For, Name]: ...
+
+    @overload
+    def create_for(self, target: tuple[str, ...], iterable: ExpressionLike) -> tuple[For, tuple[Name, ...]]: ...
+
+    @overload
+    def create_for(self, target: Target, iterable: ExpressionLike) -> tuple[For, Target]: ...
+
+    def create_for(self, target: str | tuple[str, ...] | Target, iterable: ExpressionLike) -> tuple[For, Target]:
         """
         Create a ``for`` loop, add it to this block, and return it.
+        The first parameter is the loop variable. If this is a str
+        or tuple[str] then these names will reserved and Name objects
+        created, similar to `assign`.
+
+        The second parameters is an expression that will be iterated over.
 
         Usage::
 
-            i = func.create_name("i")
-            for_stmt = func.body.create_for(i, items)
+            for_stmt, index = func.body.create_for("i", items)
             for_stmt.body.add_statement(some_expr)
         """
+        if isinstance(target, str):
+            name_obj = self.scope.create_name(target)
+            target = name_obj
+        elif isinstance(target, tuple):
+            name_objs: list[Name] = []
+            for t in target:
+                if not isinstance(t, str):
+                    raise AssertionError(f"Expected str objects, got {t}")
+                name_objs.append(self.scope.create_name(t))
+            target = tuple(name_objs)
         for_statement = For(target, E_to_Expression(iterable), parent_scope=self.scope, parent_block=self)
         self.add_statement(for_statement)
-        return for_statement
+        return for_statement, target
 
     def has_assignment_for_name(self, name: str) -> bool:
         """Return whether *name* is assigned anywhere in this block or its parents."""
@@ -1773,7 +1796,7 @@ class Subscript(Expression):
 #: Type alias for valid assignment target expressions.
 #: A :class:`Name`, :class:`Attr`, or :class:`Subscript` expression,
 #: or a tuple of targets (for unpacking assignments).
-Target = Name | Attr | Subscript | tuple["Target", ...]
+type Target = Name | Attr | Subscript | tuple[Target, ...]
 
 
 def is_target(value: object) -> TypeIs[Target]:
