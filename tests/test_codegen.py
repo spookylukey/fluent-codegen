@@ -1964,6 +1964,75 @@ def test_subscript():
     assert_code_equal(lookup, "tmp['x']")
 
 
+# --- Slice tests ---
+
+
+def test_slice_lower_upper():
+    s = codegen.Slice(codegen.Number(0), codegen.Number(10))
+    scope = codegen.Scope()
+    var = scope.create_name("items")
+    assert_code_equal(var.subscript(s), "items[0:10]")
+
+
+def test_slice_lower_only():
+    s = codegen.Slice(start=codegen.Number(1))
+    scope = codegen.Scope()
+    var = scope.create_name("items")
+    assert_code_equal(var.subscript(s), "items[1:]")
+
+
+def test_slice_upper_only():
+    s = codegen.Slice(stop=codegen.Number(5))
+    scope = codegen.Scope()
+    var = scope.create_name("items")
+    assert_code_equal(var.subscript(s), "items[:5]")
+
+
+def test_slice_step_only():
+    s = codegen.Slice(step=codegen.Number(2))
+    scope = codegen.Scope()
+    var = scope.create_name("items")
+    assert_code_equal(var.subscript(s), "items[::2]")
+
+
+def test_slice_all_three():
+    s = codegen.Slice(codegen.Number(1), codegen.Number(10), codegen.Number(2))
+    scope = codegen.Scope()
+    var = scope.create_name("items")
+    assert_code_equal(var.subscript(s), "items[1:10:2]")
+
+
+def test_slice_empty():
+    s = codegen.Slice()
+    scope = codegen.Scope()
+    var = scope.create_name("items")
+    assert_code_equal(var.subscript(s), "items[:]")
+
+
+def test_slice_with_expressions():
+    scope = codegen.Scope()
+    n = scope.create_name("n")
+    s = codegen.Slice(start=codegen.Number(0), stop=n)
+    var = scope.create_name("items")
+    assert_code_equal(var.subscript(s), "items[0:n]")
+
+
+def test_slice_e():
+    scope = codegen.Scope()
+    var = scope.create_name("items")
+    x = scope.create_name("x")
+    assert_code_equal(var.e[0:-1], "items[0:-1]")
+    assert_code_equal(var.e[x.e : x.e + 1], "items[x:x + 1]")
+
+
+def test_slice_repr():
+    s = codegen.Slice(codegen.Number(1), codegen.Number(10), codegen.Number(2))
+    assert "Slice" in repr(s)
+    assert "start" in repr(s)
+    assert "stop" in repr(s)
+    assert "step" in repr(s)
+
+
 def test_equals():
     eq = codegen.Equals(codegen.String("x"), codegen.String("y"))
     assert_code_equal(eq, "'x' == 'y'")
@@ -2452,6 +2521,15 @@ def test_rewriting_traverse_subscript():
     assert "Subscript" in visited
     assert "Name" in visited
     assert "Number" in visited
+
+
+def test_rewriting_traverse_slice():
+    """Test traversal into Slice lower, upper, and step."""
+    s = codegen.Slice(codegen.Number(1), codegen.Number(10), codegen.Number(2))
+
+    visited = _collect_traversed_types(s)
+    assert "Slice" in visited
+    assert visited.count("Number") == 3
 
 
 def test_rewriting_traverse_attr():

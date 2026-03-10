@@ -171,6 +171,10 @@ Access and call expressions
    :members:
    :show-inheritance:
 
+.. autoclass:: Slice
+   :members:
+   :show-inheritance:
+
 .. autoclass:: Starred
    :members:
    :show-inheritance:

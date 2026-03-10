@@ -63,6 +63,7 @@ unaryop = ast.unaryop
 Pass = ast.Pass
 Return = ast.Return
 Set = ast.Set
+Slice = ast.Slice
 Starred = ast.Starred
 Store = ast.Store
 Subscript = ast.Subscript

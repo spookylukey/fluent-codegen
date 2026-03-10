@@ -1857,6 +1857,42 @@ class Subscript(Expression):
         )
 
 
+class Slice(Expression):
+    """A slice expression (e.g. ``0:10``, ``::2``, ``1:-1``).
+
+    Used as the *slice* argument to :class:`Subscript`.
+    All three components — *lower*, *upper*, and *step* — are optional.
+    """
+
+    def __init__(
+        self,
+        start: Expression | None = None,
+        stop: Expression | None = None,
+        step: Expression | None = None,
+    ):
+        self.start = start
+        self.stop = stop
+        self.step = step
+
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
+        return py_ast.Slice(
+            lower=self.start.as_ast() if self.start is not None else None,
+            upper=self.stop.as_ast() if self.stop is not None else None,
+            step=self.step.as_ast() if self.step is not None else None,
+            **DEFAULT_AST_ARGS,
+        )
+
+    def __repr__(self):
+        parts: list[str] = []
+        if self.start is not None:
+            parts.append(f"start={self.start!r}")
+        if self.stop is not None:
+            parts.append(f"stop={self.stop!r}")
+        if self.step is not None:
+            parts.append(f"step={self.step!r}")
+        return f"Slice({', '.join(parts)})"
+
+
 #: Type alias for valid assignment target expressions.
 #: A :class:`Name`, :class:`Attr`, or :class:`Subscript` expression,
 #: or a tuple of targets (for unpacking assignments).
@@ -2220,7 +2256,14 @@ def empty_If() -> py_ast.If:
 
 type SimplePythonObj = bool | str | bytes | int | float | None
 type Autoable = (
-    SimplePythonObj | Expression | E | list[Autoable] | tuple[Autoable, ...] | set[Autoable] | dict[Autoable, Autoable]
+    SimplePythonObj
+    | Expression
+    | E
+    | slice[Autoable]
+    | list[Autoable]
+    | tuple[Autoable, ...]
+    | set[Autoable]
+    | dict[Autoable, Autoable]
 )
 
 
@@ -2236,6 +2279,8 @@ def auto(value: int) -> Number: ...
 def auto(value: float) -> Number: ...
 @overload
 def auto(value: None) -> NoneExpr: ...
+@overload
+def auto(value: slice[Autoable]) -> Slice: ...
 @overload
 def auto(value: Expression) -> Expression: ...
 @overload
@@ -2254,7 +2299,7 @@ def auto(value: Autoable) -> Expression:
     """
     Create a codegen Expression from a plain Python object.
 
-    Supports bool, str, bytes, int, float, None, and recursively
+    Supports bool, str, bytes, int, float, None, slice, and recursively
     list, tuple, set, and dict.
 
     It also supports a mixture - containers than have both plain Python objects
@@ -2270,6 +2315,12 @@ def auto(value: Autoable) -> Expression:
         return Number(value)
     elif value is None:
         return constants.None_
+    elif isinstance(value, slice):
+        return Slice(
+            start=auto(value.start) if value.start is not None else None,
+            stop=auto(value.stop) if value.stop is not None else None,
+            step=auto(value.step) if value.step is not None else None,
+        )
     elif isinstance(value, Expression):
         return value
     elif isinstance(value, E):

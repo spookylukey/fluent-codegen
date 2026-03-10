@@ -206,7 +206,7 @@ new Expressions:
      - ``expr.name(a, b)``
    * - ``.subscript(index)``
      - :class:`~fluent_codegen.codegen.Subscript`
-     - ``expr[index]``
+     - ``expr[index]`` — pass a :class:`~fluent_codegen.codegen.Slice` for slicing
    * - ``.add(other)``
      - :class:`~fluent_codegen.codegen.Add`
      - ``expr + other``
