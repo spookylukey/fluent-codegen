@@ -174,8 +174,8 @@ For example, take the following Python code:
    print(math.arctan(decimal.Decimal(1)))
 
 
-A type checker will immediate tell you that ``"2"`` is an invalid input to the
-``sqrt`` function, and that ``arctan()`` doesn’t exist at all. But consider the
+A type checker will immediately tell you that ``"2"`` is an invalid input to the
+``sqrt()`` function, and that ``arctan()`` doesn’t exist at all. But consider the
 equivalent using E-objects:
 
 .. code-block:: python
