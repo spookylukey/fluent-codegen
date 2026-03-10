@@ -457,15 +457,16 @@ def test_multiple_create_assignment_in_inherited_scope():
     scope = codegen.Scope()
     scope.reserve_name("myfunc")
     func = codegen.Function("myfunc", args=[], parent_scope=scope)
-    try_ = codegen.Try([], func)
+    try_ = codegen.Try(func)
+    except_block = try_.create_except([func.create_name("E")])
     name = func.reserve_name("name")
 
     try_.try_block.create_assignment(name, codegen.Number(1))
     with pytest.raises(AssertionError):
         try_.try_block.create_assignment(name, codegen.Number(2))
     with pytest.raises(AssertionError):
-        try_.except_block.create_assignment(name, codegen.Number(2))
-    try_.except_block.create_assignment(name, codegen.Number(2), allow_multiple=True)
+        except_block.create_assignment(name, codegen.Number(2))
+    except_block.create_assignment(name, codegen.Number(2), allow_multiple=True)
 
 
 # --- Block.assign shortcut tests ---
@@ -926,7 +927,8 @@ def test_method_call_chained_name():
 def test_try_catch():
     scope = codegen.Scope()
     my_error = scope.create_name("MyError")
-    try_ = codegen.Try([my_error], scope)
+    try_ = codegen.Try(scope)
+    except_block = try_.create_except([my_error])
     assert_code_equal(
         try_,
         """
@@ -940,7 +942,7 @@ def test_try_catch():
     scope.reserve_name("y")
     scope.reserve_name("z")
     try_.try_block.create_assignment("x", codegen.String("x"))
-    try_.except_block.create_assignment("y", codegen.String("y"))
+    except_block.create_assignment("y", codegen.String("y"))
     try_.else_block.create_assignment("z", codegen.String("z"))
     assert_code_equal(
         try_,
@@ -959,7 +961,8 @@ def test_try_catch_multiple_exceptions():
     scope = codegen.Scope()
     my_error = scope.create_name("MyError")
     other_error = scope.create_name("OtherError")
-    try_ = codegen.Try([my_error, other_error], scope)
+    try_ = codegen.Try(scope)
+    try_.create_except([my_error, other_error])
     assert_code_equal(
         try_,
         """
@@ -971,29 +974,148 @@ def test_try_catch_multiple_exceptions():
     )
 
 
+def test_try_multiple_except_clauses():
+    scope = codegen.Scope()
+    err_a = scope.create_name("ErrA")
+    err_b = scope.create_name("ErrB")
+    try_ = codegen.Try(scope)
+    block_a = try_.create_except([err_a])
+    block_b = try_.create_except([err_b])
+    scope.reserve_name("x")
+    scope.reserve_name("y")
+    block_a.create_assignment("x", codegen.String("a"))
+    block_b.create_assignment("y", codegen.String("b"))
+    assert_code_equal(
+        try_,
+        """
+        try:
+            pass
+        except ErrA:
+            x = 'a'
+        except ErrB:
+            y = 'b'
+        """,
+    )
+
+
+def test_try_except_as_name():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", args=[])
+    my_error = module.scope.create_name("MyError")
+    try_ = codegen.Try(func, parent_block=func.body)
+    except_block = try_.create_except([my_error], name="e")
+    func.reserve_name("e")
+    except_block.add_statement(module.scope.name("print").call([func.name("e")]))
+    func.body.add_statement(try_)
+    assert_code_equal(
+        module,
+        """
+        def myfunc():
+            try:
+                pass
+            except MyError as e:
+                print(e)
+        """,
+    )
+
+
+def test_try_finally():
+    scope = codegen.Scope()
+    try_ = codegen.Try(scope)
+    try_.create_except([scope.create_name("MyError")])
+    scope.reserve_name("x")
+    try_.finally_block.create_assignment("x", codegen.String("cleanup"))
+    assert_code_equal(
+        try_,
+        """
+        try:
+            pass
+        except MyError:
+            pass
+        finally:
+            x = 'cleanup'
+        """,
+    )
+
+
+def test_try_finally_only():
+    scope = codegen.Scope()
+    try_ = codegen.Try(scope)
+    scope.reserve_name("x")
+    try_.finally_block.create_assignment("x", codegen.String("cleanup"))
+    assert_code_equal(
+        try_,
+        """
+        try:
+            pass
+        finally:
+            x = 'cleanup'
+        """,
+    )
+
+
 def test_try_catch_has_assignment_for_name_1():
     scope = codegen.Scope()
-    try_ = codegen.Try([], scope)
+    try_ = codegen.Try(scope)
+    try_.create_except([scope.create_name("E")])
     name = scope.reserve_name("foo")
     assert not try_.has_assignment_for_name(name)
 
     try_.try_block.create_assignment(name, codegen.String("x"))
     assert not try_.has_assignment_for_name(name)
 
-    try_.except_block.create_assignment(name, codegen.String("x"), allow_multiple=True)
+    try_.except_blocks[0].create_assignment(name, codegen.String("x"), allow_multiple=True)
     assert try_.has_assignment_for_name(name)
 
 
 def test_try_catch_has_assignment_for_name_2():
     scope = codegen.Scope()
-    try_ = codegen.Try([], scope)
+    try_ = codegen.Try(scope)
+    try_.create_except([scope.create_name("E")])
     name = scope.reserve_name("foo")
 
-    try_.except_block.create_assignment(name, codegen.String("x"))
+    try_.except_blocks[0].create_assignment(name, codegen.String("x"))
     assert not try_.has_assignment_for_name(name)
 
     try_.else_block.create_assignment(name, codegen.String("x"), allow_multiple=True)
     assert try_.has_assignment_for_name(name)
+
+
+def test_try_has_assignment_for_name_finally():
+    scope = codegen.Scope()
+    try_ = codegen.Try(scope)
+    name = scope.reserve_name("foo")
+    assert not try_.has_assignment_for_name(name)
+
+    try_.finally_block.create_assignment(name, codegen.String("x"))
+    assert try_.has_assignment_for_name(name)
+
+
+def test_try_has_assignment_for_name_multiple_except():
+    scope = codegen.Scope()
+    try_ = codegen.Try(scope)
+    try_.create_except([scope.create_name("ErrA")])
+    try_.create_except([scope.create_name("ErrB")])
+    name = scope.reserve_name("foo")
+
+    try_.try_block.create_assignment(name, codegen.String("x"))
+    # Only one except assigns — not enough
+    try_.except_blocks[0].create_assignment(name, codegen.String("x"), allow_multiple=True)
+    assert not try_.has_assignment_for_name(name)
+
+    # Now all except blocks assign
+    try_.except_blocks[1].create_assignment(name, codegen.String("x"), allow_multiple=True)
+    assert try_.has_assignment_for_name(name)
+
+
+def test_try_has_assignment_no_except_blocks():
+    scope = codegen.Scope()
+    try_ = codegen.Try(scope)
+    name = scope.reserve_name("foo")
+
+    # try block assigns, but no except blocks exist, so it's not guaranteed
+    try_.try_block.create_assignment(name, codegen.String("x"))
+    assert not try_.has_assignment_for_name(name)
 
 
 def test_block_create_try():
@@ -1002,9 +1124,9 @@ def test_block_create_try():
     items = func.name("items")
     my_error = module.scope.create_name("MyError")
 
-    try_stmt = func.body.create_try([my_error])
+    try_stmt = func.body.create_try()
     try_stmt.try_block.add_statement(module.scope.name("print").call([items]))
-    try_stmt.except_block.create_return(codegen.Number(0))
+    try_stmt.create_except([my_error]).create_return(codegen.Number(0))
     assert_code_equal(
         module,
         """
@@ -1022,9 +1144,9 @@ def test_block_create_try_with_else():
     func, _ = module.create_function("myfunc", args=[])
     my_error = module.scope.create_name("MyError")
 
-    try_stmt = func.body.create_try([my_error])
+    try_stmt = func.body.create_try()
     try_stmt.try_block.create_return(codegen.Number(1))
-    try_stmt.except_block.create_return(codegen.Number(2))
+    try_stmt.create_except([my_error]).create_return(codegen.Number(2))
     try_stmt.else_block.create_return(codegen.Number(3))
     assert_code_equal(
         module,
@@ -1044,23 +1166,27 @@ def test_block_create_try_scope():
     module = codegen.Module()
     func, _ = module.create_function("myfunc", args=[])
     func.reserve_name("myvalue")
-    my_error = module.scope.create_name("MyError")
 
-    try_stmt = func.body.create_try([my_error])
+    try_stmt = func.body.create_try()
     assert try_stmt.try_block.scope.is_name_in_use("myvalue")
-    assert try_stmt.except_block.scope.is_name_in_use("myvalue")
     assert try_stmt.else_block.scope.is_name_in_use("myvalue")
+    assert try_stmt.finally_block.scope.is_name_in_use("myvalue")
+
+    except_block = try_stmt.create_except([module.scope.create_name("E")])
+    assert except_block.scope.is_name_in_use("myvalue")
 
 
 def test_block_create_try_parent_block():
     module = codegen.Module()
     func, _ = module.create_function("myfunc", args=[])
-    my_error = module.scope.create_name("MyError")
 
-    try_stmt = func.body.create_try([my_error])
+    try_stmt = func.body.create_try()
     assert try_stmt.try_block.parent_block is func.body
-    assert try_stmt.except_block.parent_block is func.body
     assert try_stmt.else_block.parent_block is func.body
+    assert try_stmt.finally_block.parent_block is func.body
+
+    except_block = try_stmt.create_except([module.scope.create_name("E")])
+    assert except_block.parent_block is func.body
 
 
 def test_block_create_try_e_objects():
@@ -1069,9 +1195,9 @@ def test_block_create_try_e_objects():
     my_error = module.scope.create_name("MyError")
 
     # Pass E-objects as catch_exceptions
-    try_stmt = func.body.create_try([my_error.e])
+    try_stmt = func.body.create_try()
     try_stmt.try_block.create_return(codegen.Number(1))
-    try_stmt.except_block.create_return(codegen.Number(2))
+    try_stmt.create_except([my_error.e]).create_return(codegen.Number(2))
     assert_code_equal(
         module,
         """
@@ -1145,9 +1271,9 @@ def test_block_create_raise_bare():
     module = codegen.Module()
     func, _ = module.create_function("myfunc", args=[])
     my_error = module.scope.create_name("MyError")
-    try_stmt = func.body.create_try([my_error])
+    try_stmt = func.body.create_try()
     try_stmt.try_block.create_return(codegen.Number(1))
-    try_stmt.except_block.create_raise()
+    try_stmt.create_except([my_error]).create_raise()
     assert_code_equal(
         module,
         """
@@ -2355,9 +2481,10 @@ def test_rewriting_traverse_try_except():
     """Test traversal into Try blocks."""
     module = codegen.Module()
     exc = codegen.Name("ValueError", module.scope)
-    try_stmt = codegen.Try([exc], module.scope)
+    try_stmt = codegen.Try(module.scope)
     try_stmt.try_block.create_return(codegen.String("tried"))
-    try_stmt.except_block.create_return(codegen.String("caught"))
+    except_block = try_stmt.create_except([exc])
+    except_block.create_return(codegen.String("caught"))
     try_stmt.else_block.create_return(codegen.String("else"))
     module.add_statement(try_stmt)
 
@@ -2539,9 +2666,9 @@ def test_rewriting_traverse_deeply_nested_codegen_tree():
     branch.create_return(codegen.Bool(True))
 
     # Try/except in else
-    try_stmt = codegen.Try([codegen.Name("Exception", func)], func)
+    try_stmt = codegen.Try(func)
     try_stmt.try_block.create_return(codegen.Bool(False))
-    try_stmt.except_block.create_return(codegen.Bool(False))
+    try_stmt.create_except([codegen.Name("Exception", func)]).create_return(codegen.Bool(False))
     if_stmt.else_block.add_statement(try_stmt)
 
     # With statement

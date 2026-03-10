@@ -133,8 +133,8 @@ names in the scope:
      - A ``with`` statement
    * - ``create_for(target, iterable)``
      - A ``for`` loop
-   * - ``create_try(catch_exceptions)``
-     - A ``try``/``except``/``else`` statement
+   * - ``create_try()``
+     - A ``try``/``except``/``else``/``finally`` statement
    * - ``create_return(value)``
      - ``return value``
    * - ``create_break()``

@@ -760,18 +760,20 @@ class Block(CodeGenAstList):
         self.add_statement(for_statement)
         return for_statement, target
 
-    def create_try(self, catch_exceptions: Sequence[ExpressionLike]) -> Try:
+    def create_try(self) -> Try:
         """
         Create a Try statement, add it to this block, and return it.
 
+        Add ``except`` clauses via :meth:`Try.create_except`.
+
         Usage::
 
-            try_stmt = block.create_try([my_error])
+            try_stmt = block.create_try()
             try_stmt.try_block.add_statement(some_expr)
-            try_stmt.except_block.create_return(value)
+            except_block = try_stmt.create_except([my_error])
+            except_block.create_return(value)
         """
         try_statement = Try(
-            [E_to_Expression(e) for e in catch_exceptions],
             self.scope,
             parent_block=self,
         )
@@ -1222,50 +1224,81 @@ class For(Statement):
 
 
 class Try(Statement):
-    """A ``try``/``except``/``else`` statement."""
+    """A ``try``/``except``/``else``/``finally`` statement.
+
+    Except clauses are added incrementally via :meth:`create_except`,
+    similar to how :meth:`If.create_if_branch` works.
+    """
 
     def __init__(
         self,
-        catch_exceptions: Sequence[Expression],
         parent_scope: Scope,
         *,
         parent_block: Block | None = None,
     ):
-        self.catch_exceptions = catch_exceptions
         self._parent_scope = parent_scope
         self._parent_block = parent_block
         self.try_block = Block(parent_scope, parent_block=parent_block)
-        self.except_block = Block(parent_scope, parent_block=parent_block)
+        self.except_blocks: list[Block] = []
+        self.except_types: list[list[Expression]] = []
+        self.except_names: list[str | None] = []
         self.else_block = Block(parent_scope, parent_block=parent_block)
+        self.finally_block = Block(parent_scope, parent_block=parent_block)
+
+    def create_except(
+        self,
+        catch_exceptions: Sequence[ExpressionLike],
+        *,
+        name: str | None = None,
+    ) -> Block:
+        """
+        Add an ``except`` clause and return its body block.
+
+        *catch_exceptions* is the list of exception types to catch
+        (a single-element list produces ``except Foo:``, multiple
+        elements produce ``except (Foo, Bar):``).
+
+        *name*, if given, becomes the ``as`` target
+        (``except Foo as name:``).
+        """
+        block = Block(self._parent_scope, parent_block=self._parent_block)
+        self.except_blocks.append(block)
+        self.except_types.append([E_to_Expression(e) for e in catch_exceptions])
+        self.except_names.append(name)
+        return block
+
+    def _handler_type_ast(self, exceptions: list[Expression]) -> py_ast.expr:
+        if len(exceptions) == 1:
+            return exceptions[0].as_ast()
+        return py_ast.Tuple(
+            elts=[e.as_ast() for e in exceptions],
+            ctx=py_ast.Load(),
+            **DEFAULT_AST_ARGS,
+        )
 
     def as_ast(self, *, include_comments: bool = False) -> py_ast.Try:
         return py_ast.Try(
             body=self.try_block.as_ast_list(allow_empty=False, include_comments=include_comments),
             handlers=[
                 py_ast.ExceptHandler(
-                    type=(
-                        self.catch_exceptions[0].as_ast()
-                        if len(self.catch_exceptions) == 1
-                        else py_ast.Tuple(
-                            elts=[e.as_ast() for e in self.catch_exceptions],
-                            ctx=py_ast.Load(),
-                            **DEFAULT_AST_ARGS,
-                        )
-                    ),
-                    name=None,
-                    body=self.except_block.as_ast_list(allow_empty=False, include_comments=include_comments),
+                    type=self._handler_type_ast(exc_types),
+                    name=exc_name,
+                    body=exc_block.as_ast_list(allow_empty=False, include_comments=include_comments),
                     **DEFAULT_AST_ARGS,
                 )
+                for exc_types, exc_name, exc_block in zip(self.except_types, self.except_names, self.except_blocks)
             ],
             orelse=self.else_block.as_ast_list(allow_empty=True, include_comments=include_comments),
-            finalbody=[],
+            finalbody=self.finally_block.as_ast_list(allow_empty=True, include_comments=include_comments),
             **DEFAULT_AST_ARGS,
         )
 
     def has_assignment_for_name(self, name: str) -> bool:
-        if (
-            self.try_block.has_assignment_for_name(name) or self.else_block.has_assignment_for_name(name)
-        ) and self.except_block.has_assignment_for_name(name):
+        assigns_in_try = self.try_block.has_assignment_for_name(name) or self.else_block.has_assignment_for_name(name)
+        assigns_in_all_except = self.except_blocks and all(b.has_assignment_for_name(name) for b in self.except_blocks)
+        if assigns_in_try and assigns_in_all_except:
+            return True
+        if self.finally_block.has_assignment_for_name(name):
             return True
         return False
 

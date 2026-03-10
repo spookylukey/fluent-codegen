@@ -96,10 +96,7 @@ def test_remove_unused_in_try_block():
     x = func.body.scope.create_name("x")
     scope = func.body.scope
     scope.reserve_name("Exception", is_builtin=True)
-    try_stmt = Try(
-        catch_exceptions=[Name("Exception", scope)],
-        parent_scope=scope,
-    )
+    try_stmt = Try(parent_scope=scope)
     try_stmt.try_block.create_assignment(x, Number(1))
     func.body.add_statement(try_stmt)
     func.body.create_return(String("ok"))
