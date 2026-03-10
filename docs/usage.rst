@@ -141,6 +141,8 @@ names in the scope:
      - ``break``
    * - ``create_continue()``
      - ``continue``
+   * - ``create_raise(exc, cause)``
+     - ``raise exc`` or ``raise exc from cause``
    * - ``create_assert(test, msg)``
      - ``assert test, msg``
    * - ``add_comment(text)``

@@ -1084,6 +1084,111 @@ def test_block_create_try_e_objects():
     )
 
 
+# --- Raise tests ---
+
+
+def test_raise_simple():
+    scope = codegen.Scope()
+    my_error = scope.create_name("MyError")
+    raise_stmt = codegen.Raise(my_error)
+    assert_code_equal(raise_stmt, "raise MyError")
+
+
+def test_raise_with_cause():
+    scope = codegen.Scope()
+    my_error = scope.create_name("MyError")
+    other_error = scope.create_name("OtherError")
+    raise_stmt = codegen.Raise(my_error, other_error)
+    assert_code_equal(raise_stmt, "raise MyError from OtherError")
+
+
+def test_raise_bare():
+    raise_stmt = codegen.Raise()
+    assert_code_equal(raise_stmt, "raise")
+
+
+def test_raise_repr():
+    scope = codegen.Scope()
+    exc = scope.create_name("Exc")
+    assert repr(codegen.Raise(exc)) == f"Raise({repr(exc)}, None)"
+
+
+def test_raise_cause_without_exc():
+    scope = codegen.Scope()
+    cause = scope.create_name("cause")
+    with pytest.raises(AssertionError, match="Cannot use 'cause' without 'exc'"):
+        codegen.Raise(cause=cause)
+
+
+def test_raise_with_call():
+    scope = codegen.Scope()
+    value_error = scope.create_name("ValueError")
+    raise_stmt = codegen.Raise(value_error.call([codegen.String("bad value")]))
+    assert_code_equal(raise_stmt, "raise ValueError('bad value')")
+
+
+def test_block_create_raise():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", args=["x"])
+    x = func.name("x")
+    func.body.create_raise(module.scope.name("ValueError").call([x]))
+    assert_code_equal(
+        module,
+        """
+        def myfunc(x):
+            raise ValueError(x)
+        """,
+    )
+
+
+def test_block_create_raise_bare():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", args=[])
+    my_error = module.scope.create_name("MyError")
+    try_stmt = func.body.create_try([my_error])
+    try_stmt.try_block.create_return(codegen.Number(1))
+    try_stmt.except_block.create_raise()
+    assert_code_equal(
+        module,
+        """
+        def myfunc():
+            try:
+                return 1
+            except MyError:
+                raise
+        """,
+    )
+
+
+def test_block_create_raise_with_cause():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", args=[])
+    func.body.create_raise(
+        module.scope.name("RuntimeError").call([codegen.String("failed")]),
+        cause=module.scope.name("ValueError").call([codegen.String("bad")]),
+    )
+    assert_code_equal(
+        module,
+        """
+        def myfunc():
+            raise RuntimeError('failed') from ValueError('bad')
+        """,
+    )
+
+
+def test_block_create_raise_e_objects():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", args=[])
+    func.body.create_raise(module.enames.ValueError("oops"))
+    assert_code_equal(
+        module,
+        """
+        def myfunc():
+            raise ValueError('oops')
+        """,
+    )
+
+
 # --- If tests ---
 
 

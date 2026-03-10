@@ -79,6 +79,10 @@ Statements
    :members:
    :show-inheritance:
 
+.. autoclass:: Raise
+   :members:
+   :show-inheritance:
+
 .. autoclass:: If
    :members:
    :show-inheritance:

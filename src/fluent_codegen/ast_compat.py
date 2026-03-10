@@ -48,6 +48,7 @@ NotEq = ast.NotEq
 NotIn = ast.NotIn
 Or = ast.Or
 Pow = ast.Pow
+Raise = ast.Raise
 RShift = ast.RShift
 Sub = ast.Sub
 Is = ast.Is

@@ -687,6 +687,15 @@ class Block(CodeGenAstList):
         """Add an ``assert`` statement to this block."""
         self.add_statement(Assert(E_to_Expression(test), E_to_Expression(msg) if msg is not None else None))
 
+    def create_raise(self, exc: ExpressionLike | None = None, cause: ExpressionLike | None = None) -> None:
+        """Add a ``raise`` statement to this block."""
+        self.add_statement(
+            Raise(
+                E_to_Expression(exc) if exc is not None else None,
+                E_to_Expression(cause) if cause is not None else None,
+            )
+        )
+
     def create_if(self) -> If:
         """
         Create an If statement, add it to this block, and return it.
@@ -1065,6 +1074,33 @@ class Assert(Statement):
 
     def __repr__(self):
         return f"Assert({repr(self.test)}, {repr(self.msg)})"
+
+
+class Raise(Statement):
+    """A ``raise`` statement.
+
+    Supports:
+
+    * ``raise exc``
+    * ``raise exc from cause``
+    * bare ``raise`` (re-raise the current exception)
+    """
+
+    def __init__(self, exc: Expression | None = None, cause: Expression | None = None):
+        if cause is not None and exc is None:
+            raise AssertionError("Cannot use 'cause' without 'exc'")
+        self.exc = exc
+        self.cause = cause
+
+    def as_ast(self, *, include_comments: bool = False):
+        return py_ast.Raise(
+            exc=self.exc.as_ast() if self.exc is not None else None,
+            cause=self.cause.as_ast() if self.cause is not None else None,
+            **DEFAULT_AST_ARGS,
+        )
+
+    def __repr__(self):
+        return f"Raise({repr(self.exc)}, {repr(self.cause)})"
 
 
 class If(Statement):
