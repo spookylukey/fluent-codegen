@@ -1,0 +1,66 @@
+Total syntax nodes analyzed: 2,127,485
+Covered by fluent-codegen:  2,097,220 (98.6%)
+Not covered:                30,265 (1.4%)
+
+======================================================================
+MISSING AST NODES — ranked by frequency in real Python code
+======================================================================
+
+Rank  AST Node                  Count  % of total  Notes
+----  --------                  -----  ----------  -----
+   1  For                       6,672       0.31%  for loops — very common control flow
+   2  Slice                     5,235       0.25%  slice notation a[1:3] — used in Subscript
+   3  Raise                     5,191       0.24%  raise statements — essential for error handling
+   4  AugAssign                 3,022       0.14%  x += 1, x -= 1, etc.
+   5  IfExp                     1,669       0.08%  ternary: x if cond else y
+   6  ListComp                  1,472       0.07%  [x for x in items]
+   7  Yield                     1,353       0.06%  generator yield
+   8  Continue                    985       0.05%  loop continue
+   9  GeneratorExp                945       0.04%  (x for x in items)
+  10  While                       752       0.04%  while loops
+  11  Lambda                      699       0.03%  lambda expressions
+  12  Break                       642       0.03%  loop break
+  13  Delete                      494       0.02%  del statement
+  14  DictComp                    256       0.01%  {k: v for k, v in items}
+  15  YieldFrom                   216       0.01%  yield from expr
+  16  NamedExpr                   187       0.01%  walrus operator :=
+  17  Await                       146       0.01%  await expression
+  18  Global                      116       0.01%  global statement
+  19  SetComp                      82       0.00%  {x for x in items}
+  20  AsyncFunctionDef             59       0.00%  async def
+  21  Match                        24       0.00%  match/case (3.10+)
+  22  TypeAlias                    22       0.00%  type X = ... (3.12+)
+  23  Nonlocal                     14       0.00%  nonlocal statement
+  24  AsyncFor                     10       0.00%  async for
+  25  AsyncWith                     2       0.00%  async with
+
+======================================================================
+TOP SUGGESTIONS FOR ADDING TO FLUENT-CODEGEN
+======================================================================
+
+High priority (very common syntax):
+  1. For       — for loops are the 7th most common statement
+  2. Raise     — essential for any error-handling code generation
+  3. Slice     — needed for proper a[start:stop:step] support
+  4. AugAssign — augmented assignment (+=, -=, etc.)
+  5. IfExp     — inline ternary expressions
+
+Medium priority (commonly used):
+  6. ListComp  — list comprehensions
+  7. Yield     — generator functions
+  8. Continue  — loop control
+  9. While     — while loops
+ 10. GeneratorExp — generator expressions
+ 11. Lambda    — lambda expressions
+ 12. Break     — loop control
+
+Lower priority (less common):
+ 13. Delete    — del statement
+ 14. DictComp  — dict comprehensions
+ 15. YieldFrom — yield from
+ 16. NamedExpr — walrus operator
+ 17. Await / AsyncFunctionDef / AsyncFor / AsyncWith — async support
+ 18. Global / Nonlocal
+ 19. Match     — structural pattern matching
+ 20. SetComp   — set comprehensions
+ 21. TypeAlias — type alias statement
