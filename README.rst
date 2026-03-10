@@ -106,6 +106,72 @@ fluent method-chaining for expressions:
    assert fizzbuzz(10) == "Buzz"
    assert fizzbuzz(7)  == "7"
 
+Even simpler with E-objects
+---------------------------
+
+The example above uses the **method-chaining** API (``n.mod(...).eq(...)``),
+which maps one-to-one to AST nodes. For expression-heavy code, where you know
+the names of functions/methods/attributes statically, the **E-object** API lets
+you use normal Python operators instead — the library intercepts them and builds
+the AST for you.
+
+Here's the same FizzBuzz with E-objects:
+
+.. code:: python
+
+   from fluent_codegen import codegen
+
+   module = codegen.Module()
+   func, _ = module.create_function("fizzbuzz", args=["n"])
+   n = func.name("n")
+
+   if_stmt = func.body.create_if()
+
+   # n.e enters "E-object mode" — then % and == are Python operators
+   branch = if_stmt.create_if_branch(n.e % 15 == 0)
+   branch.create_return(codegen.String("FizzBuzz"))
+
+   branch = if_stmt.create_if_branch(n.e % 3 == 0)
+   branch.create_return(codegen.String("Fizz"))
+
+   branch = if_stmt.create_if_branch(n.e % 5 == 0)
+   branch.create_return(codegen.String("Buzz"))
+
+   # Convenient access to builtins as E-objects via `Scope.enames`
+   if_stmt.else_block.create_return(module.enames.str(n))
+
+The generated output is identical. The key difference is readability:
+``n.e % 15 == 0`` vs ``n.mod(codegen.Number(15)).eq(codegen.Number(0))``.
+
+E-objects really shine for math-heavy expressions:
+
+.. code:: python
+
+   module = codegen.Module()
+   _, math_lib = module.create_import("math")
+   func, _ = module.create_function("distance", args=["x", "y"])
+   x = func.name("x")
+   y = func.name("y")
+
+   # E-object — reads like the code it generates
+   func.body.create_return(math_lib.e.sqrt(x.e ** 2 + y.e ** 2))
+
+   print(module.as_python_source())
+   # import math
+   # def distance(x, y):
+   #     return math.sqrt(x ** 2 + y ** 2)
+
+Compare with the equivalent method-chaining version:
+
+.. code:: python
+
+   func.body.create_return(
+       math_lib.attr("sqrt").call([
+           x.pow(codegen.Number(2)).add(y.pow(codegen.Number(2)))
+       ])
+   )
+
+
 License
 -------
 

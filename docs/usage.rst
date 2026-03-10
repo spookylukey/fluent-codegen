@@ -233,6 +233,9 @@ Because every method returns a new Expression, you can chain them fluently:
          .method_call("decode", [codegen.String("ascii")])
 
 
+In addition to ``Expression``, there is also the :doc:`E-objects system
+<./e-objects>` that provides a more convenient syntax in many cases.
+
 Literal values
 ~~~~~~~~~~~~~~
 
@@ -599,5 +602,3 @@ Compiling and executing generated code
 
    # Call the generated function
    assert ns["double"](21) == 42
-
-

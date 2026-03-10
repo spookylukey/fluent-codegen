@@ -68,3 +68,69 @@ def fizzbuzz_func():
 )
 def test_fizzbuzz_values(fizzbuzz_func, n, expected):
     assert fizzbuzz_func(n) == expected
+
+
+# --- E-object version (matches README "Even simpler with E-objects" section) ---
+
+
+def _build_fizzbuzz_module_eobject() -> codegen.Module:
+    """Build the fizzbuzz module using the E-object API — matches the README example."""
+    module = codegen.Module()
+    func, _ = module.create_function("fizzbuzz", args=["n"])
+    n = func.name("n")
+
+    if_stmt = func.body.create_if()
+
+    branch = if_stmt.create_if_branch(n.e % 15 == 0)
+    branch.create_return(codegen.String("FizzBuzz"))
+
+    branch = if_stmt.create_if_branch(n.e % 3 == 0)
+    branch.create_return(codegen.String("Fizz"))
+
+    branch = if_stmt.create_if_branch(n.e % 5 == 0)
+    branch.create_return(codegen.String("Buzz"))
+
+    if_stmt.else_block.create_return(module.scope.name("str").e(n.e))
+
+    return module
+
+
+def test_eobject_generated_source():
+    assert _build_fizzbuzz_module_eobject().as_python_source() == textwrap.dedent("""\
+        def fizzbuzz(n):
+            if n % 15 == 0:
+                return 'FizzBuzz'
+            elif n % 3 == 0:
+                return 'Fizz'
+            elif n % 5 == 0:
+                return 'Buzz'
+            else:
+                return str(n)""")
+
+
+def test_eobject_same_as_chaining():
+    """Both APIs produce identical source."""
+    assert _build_fizzbuzz_module().as_python_source() == _build_fizzbuzz_module_eobject().as_python_source()
+
+
+@pytest.fixture()
+def fizzbuzz_eobject_func():
+    code = compile(_build_fizzbuzz_module_eobject().as_ast(), "<fizzbuzz>", "exec")
+    ns: dict[str, object] = {}
+    exec(code, ns)
+    return ns["fizzbuzz"]
+
+
+@pytest.mark.parametrize(
+    "n, expected",
+    [
+        (1, "1"),
+        (3, "Fizz"),
+        (5, "Buzz"),
+        (7, "7"),
+        (15, "FizzBuzz"),
+        (30, "FizzBuzz"),
+    ],
+)
+def test_fizzbuzz_eobject_values(fizzbuzz_eobject_func, n, expected):
+    assert fizzbuzz_eobject_func(n) == expected
