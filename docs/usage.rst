@@ -21,6 +21,13 @@ closely to Python constructs, with a **fluent chaining API** for building
 expressions.  You get correctness (it emits real ``ast`` nodes) without the
 verbosity.
 
+The design also tries to avoid many mistakes you could make in code generation.
+As such, it is slightly opinionated – for example, it assumes that you don’t
+want to accidentally shadow builtins like ``str`` and ``dict``, so if you use
+the recommended APIs for generating code you will be protected from doing so. It
+is aiming at helping you to generate code that is a **sensible subset** of all
+possible Python code.
+
 
 Core Concepts
 -------------
