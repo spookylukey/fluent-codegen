@@ -708,17 +708,6 @@ def test_assign_tuple_unpack_rejects_type_hint():
         codegen.Assignment(target, codegen.Number(1), type_hint=module.scope.name("str"))
 
 
-def test_assign_tuple_unpack_has_assignment_for_name():
-    module = codegen.Module()
-    x = module.scope.reserve_name("x")
-    y = module.scope.reserve_name("y")
-    target = (codegen.Name(x, module.scope), codegen.Name(y, module.scope))
-    stmt = codegen.Assignment(target, codegen.Number(1))
-    assert stmt.has_assignment_for_name("x")
-    assert stmt.has_assignment_for_name("y")
-    assert not stmt.has_assignment_for_name("z")
-
-
 def test_assign_target_rejects_arbitrary_expression():
     target = codegen.String("not a target")
     with pytest.raises((AssertionError, TypeError)):
@@ -766,16 +755,6 @@ def test_create_annotation_bad_name():
     stmt = Annotation("bad name", module.scope.name("int"))
     with pytest.raises(AssertionError):
         as_source_code(stmt)
-
-
-def test_annotation_has_assignment_for_name():
-    from fluent_codegen.codegen import Annotation
-
-    scope = codegen.Scope()
-    scope.reserve_name("int")
-    stmt = Annotation("x", scope.name("int"))
-    assert stmt.has_assignment_for_name("x") is True
-    assert stmt.has_assignment_for_name("y") is False
 
 
 # --- Field tests ---
@@ -1052,70 +1031,6 @@ def test_try_finally_only():
             x = 'cleanup'
         """,
     )
-
-
-def test_try_catch_has_assignment_for_name_1():
-    scope = codegen.Scope()
-    try_ = codegen.Try(scope)
-    try_.create_except([scope.create_name("E")])
-    name = scope.reserve_name("foo")
-    assert not try_.has_assignment_for_name(name)
-
-    try_.try_block.create_assignment(name, codegen.String("x"))
-    assert not try_.has_assignment_for_name(name)
-
-    try_.except_blocks[0].create_assignment(name, codegen.String("x"), allow_multiple=True)
-    assert try_.has_assignment_for_name(name)
-
-
-def test_try_catch_has_assignment_for_name_2():
-    scope = codegen.Scope()
-    try_ = codegen.Try(scope)
-    try_.create_except([scope.create_name("E")])
-    name = scope.reserve_name("foo")
-
-    try_.except_blocks[0].create_assignment(name, codegen.String("x"))
-    assert not try_.has_assignment_for_name(name)
-
-    try_.else_block.create_assignment(name, codegen.String("x"), allow_multiple=True)
-    assert try_.has_assignment_for_name(name)
-
-
-def test_try_has_assignment_for_name_finally():
-    scope = codegen.Scope()
-    try_ = codegen.Try(scope)
-    name = scope.reserve_name("foo")
-    assert not try_.has_assignment_for_name(name)
-
-    try_.finally_block.create_assignment(name, codegen.String("x"))
-    assert try_.has_assignment_for_name(name)
-
-
-def test_try_has_assignment_for_name_multiple_except():
-    scope = codegen.Scope()
-    try_ = codegen.Try(scope)
-    try_.create_except([scope.create_name("ErrA")])
-    try_.create_except([scope.create_name("ErrB")])
-    name = scope.reserve_name("foo")
-
-    try_.try_block.create_assignment(name, codegen.String("x"))
-    # Only one except assigns — not enough
-    try_.except_blocks[0].create_assignment(name, codegen.String("x"), allow_multiple=True)
-    assert not try_.has_assignment_for_name(name)
-
-    # Now all except blocks assign
-    try_.except_blocks[1].create_assignment(name, codegen.String("x"), allow_multiple=True)
-    assert try_.has_assignment_for_name(name)
-
-
-def test_try_has_assignment_no_except_blocks():
-    scope = codegen.Scope()
-    try_ = codegen.Try(scope)
-    name = scope.reserve_name("foo")
-
-    # try block assigns, but no except blocks exist, so it's not guaranteed
-    try_.try_block.create_assignment(name, codegen.String("x"))
-    assert not try_.has_assignment_for_name(name)
 
 
 def test_block_create_try():
@@ -2127,15 +2042,6 @@ def test_block_add_statement_reassign_parent():
     block = codegen.Block(scope, parent_block=module1)
     with pytest.raises(AssertionError):
         module2.add_statement(block)
-
-
-def test_block_has_assignment_from_parent():
-    """Test has_assignment_for_name delegation to parent block."""
-    module = codegen.Module()
-    name = module.scope.reserve_name("x")
-    module.create_assignment(name, codegen.String("hello"))
-    child = codegen.Block(module.scope, parent_block=module)
-    assert child.has_assignment_for_name(name)
 
 
 def test_return_repr():

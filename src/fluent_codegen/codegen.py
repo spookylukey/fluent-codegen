@@ -14,7 +14,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from functools import cached_property
-from typing import ClassVar, Protocol, assert_never, overload, runtime_checkable
+from typing import ClassVar, assert_never, overload
 
 if sys.version_info >= (3, 13):
     from typing import TypeIs  # pragma: no cover
@@ -317,13 +317,6 @@ class Statement(CodeGenAst):
     pass
 
 
-@runtime_checkable
-class SupportsNameAssignment(Protocol):
-    """Protocol for nodes that can report whether they assign to a given name."""
-
-    def has_assignment_for_name(self, name: str) -> bool: ...
-
-
 class Annotation(Statement):
     """A bare type annotation without a value, e.g. ``x: int``."""
 
@@ -341,9 +334,6 @@ class Annotation(Statement):
             value=None,
             **DEFAULT_AST_ARGS,
         )
-
-    def has_assignment_for_name(self, name: str) -> bool:
-        return self.name == name
 
 
 class Assignment(Statement):
@@ -378,9 +368,6 @@ class Assignment(Statement):
                 value=self.value.as_ast(),
                 **DEFAULT_AST_ARGS,
             )
-
-    def has_assignment_for_name(self, name: str) -> bool:
-        return name in self.names
 
 
 class Block(CodeGenAstList):
@@ -779,15 +766,6 @@ class Block(CodeGenAstList):
         )
         self.add_statement(try_statement)
         return try_statement
-
-    def has_assignment_for_name(self, name: str) -> bool:
-        """Return whether *name* is assigned anywhere in this block or its parents."""
-        for s in self.statements:
-            if isinstance(s, SupportsNameAssignment) and s.has_assignment_for_name(name):
-                return True
-        if self.parent_block is not None:
-            return self.parent_block.has_assignment_for_name(name)
-        return False
 
 
 class Module(Block, CodeGenAst):
@@ -1292,15 +1270,6 @@ class Try(Statement):
             finalbody=self.finally_block.as_ast_list(allow_empty=True, include_comments=include_comments),
             **DEFAULT_AST_ARGS,
         )
-
-    def has_assignment_for_name(self, name: str) -> bool:
-        assigns_in_try = self.try_block.has_assignment_for_name(name) or self.else_block.has_assignment_for_name(name)
-        assigns_in_all_except = self.except_blocks and all(b.has_assignment_for_name(name) for b in self.except_blocks)
-        if assigns_in_try and assigns_in_all_except:
-            return True
-        if self.finally_block.has_assignment_for_name(name):
-            return True
-        return False
 
 
 class Import(Statement):
