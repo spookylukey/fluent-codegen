@@ -675,6 +675,14 @@ class Block(CodeGenAstList):
         """Add a ``return`` statement to this block."""
         self.add_statement(Return(E_to_Expression(value)))
 
+    def create_break(self) -> None:
+        """Add a ``break`` statement to this block."""
+        self.add_statement(Break())
+
+    def create_continue(self) -> None:
+        """Add a ``continue`` statement to this block."""
+        self.add_statement(Continue())
+
     def create_assert(self, test: ExpressionLike, msg: ExpressionLike | None = None) -> None:
         """Add an ``assert`` statement to this block."""
         self.add_statement(Assert(E_to_Expression(test), E_to_Expression(msg) if msg is not None else None))
@@ -983,6 +991,20 @@ class Return(Statement):
 
     def __repr__(self):
         return f"Return({repr(self.value)}"
+
+
+class Break(Statement):
+    """A ``break`` statement."""
+
+    def as_ast(self, *, include_comments: bool = False):
+        return py_ast.Break(**DEFAULT_AST_ARGS)
+
+
+class Continue(Statement):
+    """A ``continue`` statement."""
+
+    def as_ast(self, *, include_comments: bool = False):
+        return py_ast.Continue(**DEFAULT_AST_ARGS)
 
 
 class Assert(Statement):

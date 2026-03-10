@@ -128,6 +128,10 @@ names in the scope:
      - A ``for`` loop
    * - ``create_return(value)``
      - ``return value``
+   * - ``create_break()``
+     - ``break``
+   * - ``create_continue()``
+     - ``continue``
    * - ``create_assert(test, msg)``
      - ``assert test, msg``
    * - ``add_comment(text)``

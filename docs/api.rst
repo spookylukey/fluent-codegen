@@ -67,6 +67,14 @@ Statements
    :members:
    :show-inheritance:
 
+.. autoclass:: Break
+   :members:
+   :show-inheritance:
+
+.. autoclass:: Continue
+   :members:
+   :show-inheritance:
+
 .. autoclass:: Assert
    :members:
    :show-inheritance:

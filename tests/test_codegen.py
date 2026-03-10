@@ -1412,6 +1412,111 @@ def test_block_create_for_tuple_unpack():
     )
 
 
+# --- Break and Continue tests ---
+
+
+def test_break_in_for():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", args=["items"])
+    items = func.name("items")
+    item = func.create_name("item")
+    for_stmt = func.body.create_for(item, items)
+    if_stmt = for_stmt.body.create_if()
+    branch = if_stmt.create_if_branch(item.eq(codegen.Number(0)))
+    branch.add_statement(codegen.Break())
+    assert_code_equal(
+        module,
+        """
+        def myfunc(items):
+            for item in items:
+                if item == 0:
+                    break
+        """,
+    )
+
+
+def test_continue_in_for():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", args=["items"])
+    items = func.name("items")
+    item = func.create_name("item")
+    for_stmt = func.body.create_for(item, items)
+    if_stmt = for_stmt.body.create_if()
+    branch = if_stmt.create_if_branch(item.lt(codegen.Number(0)))
+    branch.add_statement(codegen.Continue())
+    for_stmt.body.add_statement(module.scope.name("print").call([item]))
+    assert_code_equal(
+        module,
+        """
+        def myfunc(items):
+            for item in items:
+                if item < 0:
+                    continue
+                print(item)
+        """,
+    )
+
+
+def test_create_break():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", args=["items"])
+    items = func.name("items")
+    item = func.create_name("item")
+    for_stmt = func.body.create_for(item, items)
+    for_stmt.body.create_break()
+    assert_code_equal(
+        module,
+        """
+        def myfunc(items):
+            for item in items:
+                break
+        """,
+    )
+
+
+def test_create_continue():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", args=["items"])
+    items = func.name("items")
+    item = func.create_name("item")
+    for_stmt = func.body.create_for(item, items)
+    for_stmt.body.create_continue()
+    assert_code_equal(
+        module,
+        """
+        def myfunc(items):
+            for item in items:
+                continue
+        """,
+    )
+
+
+def test_break_and_continue_combined():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", args=["items"])
+    items = func.name("items")
+    item = func.create_name("item")
+    for_stmt = func.body.create_for(item, items)
+    if_stmt = for_stmt.body.create_if()
+    skip_branch = if_stmt.create_if_branch(item.lt(codegen.Number(0)))
+    skip_branch.add_statement(codegen.Continue())
+    stop_branch = if_stmt.create_if_branch(item.gt(codegen.Number(100)))
+    stop_branch.add_statement(codegen.Break())
+    for_stmt.body.add_statement(module.scope.name("print").call([item]))
+    assert_code_equal(
+        module,
+        """
+        def myfunc(items):
+            for item in items:
+                if item < 0:
+                    continue
+                elif item > 100:
+                    break
+                print(item)
+        """,
+    )
+
+
 # --- Import tests ---
 
 
