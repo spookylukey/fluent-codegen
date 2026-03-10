@@ -26,6 +26,7 @@ Eq = ast.Eq
 ExceptHandler = ast.ExceptHandler
 Expr = ast.Expr
 FloorDiv = ast.FloorDiv
+For = ast.For
 Gt = ast.Gt
 GtE = ast.GtE
 Invert = ast.Invert

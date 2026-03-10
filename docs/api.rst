@@ -79,6 +79,10 @@ Statements
    :members:
    :show-inheritance:
 
+.. autoclass:: For
+   :members:
+   :show-inheritance:
+
 .. autoclass:: Try
    :members:
    :show-inheritance:

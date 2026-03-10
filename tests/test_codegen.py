@@ -1199,6 +1199,219 @@ def test_with_empty_body():
     )
 
 
+# --- For tests ---
+
+
+def test_for_simple():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", args=["items"])
+    items = func.name("items")
+    item = func.create_name("item")
+    for_stmt = codegen.For(
+        item,
+        items,
+        parent_scope=func,
+        parent_block=func.body,
+    )
+    for_stmt.body.create_return(item)
+    func.body.add_statement(for_stmt)
+    assert_code_equal(
+        module,
+        """
+        def myfunc(items):
+            for item in items:
+                return item
+        """,
+    )
+
+
+def test_for_with_else():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", args=["items"])
+    items = func.name("items")
+    item = func.create_name("item")
+    for_stmt = codegen.For(
+        item,
+        items,
+        parent_scope=func,
+        parent_block=func.body,
+    )
+    for_stmt.body.add_statement(item)
+    for_stmt.else_block.create_return(codegen.Number(0))
+    func.body.add_statement(for_stmt)
+    assert_code_equal(
+        module,
+        """
+        def myfunc(items):
+            for item in items:
+                item
+            else:
+                return 0
+        """,
+    )
+
+
+def test_for_tuple_unpack():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", args=["pairs"])
+    pairs = func.name("pairs")
+    key = func.create_name("key")
+    value = func.create_name("value")
+    for_stmt = codegen.For(
+        (key, value),
+        pairs,
+        parent_scope=func,
+        parent_block=func.body,
+    )
+    for_stmt.body.create_return(value)
+    func.body.add_statement(for_stmt)
+    assert_code_equal(
+        module,
+        """
+        def myfunc(pairs):
+            for key, value in pairs:
+                return value
+        """,
+    )
+
+
+def test_for_empty_body():
+    """An empty for body should produce a pass statement."""
+    module = codegen.Module()
+    scope = module.scope
+    item = scope.create_name("item")
+    items = scope.create_name("items")
+    for_stmt = codegen.For(
+        item,
+        items,
+        parent_scope=scope,
+    )
+    assert_code_equal(
+        for_stmt,
+        """
+        for item in items:
+            pass
+        """,
+    )
+
+
+def test_for_scope():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", args=["items"])
+    func.reserve_name("myvalue")
+    items = func.name("items")
+    item = func.create_name("item")
+    for_stmt = codegen.For(
+        item,
+        items,
+        parent_scope=func,
+        parent_block=func.body,
+    )
+    assert for_stmt.body.scope.is_name_in_use("myvalue")
+
+
+def test_for_parent_block():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", args=["items"])
+    items = func.name("items")
+    item = func.create_name("item")
+    for_stmt = codegen.For(
+        item,
+        items,
+        parent_scope=func,
+        parent_block=func.body,
+    )
+    assert for_stmt.body.parent_block is func.body
+
+
+def test_for_invalid_target():
+    module = codegen.Module()
+    with pytest.raises(AssertionError, match="Invalid for-loop target"):
+        codegen.For(
+            codegen.Number(1),  # type: ignore[arg-type]
+            codegen.Number(2),
+            parent_scope=module.scope,
+        )
+
+
+def test_block_create_for():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", args=["items"])
+    items = func.name("items")
+    item = func.create_name("item")
+    for_stmt = func.body.create_for(item, items)
+    for_stmt.body.add_statement(module.scope.name("print").call([item]))
+    assert_code_equal(
+        module,
+        """
+        def myfunc(items):
+            for item in items:
+                print(item)
+        """,
+    )
+
+
+def test_block_create_for_scope():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", args=["items"])
+    func.reserve_name("myvalue")
+    items = func.name("items")
+    item = func.create_name("item")
+    for_stmt = func.body.create_for(item, items)
+    assert for_stmt.body.scope.is_name_in_use("myvalue")
+
+
+def test_block_create_for_parent_block():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", args=["items"])
+    items = func.name("items")
+    item = func.create_name("item")
+    for_stmt = func.body.create_for(item, items)
+    assert for_stmt.body.parent_block is func.body
+
+
+def test_block_create_for_with_else():
+    module = codegen.Module()
+    func, _ = module.create_function("find", args=["items", "target"])
+    items = func.name("items")
+    target = func.name("target")
+    item = func.create_name("item")
+    for_stmt = func.body.create_for(item, items)
+    if_stmt = for_stmt.body.create_if()
+    branch = if_stmt.create_if_branch(item.eq(target))
+    branch.create_return(item)
+    for_stmt.else_block.create_return(codegen.constants.None_)
+    assert_code_equal(
+        module,
+        """
+        def find(items, target):
+            for item in items:
+                if item == target:
+                    return item
+            else:
+                return None
+        """,
+    )
+
+
+def test_block_create_for_tuple_unpack():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", args=["mapping"])
+    mapping = func.name("mapping")
+    k = func.create_name("k")
+    v = func.create_name("v")
+    for_stmt = func.body.create_for((k, v), mapping.method_call("items"))
+    for_stmt.body.add_statement(module.scope.name("print").call([k, v]))
+    assert_code_equal(
+        module,
+        """
+        def myfunc(mapping):
+            for k, v in mapping.items():
+                print(k, v)
+        """,
+    )
+
+
 # --- Import tests ---
 
 
@@ -1857,6 +2070,22 @@ def test_rewriting_traverse_try_except():
     assert visited.count("Block") >= 3  # try, except, else blocks
     assert visited.count("Return") >= 3
     assert visited.count("String") >= 3
+
+
+def test_rewriting_traverse_for_statement():
+    """Test traversal into For statement's target, iterable, body, and else block."""
+    module = codegen.Module()
+    item = module.scope.create_name("item")
+    items = module.scope.create_name("items")
+    for_stmt = module.create_for(item, items)
+    for_stmt.body.add_statement(module.scope.name("print").call([item]))
+    for_stmt.else_block.create_return(codegen.Number(0))
+
+    visited = _collect_traversed_types(module)
+    assert "For" in visited
+    assert visited.count("Block") >= 2  # body and else_block
+    assert "Call" in visited
+    assert "Return" in visited
 
 
 def test_rewriting_traverse_dict_expression():

@@ -706,6 +706,20 @@ class Block(CodeGenAstList):
         self.add_statement(with_statement)
         return with_statement
 
+    def create_for(self, target: Target, iterable: ExpressionLike) -> For:
+        """
+        Create a ``for`` loop, add it to this block, and return it.
+
+        Usage::
+
+            i = func.create_name("i")
+            for_stmt = func.body.create_for(i, items)
+            for_stmt.body.add_statement(some_expr)
+        """
+        for_statement = For(target, E_to_Expression(iterable), parent_scope=self.scope, parent_block=self)
+        self.add_statement(for_statement)
+        return for_statement
+
     def has_assignment_for_name(self, name: str) -> bool:
         """Return whether *name* is assigned anywhere in this block or its parents."""
         for s in self.statements:
@@ -1074,6 +1088,36 @@ class With(Statement):
                 )
             ],
             body=self.body.as_ast_list(allow_empty=False, include_comments=include_comments),
+            **DEFAULT_AST_ARGS,
+        )
+
+
+class For(Statement):
+    """A ``for`` loop, with optional ``else`` clause."""
+
+    def __init__(
+        self,
+        target: Target,
+        iterable: Expression,
+        *,
+        parent_scope: Scope,
+        parent_block: Block | None = None,
+    ):
+        if not is_target(target):
+            raise AssertionError("Invalid for-loop target")
+        self.target: Target = target
+        self.iterable = iterable
+        self._parent_scope = parent_scope
+        self._parent_block = parent_block
+        self.body = Block(parent_scope, parent_block=parent_block)
+        self.else_block = Block(parent_scope, parent_block=parent_block)
+
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.For:
+        return py_ast.For(
+            target=_target_as_store_ast(self.target),
+            iter=self.iterable.as_ast(),
+            body=self.body.as_ast_list(allow_empty=False, include_comments=include_comments),
+            orelse=self.else_block.as_ast_list(allow_empty=True, include_comments=include_comments),
             **DEFAULT_AST_ARGS,
         )
 

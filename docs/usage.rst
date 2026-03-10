@@ -124,6 +124,8 @@ names in the scope:
      - An :class:`~fluent_codegen.codegen.If` statement
    * - ``create_with(expr, target)``
      - A ``with`` statement
+   * - ``create_for(target, iterable)``
+     - A ``for`` loop
    * - ``create_return(value)``
      - ``return value``
    * - ``create_assert(test, msg)``
@@ -492,6 +494,42 @@ Output::
    def read_file(path):
        with open(path) as f:
            return f.read()
+
+
+For loops
+~~~~~~~~~
+
+:class:`~fluent_codegen.codegen.For` creates a ``for`` loop with an optional
+``else`` clause:
+
+.. code-block:: python
+
+   module = codegen.Module()
+   func, _ = module.create_function("process", args=["items"])
+   items = func.name("items")
+
+   item = func.create_name("item")
+   for_stmt = func.body.create_for(item, items)
+   for_stmt.body.add_statement(
+       module.scope.name("print").call([item])
+   )
+
+   print(module.as_python_source())
+
+Output::
+
+   def process(items):
+       for item in items:
+           print(item)
+
+The *target* can also be a tuple of names for unpacking::
+
+   key = func.create_name("key")
+   value = func.create_name("value")
+   for_stmt = func.body.create_for(
+       (key, value),
+       items.method_call("items"),
+   )
 
 
 Function arguments — positional, keyword, defaults
