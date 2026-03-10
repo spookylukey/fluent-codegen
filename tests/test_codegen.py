@@ -996,6 +996,94 @@ def test_try_catch_has_assignment_for_name_2():
     assert try_.has_assignment_for_name(name)
 
 
+def test_block_create_try():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", args=["items"])
+    items = func.name("items")
+    my_error = module.scope.create_name("MyError")
+
+    try_stmt = func.body.create_try([my_error])
+    try_stmt.try_block.add_statement(module.scope.name("print").call([items]))
+    try_stmt.except_block.create_return(codegen.Number(0))
+    assert_code_equal(
+        module,
+        """
+        def myfunc(items):
+            try:
+                print(items)
+            except MyError:
+                return 0
+        """,
+    )
+
+
+def test_block_create_try_with_else():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", args=[])
+    my_error = module.scope.create_name("MyError")
+
+    try_stmt = func.body.create_try([my_error])
+    try_stmt.try_block.create_return(codegen.Number(1))
+    try_stmt.except_block.create_return(codegen.Number(2))
+    try_stmt.else_block.create_return(codegen.Number(3))
+    assert_code_equal(
+        module,
+        """
+        def myfunc():
+            try:
+                return 1
+            except MyError:
+                return 2
+            else:
+                return 3
+        """,
+    )
+
+
+def test_block_create_try_scope():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", args=[])
+    func.reserve_name("myvalue")
+    my_error = module.scope.create_name("MyError")
+
+    try_stmt = func.body.create_try([my_error])
+    assert try_stmt.try_block.scope.is_name_in_use("myvalue")
+    assert try_stmt.except_block.scope.is_name_in_use("myvalue")
+    assert try_stmt.else_block.scope.is_name_in_use("myvalue")
+
+
+def test_block_create_try_parent_block():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", args=[])
+    my_error = module.scope.create_name("MyError")
+
+    try_stmt = func.body.create_try([my_error])
+    assert try_stmt.try_block.parent_block is func.body
+    assert try_stmt.except_block.parent_block is func.body
+    assert try_stmt.else_block.parent_block is func.body
+
+
+def test_block_create_try_e_objects():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", args=[])
+    my_error = module.scope.create_name("MyError")
+
+    # Pass E-objects as catch_exceptions
+    try_stmt = func.body.create_try([my_error.e])
+    try_stmt.try_block.create_return(codegen.Number(1))
+    try_stmt.except_block.create_return(codegen.Number(2))
+    assert_code_equal(
+        module,
+        """
+        def myfunc():
+            try:
+                return 1
+            except MyError:
+                return 2
+        """,
+    )
+
+
 # --- If tests ---
 
 

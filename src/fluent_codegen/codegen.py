@@ -751,6 +751,24 @@ class Block(CodeGenAstList):
         self.add_statement(for_statement)
         return for_statement, target
 
+    def create_try(self, catch_exceptions: Sequence[ExpressionLike]) -> Try:
+        """
+        Create a Try statement, add it to this block, and return it.
+
+        Usage::
+
+            try_stmt = block.create_try([my_error])
+            try_stmt.try_block.add_statement(some_expr)
+            try_stmt.except_block.create_return(value)
+        """
+        try_statement = Try(
+            [E_to_Expression(e) for e in catch_exceptions],
+            self.scope,
+            parent_block=self,
+        )
+        self.add_statement(try_statement)
+        return try_statement
+
     def has_assignment_for_name(self, name: str) -> bool:
         """Return whether *name* is assigned anywhere in this block or its parents."""
         for s in self.statements:
@@ -1170,11 +1188,19 @@ class For(Statement):
 class Try(Statement):
     """A ``try``/``except``/``else`` statement."""
 
-    def __init__(self, catch_exceptions: Sequence[Expression], parent_scope: Scope):
+    def __init__(
+        self,
+        catch_exceptions: Sequence[Expression],
+        parent_scope: Scope,
+        *,
+        parent_block: Block | None = None,
+    ):
         self.catch_exceptions = catch_exceptions
-        self.try_block = Block(parent_scope)
-        self.except_block = Block(parent_scope)
-        self.else_block = Block(parent_scope)
+        self._parent_scope = parent_scope
+        self._parent_block = parent_block
+        self.try_block = Block(parent_scope, parent_block=parent_block)
+        self.except_block = Block(parent_scope, parent_block=parent_block)
+        self.else_block = Block(parent_scope, parent_block=parent_block)
 
     def as_ast(self, *, include_comments: bool = False) -> py_ast.Try:
         return py_ast.Try(
