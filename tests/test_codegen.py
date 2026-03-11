@@ -1371,8 +1371,7 @@ def test_with_no_target():
 def test_with_target():
     module = codegen.Module()
     func, _ = module.create_function("myfunc", [])
-    name = func.create_name("f")
-    with_stmt = func.body.create_with(codegen.String("ctx"), name)
+    with_stmt, name = func.body.create_with(codegen.String("ctx"), "f")
     with_stmt.body.create_return(name)
     assert_code_equal(
         module,
@@ -2441,9 +2440,8 @@ def test_rewriting_traverse_with_statement():
     """Test traversal into With statement's context_expr, target, and body."""
     module = codegen.Module()
     module.scope.reserve_name("ctx_manager")
-    module.scope.reserve_name("f")
     ctx = codegen.function_call("ctx_manager", [codegen.String("file.txt")], {}, module.scope)
-    with_stmt = module.create_with(ctx, target=codegen.Name("f", module.scope))
+    with_stmt, _ = module.create_with(ctx, target="f")
     with_stmt.body.create_return(codegen.String("done"))
 
     visited = _collect_traversed_types(module)

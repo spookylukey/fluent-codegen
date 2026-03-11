@@ -697,18 +697,32 @@ class Block(CodeGenAstList):
         self.add_statement(if_statement)
         return if_statement
 
-    def create_with(self, context_expr: ExpressionLike, target: Name | None = None) -> With:
+    @overload
+    def create_with(self, context_expr: ExpressionLike, target: Name | str) -> tuple[With, Name]: ...
+
+    @overload
+    def create_with(self, context_expr: ExpressionLike) -> With: ...
+
+    def create_with(self, context_expr: ExpressionLike, target: Name | str | None = None) -> With | tuple[With, Name]:
         """
         Create a With statement, add it to this block, and return it
 
         Usage::
 
-            with_stmt = block.create_with(expr, "f")
+            with_stmt, target = block.create_with(expr, "f")
             with_stmt.body.create_return(value)
+
+        If target is a str, the name will be reserved.
+        If target is `None`, only the with_statement will be returned.
         """
+        if isinstance(target, str):
+            name_obj = self.scope.create_name(target)
+            target = name_obj
         with_statement = With(E_to_Expression(context_expr), target=target, parent_scope=self.scope, parent_block=self)
         self.add_statement(with_statement)
-        return with_statement
+        if target is None:
+            return with_statement
+        return with_statement, target
 
     @overload
     def create_for(self, target: str, iterable: ExpressionLike) -> tuple[For, Name]: ...
