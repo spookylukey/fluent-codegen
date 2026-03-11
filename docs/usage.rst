@@ -1,6 +1,8 @@
 Usage Guide
 ===========
 
+.. py:currentmodule:: fluent_codegen.codegen
+
 This guide explains the core concepts of **fluent-codegen** and walks through
 progressively more complex examples.
 
@@ -25,8 +27,13 @@ The design also tries to avoid many mistakes you could make in code generation.
 As such, it is slightly opinionated – for example, it assumes that you don’t
 want to accidentally shadow builtins like ``str`` and ``dict``, so if you use
 the recommended APIs for generating code you will be protected from doing so. It
-is aiming at helping you to generate code that is a **sensible subset** of all
-possible Python code.
+also assumes that `Static single-assignment form
+<https://en.wikipedia.org/wiki/Static_single-assignment_form>`_ is a sensible
+default for generated code i.e. you won’t normally be re-using variables.
+
+In other words, the design aims to help you to generate code that is a
+**sensible subset** of all possible Python code, especially for the context of
+compiling to Python.
 
 
 Core Concepts
@@ -75,6 +82,12 @@ The two key methods are:
     Reserve a name and return a :class:`~fluent_codegen.codegen.Name` expression.
     If the requested name is already taken, a numeric suffix is appended
     automatically (e.g. ``x``, ``x_2``, ``x_3``, …).
+
+    Note that many convenience methods (such as
+    :meth:`~fluent_codegen.codegen.Block.create_with`) allow you to pass a
+    ``str`` object as a name for the target. In this case, they automatically
+    call ``create_name`` for you, so the variable name may not be the one you
+    requested, but is automatically adjusted to not clash with existing names.
 
 ``scope.name(existing)``
     Return a :class:`~fluent_codegen.codegen.Name` for a name that is *already*
