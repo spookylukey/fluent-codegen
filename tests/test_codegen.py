@@ -982,9 +982,8 @@ def test_try_except_as_name():
     func, _ = module.create_function("myfunc", args=[])
     my_error = module.scope.create_name("MyError")
     try_ = codegen.Try(func, parent_block=func.body)
-    except_block = try_.create_except([my_error], name="e")
-    func.reserve_name("e")
-    except_block.add_statement(module.scope.name("print").call([func.name("e")]))
+    except_block, e_name = try_.create_except([my_error], name="e")
+    except_block.add_statement(module.scope.name("print").call([e_name]))
     func.body.add_statement(try_)
     assert_code_equal(
         module,
@@ -994,6 +993,25 @@ def test_try_except_as_name():
                 pass
             except MyError as e:
                 print(e)
+        """,
+    )
+    assert func.is_name_reserved(e_name.name)
+
+
+def test_try_except_as_name_obj():
+    module = codegen.Module()
+    my_error = module.scope.create_name("MyError")
+    try_ = module.create_try()
+    e_name = module.scope.create_name("e")
+    except_block, e_name = try_.create_except([my_error], name=e_name)
+    except_block.add_statement(module.scope.name("print").call([e_name]))
+    assert_code_equal(
+        module,
+        """
+        try:
+            pass
+        except MyError as e:
+            print(e)
         """,
     )
 

@@ -771,7 +771,7 @@ class Block(CodeGenAstList):
 
             try_stmt = block.create_try()
             try_stmt.try_block.add_statement(some_expr)
-            except_block = try_stmt.create_except([my_error])
+            except_block, e_name = try_stmt.create_except([my_error], "e")
             except_block.create_return(value)
         """
         try_statement = Try(
@@ -1237,12 +1237,23 @@ class Try(Statement):
         self.else_block = Block(parent_scope, parent_block=parent_block)
         self.finally_block = Block(parent_scope, parent_block=parent_block)
 
+    @overload
     def create_except(
         self,
         catch_exceptions: Sequence[ExpressionLike],
         *,
-        name: str | None = None,
-    ) -> Block:
+        name: str | Name,
+    ) -> tuple[Block, Name]: ...
+
+    @overload
+    def create_except(self, catch_exceptions: Sequence[ExpressionLike]) -> Block: ...
+
+    def create_except(
+        self,
+        catch_exceptions: Sequence[ExpressionLike],
+        *,
+        name: str | Name | None = None,
+    ) -> Block | tuple[Block, Name]:
         """
         Add an ``except`` clause and return its body block.
 
@@ -1251,12 +1262,26 @@ class Try(Statement):
         elements produce ``except (Foo, Bar):``).
 
         *name*, if given, becomes the ``as`` target
-        (``except Foo as name:``).
+        (``except Foo as name:``). If it is passed as a `str`
+        it is reserved in the scope. It is returned as a Name object.
+
         """
         block = Block(self._parent_scope, parent_block=self._parent_block)
         self.except_blocks.append(block)
         self.except_types.append([E_to_Expression(e) for e in catch_exceptions])
+
+        # Normalise `name` to `str | None` for appending to `except_names`
+        # and `name_obj` to a `Name | None` for returning
+        if isinstance(name, str):
+            name_obj = self._parent_scope.create_name(name)
+        elif isinstance(name, Name):
+            name_obj = name
+            name = name_obj.name
+        else:
+            name_obj = None
         self.except_names.append(name)
+        if name_obj is not None:
+            return block, name_obj
         return block
 
     def _handler_type_ast(self, exceptions: list[Expression]) -> py_ast.expr:
