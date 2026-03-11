@@ -13,13 +13,12 @@ that produce correct Python source or compilable AST.
 
    module = codegen.Module()
    func, func_name = module.create_function("greet", args=["name"])
-   name = func.name("name")
-   func.body.create_return(
-       codegen.String("Hello, ").add(name).add(codegen.String("!"))
-   )
+   name_arg = func.name("name")
+   func.body.create_return("Hello, " + name_arg.e + "!")
    print(module.as_python_source())
+
    # def greet(name):
-   #     return f'Hello, {name}!'
+   #     return 'Hello, ' + name + '!'
 
 .. toctree::
    :maxdepth: 2
