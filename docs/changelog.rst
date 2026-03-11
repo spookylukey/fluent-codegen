@@ -20,6 +20,7 @@ Breaking changes:
 
 - Redesigned ``Try``: removed ``catch_exceptions`` from ``__init__``; except clauses are now added via ``Try.create_except()``
 - ``Block.create_try()`` no longer takes arguments (add except clauses on the returned ``Try``)
+- ``Block.create_with`` returns ``(with_statement, target)`` as output.
 - Removed ``has_assignment_for_name``
 
 0.4.0 - 2026-03-02
