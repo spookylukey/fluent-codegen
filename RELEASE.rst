@@ -1,3 +1,6 @@
+======================
+Releasing new versions
+======================
 
 To do a release::
 
