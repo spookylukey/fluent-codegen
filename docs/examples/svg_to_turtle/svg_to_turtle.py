@@ -80,6 +80,13 @@ def compile_svg(svg_path: str | Path) -> str:
     module.add_comment(f"Generated from {Path(svg_path).name} by svg_to_turtle.py")
     module.add_comment("Do not edit — regenerate from the SVG source.")
 
+    # Import turtle so the generated module is self-contained.
+    _, turtle_mod = module.create_import("turtle")
+
+    # Type annotation for the turtle parameter: turtle.Turtle
+    turtle_type = turtle_mod.attr("Turtle")
+    none_type = codegen.constants.None_
+
     # We'll use the E-object for the turtle parameter throughout.
     # First, collect <defs> definitions (Phase 2).
     defs: dict[str, ET.Element] = {}
@@ -93,7 +100,11 @@ def compile_svg(svg_path: str | Path) -> str:
     # Create a helper function for each definition.
     def_func_names: dict[str, codegen.Name] = {}
     for def_id, elem in defs.items():
-        func, func_name = module.create_function(f"_draw_{def_id}", args=["t"])
+        func, func_name = module.create_function(
+            f"_draw_{def_id}",
+            args=[codegen.FunctionArg.standard("t", annotation=turtle_type)],
+            return_type=none_type,
+        )
         t_e = func.enames.t
         _emit_line(
             func.body,
@@ -106,7 +117,11 @@ def compile_svg(svg_path: str | Path) -> str:
         def_func_names[def_id] = func_name
 
     # Main draw function.
-    draw_func, _ = module.create_function("draw", args=["t"])
+    draw_func, draw_name = module.create_function(
+        "draw",
+        args=[codegen.FunctionArg.standard("t", annotation=turtle_type)],
+        return_type=none_type,
+    )
     t_e = draw_func.enames.t
 
     for child in root:
@@ -149,6 +164,14 @@ def compile_svg(svg_path: str | Path) -> str:
             draw_func.body.add_statement(t_e.penup())
             draw_func.body.add_statement(t_e.goto(pos.e))
             draw_func.body.add_statement(t_e.setheading(heading.e))
+
+    # if __name__ == "__main__" block
+    dunder_name = module.scope.name("__name__")
+    if_main = module.create_if()
+    main_block = if_main.create_if_branch(dunder_name.eq(codegen.String("__main__")))
+    t_var = main_block.assign("t", turtle_mod.e.Turtle())
+    main_block.add_statement(draw_name.e(t_var.e))
+    main_block.add_statement(turtle_mod.e.done())
 
     return module.as_python_source()
 

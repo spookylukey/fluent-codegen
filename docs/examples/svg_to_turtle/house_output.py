@@ -1,15 +1,16 @@
 # Generated from house.svg by svg_to_turtle.py
 # Do not edit — regenerate from the SVG source.
+import turtle
 
 
-def _draw_beam(t):
+def _draw_beam(t: turtle.Turtle) -> None:
     t.penup()
     t.goto(0.0, 0.0)
     t.pendown()
     t.goto(80.0, 0.0)
 
 
-def draw(t):
+def draw(t: turtle.Turtle) -> None:
     t.penup()
     t.goto(40.0, 60.0)
     t.pendown()
@@ -42,3 +43,9 @@ def draw(t):
     t.penup()
     t.goto(pos_2)
     t.setheading(heading_2)
+
+
+if __name__ == "__main__":
+    t = turtle.Turtle()
+    draw(t)
+    turtle.done()
