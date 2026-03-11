@@ -7,8 +7,7 @@ from pathlib import Path
 from xml.etree.ElementTree import Element, ElementTree, SubElement
 
 import pytest
-
-from docs.examples.svg_to_turtle.svg_to_turtle import compile_svg
+from svg_to_turtle import compile_svg
 
 TMP = Path(__file__).parent / "_test_tmp"
 

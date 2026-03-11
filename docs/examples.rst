@@ -22,8 +22,8 @@ Supported SVG elements:
 * ``<line x1=… y1=… x2=… y2=…>`` — a straight line segment.
 * ``<defs>`` containing ``<line>`` elements with ``id`` attributes —
   compiled into helper functions.
-* ``<use href="#id" transform="translate(tx, ty)">`` — compiled into
-  code that repositions the turtle and calls the helper.
+* ``<use href="#id" x="..." y="...">`` — compiled into
+  code that calls the helper.
 
 The compiler script
 -------------------
@@ -36,7 +36,7 @@ Sample input
 ------------
 
 A simple house shape built from ``<line>`` elements and ``<use>``
-references to a reusable beam defined in ``<defs>``:
+references to reusable beams/walls defined in ``<defs>``:
 
 .. literalinclude:: examples/svg_to_turtle/house.svg
    :language: xml
@@ -47,15 +47,15 @@ Generated output
 
 Running ``python svg_to_turtle.py house.svg`` produces:
 
-.. literalinclude:: examples/svg_to_turtle/house_output.py
+.. literalinclude:: examples/svg_to_turtle/house.py
    :language: python
    :caption: ``house.py`` (generated)
 
 Key points to note in the generated code:
 
-* ``_draw_beam(t)`` is a helper function compiled from the ``<defs>``
-  element.
-* Each ``<use>`` saves the turtle position, translates, calls the
+* ``_draw_beam()`` and ``_draw_wall()`` are helper functions compiled from the ``<defs>``
+  element, with names based on the element names.
+* Each ``<use>`` saves the turtle position, calls the
   helper, and restores.
 * The local variables ``pos``, ``heading`` are auto-suffixed to
   ``pos_2``, ``heading_2`` for the second ``<use>``.

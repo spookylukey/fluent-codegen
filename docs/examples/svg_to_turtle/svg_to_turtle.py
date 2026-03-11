@@ -11,7 +11,7 @@ Supported SVG elements
 ----------------------
 * ``<line x1=… y1=… x2=… y2=…>``  – a single line segment
 * ``<defs>`` containing ``<line>`` elements with ``id`` attributes
-* ``<use href="#id" transform="translate(tx, ty)">``
+* ``<use href="#id" x="tx" y="ty">``
 
 Usage::
 
@@ -23,7 +23,6 @@ Produces ``drawing.py`` with a ``draw(t)`` function that accepts a
 
 from __future__ import annotations
 
-import re
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -43,12 +42,8 @@ def _float(element: ET.Element, attr: str) -> float:
     return float(element.attrib[attr])
 
 
-def _parse_translate(transform: str) -> tuple[float, float]:
-    """Parse ``translate(tx, ty)`` or ``translate(tx ty)`` into floats."""
-    m = re.match(r"translate\(\s*([^,\s]+)[,\s]+([^)]+)\)", transform)
-    if not m:
-        raise ValueError(f"Unsupported transform: {transform!r}")
-    return float(m.group(1)), float(m.group(2))
+def _parse_x_y(element: ET.Element) -> tuple[float, float]:
+    return (int(element.attrib.get("x", "0")), int(element.attrib.get("y", "0")))
 
 
 # ---------------------------------------------------------------------------
@@ -59,6 +54,7 @@ def _parse_translate(transform: str) -> tuple[float, float]:
 def _emit_line(
     block: codegen.Block,
     t: codegen.E,
+    start: codegen.E,
     x1: float,
     y1: float,
     x2: float,
@@ -66,9 +62,9 @@ def _emit_line(
 ) -> None:
     """Emit turtle commands to draw a single line from (x1,y1) to (x2,y2)."""
     block.add_statement(t.penup())
-    block.add_statement(t.goto(x1, y1))
+    block.add_statement(t.goto(start[0] + x1, start[1] + y1))
     block.add_statement(t.pendown())
-    block.add_statement(t.goto(x2, y2))
+    block.add_statement(t.goto(start[0] + x2, start[1] + y2))
 
 
 def compile_svg(svg_path: str | Path) -> str:
@@ -86,6 +82,7 @@ def compile_svg(svg_path: str | Path) -> str:
     # Type annotation for the turtle parameter: turtle.Turtle
     turtle_type = turtle_mod.attr("Turtle")
     none_type = codegen.constants.None_
+    pos_type = module.enames.tuple[module.enames.int, module.enames.int]
 
     # We'll use the E-object for the turtle parameter throughout.
     # First, collect <defs> definitions (Phase 2).
@@ -102,13 +99,17 @@ def compile_svg(svg_path: str | Path) -> str:
     for def_id, elem in defs.items():
         func, func_name = module.create_function(
             f"_draw_{def_id}",
-            args=[codegen.FunctionArg.standard("t", annotation=turtle_type)],
+            args=[
+                codegen.FunctionArg.standard("t", annotation=turtle_type),
+                codegen.FunctionArg.standard("start", annotation=pos_type),
+            ],
             return_type=none_type,
         )
-        t_e = func.enames.t
+
         _emit_line(
             func.body,
-            t_e,
+            func.enames.t,
+            func.enames.start,
             _float(elem, "x1"),
             _float(elem, "y1"),
             _float(elem, "x2"),
@@ -123,6 +124,7 @@ def compile_svg(svg_path: str | Path) -> str:
         return_type=none_type,
     )
     t_e = draw_func.enames.t
+    start = draw_func.body.assign("start", codegen.auto((0, 0)))
 
     for child in root:
         tag = child.tag.removeprefix(f"{{{SVG_NS}}}")
@@ -134,6 +136,7 @@ def compile_svg(svg_path: str | Path) -> str:
             _emit_line(
                 draw_func.body,
                 t_e,
+                start.e,
                 _float(child, "x1"),
                 _float(child, "y1"),
                 _float(child, "x2"),
@@ -146,19 +149,14 @@ def compile_svg(svg_path: str | Path) -> str:
             if ref_id not in def_func_names:
                 raise ValueError(f"<use> references unknown id {ref_id!r}")
 
-            transform = child.get("transform", "")
-            tx, ty = _parse_translate(transform) if transform else (0.0, 0.0)
+            tx, ty = _parse_x_y(child)
 
-            # Save turtle state, translate, call helper, restore.
+            # Save turtle state
             pos = draw_func.body.assign("pos", t_e.position())
             heading = draw_func.body.assign("heading", t_e.heading())
 
-            # Move to translated origin
-            draw_func.body.add_statement(t_e.penup())
-            draw_func.body.add_statement(t_e.goto(pos.e[0] + tx, pos.e[1] + ty))
-
             # Call the helper
-            draw_func.body.add_statement(def_func_names[ref_id].e(draw_func.enames.t))
+            draw_func.body.add_statement(def_func_names[ref_id].e(t_e, (tx, ty)))
 
             # Restore
             draw_func.body.add_statement(t_e.penup())
@@ -168,7 +166,7 @@ def compile_svg(svg_path: str | Path) -> str:
     # if __name__ == "__main__" block
     dunder_name = module.scope.name("__name__")
     if_main = module.create_if()
-    main_block = if_main.create_if_branch(dunder_name.eq(codegen.String("__main__")))
+    main_block = if_main.create_if_branch(dunder_name.e == "__main__")
     t_var = main_block.assign("t", turtle_mod.e.Turtle())
     main_block.add_statement(draw_name.e(t_var.e))
     main_block.add_statement(turtle_mod.e.done())
