@@ -30,6 +30,7 @@ that produce correct Python source or compilable AST.
    e-objects
    advanced
    static-typing
+   examples
    api
    changelog
 
