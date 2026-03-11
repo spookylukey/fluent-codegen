@@ -92,8 +92,8 @@ various methods. Note the following:
 - The more convenient methods on ``Expression`` and ``Block``, such as the
   method chaining for building up up expressions, and utilities like
   ``Block.create_assignment`` and ``Block.assign``, all accept E-objects as well
-  as ``Expression``. Similarly the methods on ``If`` for adding branches. This
-  is the middle layer.
+  as ``Expression``. Similarly the methods on ``If`` and ``Try_`` for adding
+  branches. This is the middle layer.
 
 - The top layer is the E-object layer, and this allows you to freely mix not
   only E-objects and ``Expression``, but also simple Python objects and
@@ -118,6 +118,11 @@ Or:
 .. code-block:: python
 
    x = mod.assign("x", codegen.String("y"))  # x = "y"
+
+
+Similarly there would be ambiguity over the difference between ``None`` and
+``auto(None)`` if the middle layer functions automatically wrapped Python
+objects with ``auto()``.
 
 If you need to explicitly convert from E-objects to ``Expression``, you can use
 ``Expression.from_e``.
