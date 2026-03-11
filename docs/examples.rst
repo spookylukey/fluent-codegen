@@ -38,9 +38,14 @@ Sample input
 A simple house shape built from ``<line>`` elements and ``<use>``
 references to reusable beams/walls defined in ``<defs>``:
 
+.. image:: examples/svg_to_turtle/house.svg
+   :align: center
+
+
 .. literalinclude:: examples/svg_to_turtle/house.svg
    :language: xml
    :caption: ``house.svg``
+
 
 Generated output
 ----------------
