@@ -1984,21 +1984,21 @@ def test_subscript():
 # --- Slice tests ---
 
 
-def test_slice_lower_upper():
+def test_slice_start_stop():
     s = codegen.Slice(codegen.Number(0), codegen.Number(10))
     scope = codegen.Scope()
     var = scope.create_name("items")
     assert_code_equal(var.subscript(s), "items[0:10]")
 
 
-def test_slice_lower_only():
+def test_slice_start_only():
     s = codegen.Slice(start=codegen.Number(1))
     scope = codegen.Scope()
     var = scope.create_name("items")
     assert_code_equal(var.subscript(s), "items[1:]")
 
 
-def test_slice_upper_only():
+def test_slice_stop_only():
     s = codegen.Slice(stop=codegen.Number(5))
     scope = codegen.Scope()
     var = scope.create_name("items")
@@ -2540,7 +2540,7 @@ def test_rewriting_traverse_subscript():
 
 
 def test_rewriting_traverse_slice():
-    """Test traversal into Slice lower, upper, and step."""
+    """Test traversal into Slice start, stop, and step."""
     s = codegen.Slice(codegen.Number(1), codegen.Number(10), codegen.Number(2))
 
     visited = _collect_traversed_types(s)

@@ -49,8 +49,8 @@ It’s important to know how this works: E-objects define methods like
 ``__getattr__`` and ``__add__`` etc. to override normal attribute access and
 operators so that they all:
 
-- automatically wrap arguments in ``auto()``, so that literals etc. are handled
-  without ceremony.
+- automatically wrap arguments in :func:`~fluent_codegen.codegen.auto`, so that
+  literals etc. are handled without ceremony.
 - delegate to the appropriate methods on ``Expression`` to build the expression.
 - return the result as an E-object.
 
@@ -97,7 +97,8 @@ various methods. Note the following:
 
 - The top layer is the E-object layer, and this allows you to freely mix not
   only E-objects and ``Expression``, but also simple Python objects and
-  container objects. This also includes the ``auto()`` utility.
+  container objects. This also includes the :func:`~fluent_codegen.codegen.auto`
+  utility.
 
 Note specifically that the middle layer doesn’t allow mixing in simple Python
 objects. For example:
@@ -122,7 +123,7 @@ Or:
 
 Similarly there would be ambiguity over the difference between ``None`` and
 ``auto(None)`` if the middle layer functions automatically wrapped Python
-objects with ``auto()``.
+objects with :func:`~fluent_codegen.codegen.auto`.
 
 If you need to explicitly convert from E-objects to ``Expression``, you can use
 ``Expression.from_e``.
@@ -158,7 +159,7 @@ But the following will fail:
 
    mod.assign("y", {"key": "value"})
 
-The above can be fixed by explicit use of ``auto()`` around the dict.
+The above can be fixed by explicit use of :func:`~fluent_codegen.codegen.auto` around the dict.
 
 Static typing issues
 --------------------

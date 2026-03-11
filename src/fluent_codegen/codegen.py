@@ -1900,7 +1900,7 @@ class Slice(Expression):
     """A slice expression (e.g. ``0:10``, ``::2``, ``1:-1``).
 
     Used as the *slice* argument to :class:`Subscript`.
-    All three components — *lower*, *upper*, and *step* — are optional.
+    All three components — *start*, *stop*, and *step* — are optional.
     """
 
     def __init__(

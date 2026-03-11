@@ -12,7 +12,7 @@ Additions:
 - Added ``Break`` and ``Continue`` statements with ``Block.create_break()`` / ``Block.create_continue()``
 - Added ``Raise`` statement with ``Block.create_raise()``
 - Added ``Block.create_try()`` convenience method
-- Added ``Slice`` AST node with ``auto()`` support
+- Added ``Slice`` AST node with :func:`~fluent_codegen.codegen.auto` support
 - Added support for multiple ``except`` clauses, ``except ... as``, and ``finally`` on ``Try``
 - ``create_for``, ``create_except``, and ``create_with`` now accept plain strings where ``Name`` / target was required
 
