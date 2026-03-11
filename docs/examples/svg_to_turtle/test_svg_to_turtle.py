@@ -50,12 +50,17 @@ class TestSingleLine:
         assert source == textwrap.dedent("""\
             # Generated from single_line.svg by svg_to_turtle.py
             # Do not edit \u2014 regenerate from the SVG source.
+            import turtle
 
-            def draw(t):
+            def draw(t: turtle.Turtle) -> None:
                 t.penup()
                 t.goto(0.0, 0.0)
                 t.pendown()
-                t.goto(100.0, 50.0)""")
+                t.goto(100.0, 50.0)
+            if __name__ == '__main__':
+                t = turtle.Turtle()
+                draw(t)
+                turtle.done()""")
 
     def test_single_line_executes(self):
         root = _svg_root()
@@ -149,8 +154,8 @@ class TestDefsAndUse:
     def test_defs_produce_helper_functions(self):
         path = self._make_svg_with_def_and_use()
         source = compile_svg(path)
-        assert "def _draw_seg(t):" in source
-        assert "def draw(t):" in source
+        assert "def _draw_seg(t: turtle.Turtle) -> None:" in source
+        assert "def draw(t: turtle.Turtle) -> None:" in source
 
     def test_use_calls_helper(self):
         path = self._make_svg_with_def_and_use()
@@ -251,7 +256,7 @@ class TestMultipleUses:
         path = _write_svg("multi_use.svg", root)
         source = compile_svg(path)
         # The helper should be called twice in the body of draw()
-        draw_body = source.split("def draw(t):")[1]
+        draw_body = source.split("def draw(t: turtle.Turtle) -> None:")[1]
         assert draw_body.count("_draw_seg(t)") == 2
 
 
