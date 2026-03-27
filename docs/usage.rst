@@ -146,6 +146,8 @@ names in the scope:
      - A ``with`` statement
    * - ``create_for(target, iterable)``
      - A ``for`` loop
+   * - ``create_comprehension(target, iterable)``
+     - A comprehension, for the body of a list comprehension
    * - ``create_try()``
      - A ``try``/``except``/``else``/``finally`` statement
    * - ``create_return(value)``

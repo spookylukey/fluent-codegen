@@ -91,6 +91,8 @@ expr = ast.expr
 Import = ast.Import
 ImportFrom = ast.ImportFrom
 alias = ast.alias
+ListComp = ast.ListComp
+comprehension = ast.comprehension
 
 # `compile` builtin needs these attributes on AST nodes.
 # It's hard to get something sensible we can put for line/col numbers so we put arbitrary values.

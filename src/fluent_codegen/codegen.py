@@ -747,19 +747,33 @@ class Block(CodeGenAstList):
             for_stmt, index = func.body.create_for("i", items)
             for_stmt.body.add_statement(some_expr)
         """
-        if isinstance(target, str):
-            name_obj = self.scope.create_name(target)
-            target = name_obj
-        elif isinstance(target, tuple):
-            name_objs: list[Name] = []
-            for t in target:
-                if not isinstance(t, str):
-                    raise AssertionError(f"Expected str objects, got {t}")
-                name_objs.append(self.scope.create_name(t))
-            target = tuple(name_objs)
+        target = _normalize_targets(self.scope, target)
         for_statement = For(target, E_to_Expression(iterable), parent_scope=self.scope, parent_block=self)
         self.add_statement(for_statement)
         return for_statement, target
+
+    @overload
+    def create_comprehension(self, target: str, iterable: ExpressionLike) -> tuple[Comprehension, Name]: ...
+
+    @overload
+    def create_comprehension(
+        self, target: tuple[str, ...], iterable: ExpressionLike
+    ) -> tuple[Comprehension, tuple[Name, ...]]: ...
+
+    @overload
+    def create_comprehension(self, target: Target, iterable: ExpressionLike) -> tuple[Comprehension, Target]: ...
+
+    def create_comprehension(
+        self, target: str | tuple[str, ...] | Target, iterable: ExpressionLike
+    ) -> tuple[Comprehension, Target]:
+        """
+        Create a Comprehension object (which can become a list comprehension)
+
+        The first parameter is the loop variable.
+        """
+        target = _normalize_targets(self.scope, target)
+        comprehension = Comprehension(target, E_to_Expression(iterable))
+        return comprehension, target
 
     def create_try(self) -> Try:
         """
@@ -780,6 +794,20 @@ class Block(CodeGenAstList):
         )
         self.add_statement(try_statement)
         return try_statement
+
+
+def _normalize_targets(scope: Scope, target: str | tuple[str, ...] | Target) -> Name | tuple[Name] | Target:
+    if isinstance(target, str):
+        name_obj = scope.create_name(target)
+        target = name_obj
+    elif isinstance(target, tuple):
+        name_objs: list[Name] = []
+        for t in target:
+            if not isinstance(t, str):
+                raise AssertionError(f"Expected str objects, got {t}")
+            name_objs.append(scope.create_name(t))
+        target = tuple(name_objs)
+    return target
 
 
 class Module(Block, CodeGenAst):
@@ -1930,6 +1958,42 @@ class Slice(Expression):
         if self.step is not None:
             parts.append(f"step={self.step!r}")
         return f"Slice({', '.join(parts)})"
+
+
+class Comprehension:
+    def __init__(self, target: Target, iter: Expression):
+        self.target = target
+        self.iter = iter
+
+
+class ListComp(Expression):
+    def __init__(self, element: Expression, generators: Sequence[Comprehension], ifs: Sequence[Expression]) -> None:
+        self.element = element
+        self.generators = generators
+        self.ifs = ifs
+
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
+        return py_ast.ListComp(
+            elt=self.element.as_ast(),
+            generators=[
+                py_ast.comprehension(
+                    target=_target_as_store_ast(comp.target),
+                    iter=comp.iter.as_ast(),
+                    ifs=[if_.as_ast() for if_ in self.ifs],
+                    is_async=False,
+                )
+                for comp in self.generators
+            ],
+        )
+
+
+def list_comprehension(
+    element: ExpressionLike, generator: Comprehension, *, condition: ExpressionLike | None = None
+) -> ListComp:
+
+    return ListComp(
+        E_to_Expression(element), [generator], ifs=[E_to_Expression(condition)] if condition is not None else []
+    )
 
 
 #: Type alias for valid assignment target expressions.

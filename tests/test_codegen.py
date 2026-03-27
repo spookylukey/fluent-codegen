@@ -4267,6 +4267,17 @@ def test_add_comment_wrap_empty_string():
     assert "#" in source
 
 
+def test_list_comprehension():
+    mod = codegen.Module()
+    x = mod.assign("x", auto([1, 2, 3]))
+    comprehension, loop_name = mod.create_comprehension("y", x)
+    list_comp = codegen.list_comprehension(loop_name.e + 1, comprehension)
+    assert list_comp.as_python_source() == "[y + 1 for y in x]"
+
+    list_comp_2 = codegen.list_comprehension(loop_name.e + 1, comprehension, condition=loop_name.e > 5)
+    assert list_comp_2.as_python_source() == "[y + 1 for y in x if y > 5]"
+
+
 # -- E-objects
 
 
