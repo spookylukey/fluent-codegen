@@ -4278,6 +4278,57 @@ def test_list_comprehension():
     assert list_comp_2.as_python_source() == "[y + 1 for y in x if y > 5]"
 
 
+def test_set_comprehension():
+    mod = codegen.Module()
+    x = mod.assign("x", auto([1, 2, 3]))
+    comprehension, loop_name = mod.create_comprehension("y", x)
+    set_comp = codegen.set_comprehension(loop_name.e + 1, comprehension)
+    assert set_comp.as_python_source() == "{y + 1 for y in x}"
+
+    set_comp_2 = codegen.set_comprehension(loop_name.e + 1, comprehension, condition=loop_name.e > 5)
+    assert set_comp_2.as_python_source() == "{y + 1 for y in x if y > 5}"
+
+
+def test_dict_comprehension():
+    mod = codegen.Module()
+    items = mod.assign("items", auto([("a", 1), ("b", 2)]))
+    comprehension, (k, v) = mod.create_comprehension(("k", "v"), items)
+    dict_comp = codegen.dict_comprehension(k, v, comprehension)
+    assert dict_comp.as_python_source() == "{k: v for k, v in items}"
+
+    dict_comp_2 = codegen.dict_comprehension(k, v, comprehension, condition=v.e > 1)
+    assert dict_comp_2.as_python_source() == "{k: v for k, v in items if v > 1}"
+
+
+def test_generator_expression():
+    mod = codegen.Module()
+    x = mod.assign("x", auto([1, 2, 3]))
+    comprehension, loop_name = mod.create_comprehension("y", x)
+    gen_expr = codegen.generator_expression(loop_name.e + 1, comprehension)
+    assert gen_expr.as_python_source() == "(y + 1 for y in x)"
+
+    gen_expr_2 = codegen.generator_expression(loop_name.e + 1, comprehension, condition=loop_name.e > 5)
+    assert gen_expr_2.as_python_source() == "(y + 1 for y in x if y > 5)"
+
+
+def test_generator_expression_in_function_call():
+    mod = codegen.Module()
+    x = mod.assign("x", auto([1, 2, 3]))
+    comprehension, loop_name = mod.create_comprehension("y", x)
+    gen_expr = codegen.generator_expression(loop_name.e * 2, comprehension)
+    my_func = mod.assign("my_func", codegen.constants.None_)
+    call = my_func.call([gen_expr])
+    assert call.as_python_source() == "my_func((y * 2 for y in x))"
+
+
+def test_dict_comprehension_single_target():
+    mod = codegen.Module()
+    items = mod.assign("items", auto([1, 2, 3]))
+    comprehension, loop_name = mod.create_comprehension("x", items)
+    dict_comp = codegen.dict_comprehension(loop_name, loop_name.e**2, comprehension)
+    assert dict_comp.as_python_source() == "{x: x ** 2 for x in items}"
+
+
 # -- E-objects
 
 

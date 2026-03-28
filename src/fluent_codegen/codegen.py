@@ -1967,15 +1967,71 @@ class Comprehension:
         self.iter = iter
 
 
-class ListComp(Expression):
+class _EltComprehensionBase(Expression):
+    """Base class for comprehensions with a single element expression (list, set, generator)."""
+
     def __init__(self, element: Expression, generators: Sequence[Comprehension], ifs: Sequence[Expression]) -> None:
         self.element = element
         self.generators = generators
         self.ifs = ifs
 
+    def _make_generators(self) -> list[py_ast.comprehension]:
+        return [
+            py_ast.comprehension(
+                target=_target_as_store_ast(comp.target),
+                iter=comp.iter.as_ast(),
+                ifs=[if_.as_ast() for if_ in self.ifs],
+                is_async=False,
+            )
+            for comp in self.generators
+        ]
+
+
+class ListComp(_EltComprehensionBase):
+    """A list comprehension expression, e.g. ``[x + 1 for x in items]``."""
+
     def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
         return py_ast.ListComp(
             elt=self.element.as_ast(),
+            generators=self._make_generators(),
+        )
+
+
+class SetComp(_EltComprehensionBase):
+    """A set comprehension expression, e.g. ``{x + 1 for x in items}``."""
+
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
+        return py_ast.SetComp(
+            elt=self.element.as_ast(),
+            generators=self._make_generators(),
+        )
+
+
+class GeneratorExpr(_EltComprehensionBase):
+    """A generator expression, e.g. ``(x + 1 for x in items)``."""
+
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
+        return py_ast.GeneratorExp(
+            elt=self.element.as_ast(),
+            generators=self._make_generators(),
+        )
+
+
+class DictComp(Expression):
+    """A dict comprehension expression, e.g. ``{k: v for k, v in items}``."""
+
+    def __init__(
+        self, key: Expression, value: Expression, generators: Sequence[Comprehension], ifs: Sequence[Expression]
+    ) -> None:
+        self.key = key
+        self.value = value
+        self.generators = generators
+        self.ifs = ifs
+
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
+        return py_ast.DictComp(
+            key=self.key.as_ast(),
+            value=self.value.as_ast(),
             generators=[
                 py_ast.comprehension(
                     target=_target_as_store_ast(comp.target),
@@ -1991,9 +2047,43 @@ class ListComp(Expression):
 def list_comprehension(
     element: ExpressionLike, generator: Comprehension, *, condition: ExpressionLike | None = None
 ) -> ListComp:
-
+    """Create a :class:`ListComp` (list comprehension) expression."""
     return ListComp(
         E_to_Expression(element), [generator], ifs=[E_to_Expression(condition)] if condition is not None else []
+    )
+
+
+def set_comprehension(
+    element: ExpressionLike, generator: Comprehension, *, condition: ExpressionLike | None = None
+) -> SetComp:
+    """Create a :class:`SetComp` (set comprehension) expression."""
+    return SetComp(
+        E_to_Expression(element), [generator], ifs=[E_to_Expression(condition)] if condition is not None else []
+    )
+
+
+def generator_expression(
+    element: ExpressionLike, generator: Comprehension, *, condition: ExpressionLike | None = None
+) -> GeneratorExpr:
+    """Create a :class:`GeneratorExpr` (generator expression)."""
+    return GeneratorExpr(
+        E_to_Expression(element), [generator], ifs=[E_to_Expression(condition)] if condition is not None else []
+    )
+
+
+def dict_comprehension(
+    key: ExpressionLike,
+    value: ExpressionLike,
+    generator: Comprehension,
+    *,
+    condition: ExpressionLike | None = None,
+) -> DictComp:
+    """Create a :class:`DictComp` (dict comprehension) expression."""
+    return DictComp(
+        E_to_Expression(key),
+        E_to_Expression(value),
+        [generator],
+        ifs=[E_to_Expression(condition)] if condition is not None else [],
     )
 
 

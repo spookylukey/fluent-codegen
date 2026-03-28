@@ -180,6 +180,37 @@ Access and call expressions
    :show-inheritance:
 
 
+Comprehensions
+~~~~~~~~~~~~~~
+
+.. autoclass:: Comprehension
+   :members:
+
+.. autoclass:: ListComp
+   :members:
+   :show-inheritance:
+
+.. autoclass:: SetComp
+   :members:
+   :show-inheritance:
+
+.. autoclass:: DictComp
+   :members:
+   :show-inheritance:
+
+.. autoclass:: GeneratorExpr
+   :members:
+   :show-inheritance:
+
+.. autofunction:: list_comprehension
+
+.. autofunction:: set_comprehension
+
+.. autofunction:: dict_comprehension
+
+.. autofunction:: generator_expression
+
+
 String joining
 ~~~~~~~~~~~~~~
 

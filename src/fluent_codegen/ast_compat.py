@@ -92,6 +92,9 @@ Import = ast.Import
 ImportFrom = ast.ImportFrom
 alias = ast.alias
 ListComp = ast.ListComp
+SetComp = ast.SetComp
+DictComp = ast.DictComp
+GeneratorExp = ast.GeneratorExp
 comprehension = ast.comprehension
 
 # `compile` builtin needs these attributes on AST nodes.

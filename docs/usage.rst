@@ -147,7 +147,7 @@ names in the scope:
    * - ``create_for(target, iterable)``
      - A ``for`` loop
    * - ``create_comprehension(target, iterable)``
-     - A comprehension, for the body of a list comprehension
+     - A comprehension, for use in list/set/dict comprehensions and generator expressions
    * - ``create_try()``
      - A ``try``/``except``/``else``/``finally`` statement
    * - ``create_return(value)``
@@ -560,6 +560,43 @@ The *target* can also be a tuple of names for unpacking::
        (key, value),
        items.method_call("items"),
    )
+
+
+Comprehensions and generator expressions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Use :meth:`~fluent_codegen.codegen.Block.create_comprehension` to define the
+loop variable and iterable, then pass the result to one of the comprehension
+factory functions:
+
+.. code-block:: python
+
+   module = codegen.Module()
+   x = module.assign("x", codegen.auto([1, 2, 3]))
+   comp, y = module.create_comprehension("y", x)
+
+   # List comprehension
+   lc = codegen.list_comprehension(y.e + 1, comp)
+   # -> [y + 1 for y in x]
+
+   # Set comprehension
+   sc = codegen.set_comprehension(y.e + 1, comp)
+   # -> {y + 1 for y in x}
+
+   # Generator expression
+   ge = codegen.generator_expression(y.e + 1, comp)
+   # -> (y + 1 for y in x)
+
+   # Dict comprehension (with tuple unpacking)
+   items = module.assign("items", codegen.auto([("a", 1)]))
+   comp2, (k, v) = module.create_comprehension(("k", "v"), items)
+   dc = codegen.dict_comprehension(k, v, comp2)
+   # -> {k: v for k, v in items}
+
+All factory functions accept an optional ``condition`` keyword argument::
+
+   lc = codegen.list_comprehension(y.e + 1, comp, condition=y.e > 0)
+   # -> [y + 1 for y in x if y > 0]
 
 
 Function arguments — positional, keyword, defaults
