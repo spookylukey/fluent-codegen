@@ -769,7 +769,8 @@ class Block(CodeGenAstList):
         """
         Create a Comprehension object (which can become a list comprehension)
 
-        The first parameter is the loop variable.
+        The first parameter `target` is the loop variable, the second parameter
+        `iterable` is the object that will be iterated over.
         """
         target = _normalize_targets(self.scope, target)
         comprehension = Comprehension(target, E_to_Expression(iterable))
