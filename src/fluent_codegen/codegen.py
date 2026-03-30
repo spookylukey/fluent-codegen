@@ -951,42 +951,12 @@ class Function(Scope, Statement):
     def as_ast(self, *, include_comments: bool = False) -> py_ast.stmt:
         if not allowable_name(self.func_name):
             raise AssertionError(f"Expected '{self.func_name}' to be a valid Python identifier")
-        for arg in self._args:
-            if not allowable_name(arg.name):
-                raise AssertionError(f"Expected '{arg.name}' to be a valid Python identifier")
 
-        def _make_arg(a: FunctionArg) -> py_ast.arg:
-            return py_ast.arg(
-                arg=a.name,
-                annotation=a.annotation.as_ast() if a.annotation is not None else None,
-                **DEFAULT_AST_ARGS,
-            )
-
-        posonlyargs = [_make_arg(a) for a in self._args if a.kind == ArgKind.POSITIONAL_ONLY]
-        regular_args = [_make_arg(a) for a in self._args if a.kind == ArgKind.POSITIONAL_OR_KEYWORD]
-        kwonlyargs = [_make_arg(a) for a in self._args if a.kind == ArgKind.KEYWORD_ONLY]
-
-        # defaults: right-aligned to posonlyargs + regular_args
-        positional_all = [a for a in self._args if a.kind in (ArgKind.POSITIONAL_ONLY, ArgKind.POSITIONAL_OR_KEYWORD)]
-        defaults = [a.default.as_ast() for a in positional_all if a.default is not None]
-
-        # kw_defaults: one entry per kwonlyarg, None if no default
-        kw_defaults: list[py_ast.expr | None] = [
-            a.default.as_ast() if a.default is not None else None for a in self._args if a.kind == ArgKind.KEYWORD_ONLY
-        ]
+        arguments = _function_arg_list_to_ast_arguments(self._args)
 
         return py_ast.FunctionDef(
             name=self.func_name,
-            args=py_ast.arguments(
-                posonlyargs=posonlyargs,
-                args=regular_args,
-                vararg=None,
-                kwonlyargs=kwonlyargs,
-                kw_defaults=kw_defaults,
-                kwarg=None,
-                defaults=defaults,
-                **DEFAULT_AST_ARGS_ARGUMENTS,
-            ),
+            args=arguments,
             body=self.body.as_ast_list(allow_empty=False, include_comments=include_comments),
             decorator_list=[d.as_ast() for d in self.decorators],
             type_params=[],
@@ -997,6 +967,43 @@ class Function(Scope, Statement):
     def create_return(self, value: ExpressionLike):
         """Add a ``return`` statement to the function body."""
         self.body.create_return(E_to_Expression(value))
+
+
+def _function_arg_list_to_ast_arguments(args: Sequence[FunctionArg]):
+    for arg in args:
+        if not allowable_name(arg.name):
+            raise AssertionError(f"Expected '{arg.name}' to be a valid Python identifier")
+
+    def _make_arg(a: FunctionArg) -> py_ast.arg:
+        return py_ast.arg(
+            arg=a.name,
+            annotation=a.annotation.as_ast() if a.annotation is not None else None,
+            **DEFAULT_AST_ARGS,
+        )
+
+    posonlyargs = [_make_arg(a) for a in args if a.kind == ArgKind.POSITIONAL_ONLY]
+    regular_args = [_make_arg(a) for a in args if a.kind == ArgKind.POSITIONAL_OR_KEYWORD]
+    kwonlyargs = [_make_arg(a) for a in args if a.kind == ArgKind.KEYWORD_ONLY]
+
+    # defaults: right-aligned to posonlyargs + regular_args
+    positional_all = [a for a in args if a.kind in (ArgKind.POSITIONAL_ONLY, ArgKind.POSITIONAL_OR_KEYWORD)]
+    defaults = [a.default.as_ast() for a in positional_all if a.default is not None]
+
+    # kw_defaults: one entry per kwonlyarg, None if no default
+    kw_defaults: list[py_ast.expr | None] = [
+        a.default.as_ast() if a.default is not None else None for a in args if a.kind == ArgKind.KEYWORD_ONLY
+    ]
+
+    return py_ast.arguments(
+        posonlyargs=posonlyargs,
+        args=regular_args,
+        vararg=None,
+        kwonlyargs=kwonlyargs,
+        kw_defaults=kw_defaults,
+        kwarg=None,
+        defaults=defaults,
+        **DEFAULT_AST_ARGS_ARGUMENTS,
+    )
 
 
 class Class(Scope, Statement):
