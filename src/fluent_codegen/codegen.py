@@ -752,30 +752,6 @@ class Block(CodeGenAstList):
         self.add_statement(for_statement)
         return for_statement, target
 
-    @overload
-    def create_comprehension(self, target: str, iterable: ExpressionLike) -> tuple[Comprehension, Name]: ...
-
-    @overload
-    def create_comprehension(
-        self, target: tuple[str, ...], iterable: ExpressionLike
-    ) -> tuple[Comprehension, tuple[Name, ...]]: ...
-
-    @overload
-    def create_comprehension(self, target: Target, iterable: ExpressionLike) -> tuple[Comprehension, Target]: ...
-
-    def create_comprehension(
-        self, target: str | tuple[str, ...] | Target, iterable: ExpressionLike
-    ) -> tuple[Comprehension, Target]:
-        """
-        Create a Comprehension object (which can become a list comprehension)
-
-        The first parameter `target` is the loop variable, the second parameter
-        `iterable` is the object that will be iterated over.
-        """
-        target = _normalize_targets(self.scope, target)
-        comprehension = Comprehension(target, E_to_Expression(iterable))
-        return comprehension, target
-
     def create_try(self) -> Try:
         """
         Create a Try statement, add it to this block, and return it.
@@ -2045,44 +2021,106 @@ class DictComp(Expression):
 
 
 def list_comprehension(
-    element: ExpressionLike, generator: Comprehension, *, condition: ExpressionLike | None = None
+    *, iterable: ExpressionLike, target: Target, element: ExpressionLike, condition: ExpressionLike | None = None
 ) -> ListComp:
-    """Create a :class:`ListComp` (list comprehension) expression."""
+    """Create a :class:`ListComp` (list comprehension) expression.
+
+    e.g.::
+
+       data = auto([1, 2, 3])
+       list_comprehension(
+           iterable=data,
+           target=(loop_var := mod.scope.create_name("item")),
+           element=loop_var.e + 1,
+           condition=loop_var.e > 0
+       )
+
+    This produces:  ``[item + 1 for item in [1, 2, 3] if item > 0]``
+
+    """
+    comprehension = Comprehension(target, E_to_Expression(iterable))
     return ListComp(
-        E_to_Expression(element), [generator], ifs=[E_to_Expression(condition)] if condition is not None else []
+        E_to_Expression(element), [comprehension], ifs=[E_to_Expression(condition)] if condition is not None else []
     )
 
 
 def set_comprehension(
-    element: ExpressionLike, generator: Comprehension, *, condition: ExpressionLike | None = None
+    *, iterable: ExpressionLike, target: Target, element: ExpressionLike, condition: ExpressionLike | None = None
 ) -> SetComp:
-    """Create a :class:`SetComp` (set comprehension) expression."""
+    """Create a :class:`SetComp` (set comprehension) expression.
+
+    e.g.::
+
+       data = auto([1, 2, 3])
+       set_comprehension(
+           iterable=data,
+           target=(loop_var := mod.scope.create_name("item")),
+           element=loop_var.e + 1,
+           condition=loop_var.e > 0
+       )
+
+    This produces:  ``{item + 1 for item in [1, 2, 3] if item > 0}``
+
+    """
+    comprehension = Comprehension(target, E_to_Expression(iterable))
     return SetComp(
-        E_to_Expression(element), [generator], ifs=[E_to_Expression(condition)] if condition is not None else []
+        E_to_Expression(element), [comprehension], ifs=[E_to_Expression(condition)] if condition is not None else []
     )
 
 
 def generator_expression(
-    element: ExpressionLike, generator: Comprehension, *, condition: ExpressionLike | None = None
+    *, iterable: ExpressionLike, target: Target, element: ExpressionLike, condition: ExpressionLike | None = None
 ) -> GeneratorExpr:
-    """Create a :class:`GeneratorExpr` (generator expression)."""
+    """Create a :class:`SetComp` (set comprehension) expression.
+
+    e.g.::
+
+      data = auto([1, 2, 3])
+      my_func = mod.scope.create_name("my_func")
+      my_func.e(generator_expression(
+          iterable=data,
+          target=(loop_var := mod.scope.create_name("item")),
+          element=loop_var.e + 1,
+          condition=loop_var.e > 0
+      )
+
+    This produces: ``my_func((item + 1 for item in [1, 2, 3] if item > 0))``
+    """
+    comprehension = Comprehension(target, E_to_Expression(iterable))
     return GeneratorExpr(
-        E_to_Expression(element), [generator], ifs=[E_to_Expression(condition)] if condition is not None else []
+        E_to_Expression(element), [comprehension], ifs=[E_to_Expression(condition)] if condition is not None else []
     )
 
 
 def dict_comprehension(
+    *,
+    iterable: ExpressionLike,
+    target: Target,
     key: ExpressionLike,
     value: ExpressionLike,
-    generator: Comprehension,
-    *,
     condition: ExpressionLike | None = None,
 ) -> DictComp:
-    """Create a :class:`DictComp` (dict comprehension) expression."""
+    """Create a :class:`DictComp` (dict comprehension) expression.
+
+    e.g.::
+
+      dict_comprehension(
+          iterable=items,
+          target=(
+              (key_var := mod.scope.create_name("k")),
+              (value_var := mod.scope.create_name("v")),
+          ),
+          key=key_var.e + "_x",
+          value=value_var.e + 1,
+      )
+
+    This produces: ``{k + '_x': v + 1 for k, v in items}``
+    """
+    comprehension = Comprehension(target, E_to_Expression(iterable))
     return DictComp(
         E_to_Expression(key),
         E_to_Expression(value),
-        [generator],
+        [comprehension],
         ifs=[E_to_Expression(condition)] if condition is not None else [],
     )
 

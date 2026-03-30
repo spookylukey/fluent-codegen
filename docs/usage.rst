@@ -146,8 +146,6 @@ names in the scope:
      - A ``with`` statement
    * - ``create_for(target, iterable)``
      - A ``for`` loop
-   * - ``create_comprehension(target, iterable)``
-     - A comprehension, for use in list/set/dict comprehensions and generator expressions
    * - ``create_try()``
      - A ``try``/``except``/``else``/``finally`` statement
    * - ``create_return(value)``
@@ -565,38 +563,47 @@ The *target* can also be a tuple of names for unpacking::
 Comprehensions and generator expressions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Use :meth:`~fluent_codegen.codegen.Block.create_comprehension` to define the
-loop variable and iterable, then pass the result to one of the comprehension
-factory functions:
+Use :meth:`~fluent_codegen.codegen.list_comprehension` and friends as convenient
+ways to create :class:`ListComp` etc. objects. It can be useful to use the
+“walrus” operator to define ``Name`` objects, to allow you to create a list
+comprehension with a single expression:
 
 .. code-block:: python
 
    module = codegen.Module()
    x = module.assign("x", codegen.auto([1, 2, 3]))
-   comp, y = module.create_comprehension("y", x)
 
    # List comprehension
-   lc = codegen.list_comprehension(y.e + 1, comp)
+   lc = codegen.list_comprehension(
+        iterable=x,
+        target=(loop_var := module.scope.create_name("item")),
+        element=loop_var.e + 1,
+   )
    # -> [y + 1 for y in x]
 
-   # Set comprehension
-   sc = codegen.set_comprehension(y.e + 1, comp)
-   # -> {y + 1 for y in x}
-
-   # Generator expression
-   ge = codegen.generator_expression(y.e + 1, comp)
-   # -> (y + 1 for y in x)
-
    # Dict comprehension (with tuple unpacking)
-   items = module.assign("items", codegen.auto([("a", 1)]))
-   comp2, (k, v) = module.create_comprehension(("k", "v"), items)
-   dc = codegen.dict_comprehension(k, v, comp2)
-   # -> {k: v for k, v in items}
+   items = module.assign("items", codegen.auto([("a", 1), ("b", 2)]))
+   dc = codegen.dict_comprehension(
+       iterable=items,
+       target=(
+           (key_var := module.scope.create_name("k")),
+           (value_var := module.scope.create_name("v")),
+       ),
+       key=key_var.e.upper(),
+       value=value_var.e + 1,
+   )
+   # -> {k.upper(): v + 1 for k, v in items}
 
-All factory functions accept an optional ``condition`` keyword argument::
+All these functions accept an optional ``condition`` keyword argument:
 
-   lc = codegen.list_comprehension(y.e + 1, comp, condition=y.e > 0)
-   # -> [y + 1 for y in x if y > 0]
+.. code-block:: python
+
+   lc = codegen.list_comprehension(
+        iterable=data,
+        target=loop_var,
+        element=loop_var.e + 1,
+        condition=loop_var.e > 0
+    )   # -> [y + 1 for y in x if y > 0]
 
 
 Function arguments — positional, keyword, defaults

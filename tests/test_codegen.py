@@ -8,7 +8,7 @@ from hypothesis import example, given
 from hypothesis.strategies import text
 
 from fluent_codegen import codegen
-from fluent_codegen.codegen import auto
+from fluent_codegen.codegen import E_to_Expression, auto
 from fluent_codegen.utils import allowable_name
 
 
@@ -4269,64 +4269,91 @@ def test_add_comment_wrap_empty_string():
 
 def test_list_comprehension():
     mod = codegen.Module()
-    x = mod.assign("x", auto([1, 2, 3]))
-    comprehension, loop_name = mod.create_comprehension("y", x)
-    list_comp = codegen.list_comprehension(loop_name.e + 1, comprehension)
-    assert list_comp.as_python_source() == "[y + 1 for y in x]"
+    data = mod.assign("data", auto([1, 2, 3]))
+    list_comp = codegen.list_comprehension(
+        iterable=data,
+        target=(loop_var := mod.scope.create_name("item")),
+        element=loop_var.e + 1,
+    )
+    assert list_comp.as_python_source() == "[item + 1 for item in data]"
 
-    list_comp_2 = codegen.list_comprehension(loop_name.e + 1, comprehension, condition=loop_name.e > 5)
-    assert list_comp_2.as_python_source() == "[y + 1 for y in x if y > 5]"
+    list_comp_2 = codegen.list_comprehension(
+        iterable=data, target=loop_var, element=loop_var.e + 1, condition=loop_var.e > 0
+    )
+    assert list_comp_2.as_python_source() == "[item + 1 for item in data if item > 0]"
 
 
 def test_set_comprehension():
     mod = codegen.Module()
-    x = mod.assign("x", auto([1, 2, 3]))
-    comprehension, loop_name = mod.create_comprehension("y", x)
-    set_comp = codegen.set_comprehension(loop_name.e + 1, comprehension)
-    assert set_comp.as_python_source() == "{y + 1 for y in x}"
+    data = mod.assign("data", auto([1, 2, 3]))
+    set_comp = codegen.set_comprehension(
+        iterable=data,
+        target=(loop_var := mod.scope.create_name("item")),
+        element=loop_var.e + 1,
+    )
+    assert set_comp.as_python_source() == "{item + 1 for item in data}"
 
-    set_comp_2 = codegen.set_comprehension(loop_name.e + 1, comprehension, condition=loop_name.e > 5)
-    assert set_comp_2.as_python_source() == "{y + 1 for y in x if y > 5}"
+    set_comp_2 = codegen.set_comprehension(
+        iterable=data, target=loop_var, element=loop_var.e + 1, condition=loop_var.e > 0
+    )
+    assert set_comp_2.as_python_source() == "{item + 1 for item in data if item > 0}"
 
 
 def test_dict_comprehension():
     mod = codegen.Module()
     items = mod.assign("items", auto([("a", 1), ("b", 2)]))
-    comprehension, (k, v) = mod.create_comprehension(("k", "v"), items)
-    dict_comp = codegen.dict_comprehension(k, v, comprehension)
-    assert dict_comp.as_python_source() == "{k: v for k, v in items}"
+    dict_comp = codegen.dict_comprehension(
+        iterable=items,
+        target=(
+            (key_var := mod.scope.create_name("k")),
+            (value_var := mod.scope.create_name("v")),
+        ),
+        key=key_var.e + "_x",
+        value=value_var.e + 1,
+    )
+    assert dict_comp.as_python_source() == "{k + '_x': v + 1 for k, v in items}"
 
-    dict_comp_2 = codegen.dict_comprehension(k, v, comprehension, condition=v.e > 1)
-    assert dict_comp_2.as_python_source() == "{k: v for k, v in items if v > 1}"
+    my_dict = mod.assign("my_dict", auto({"a": -1, "b": 1}))
+    dict_comp_2 = codegen.dict_comprehension(
+        iterable=my_dict.e.items(),
+        target=(key_var, value_var),
+        key=key_var,
+        value=value_var,
+        condition=value_var.e > 1,
+    )
+    assert dict_comp_2.as_python_source() == "{k: v for k, v in my_dict.items() if v > 1}"
 
 
 def test_generator_expression():
     mod = codegen.Module()
     x = mod.assign("x", auto([1, 2, 3]))
-    comprehension, loop_name = mod.create_comprehension("y", x)
-    gen_expr = codegen.generator_expression(loop_name.e + 1, comprehension)
+    gen_expr = codegen.generator_expression(
+        iterable=x,
+        target=(loop_name := mod.scope.create_name("y")),
+        element=loop_name.e + 1,
+    )
     assert gen_expr.as_python_source() == "(y + 1 for y in x)"
 
-    gen_expr_2 = codegen.generator_expression(loop_name.e + 1, comprehension, condition=loop_name.e > 5)
+    gen_expr_2 = codegen.generator_expression(
+        iterable=x,
+        target=loop_name,
+        element=loop_name.e + 1,
+        condition=loop_name.e > 5,
+    )
     assert gen_expr_2.as_python_source() == "(y + 1 for y in x if y > 5)"
 
 
 def test_generator_expression_in_function_call():
     mod = codegen.Module()
     x = mod.assign("x", auto([1, 2, 3]))
-    comprehension, loop_name = mod.create_comprehension("y", x)
-    gen_expr = codegen.generator_expression(loop_name.e * 2, comprehension)
-    my_func = mod.assign("my_func", codegen.constants.None_)
-    call = my_func.call([gen_expr])
+    gen_expr = codegen.generator_expression(
+        iterable=x,
+        target=(loop_name := mod.scope.create_name("y")),
+        element=loop_name.e * 2,
+    )
+    my_func = mod.scope.create_name("my_func")
+    call = E_to_Expression(my_func.e(gen_expr))
     assert call.as_python_source() == "my_func((y * 2 for y in x))"
-
-
-def test_dict_comprehension_single_target():
-    mod = codegen.Module()
-    items = mod.assign("items", auto([1, 2, 3]))
-    comprehension, loop_name = mod.create_comprehension("x", items)
-    dict_comp = codegen.dict_comprehension(loop_name, loop_name.e**2, comprehension)
-    assert dict_comp.as_python_source() == "{x: x ** 2 for x in items}"
 
 
 # -- E-objects
