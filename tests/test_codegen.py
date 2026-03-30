@@ -8,7 +8,7 @@ from hypothesis import example, given
 from hypothesis.strategies import text
 
 from fluent_codegen import codegen
-from fluent_codegen.codegen import E_to_Expression, auto
+from fluent_codegen.codegen import E_to_Expression, auto, create_lambda
 from fluent_codegen.utils import allowable_name
 
 
@@ -4354,6 +4354,26 @@ def test_generator_expression_in_function_call():
     my_func = mod.scope.create_name("my_func")
     call = E_to_Expression(my_func.e(gen_expr))
     assert call.as_python_source() == "my_func((y * 2 for y in x))"
+
+
+def test_lambda_with_no_args():
+    lambda_ = create_lambda([], auto(1))
+    assert lambda_.as_python_source() == "lambda: 1"
+
+
+def test_lambda_with_expression():
+    lambda_ = create_lambda("x", auto(1))
+    assert lambda_.as_python_source() == "lambda x: 1"
+
+
+def test_lambda_with_callable():
+    lambda_ = create_lambda("x", lambda self: self.enames.x + 1)
+    assert lambda_.as_python_source() == "lambda x: x + 1"
+
+
+def test_lambda_with_callable_bad_args():
+    with pytest.raises(AssertionError):
+        create_lambda("x", lambda self: self.enames.y + 1)
 
 
 # -- E-objects

@@ -48,6 +48,12 @@ Functions and classes
    :undoc-members:
 
 
+.. autoclass:: Lambda
+   :members:
+
+.. autofunction:: create_lambda
+
+
 Statements
 ----------
 

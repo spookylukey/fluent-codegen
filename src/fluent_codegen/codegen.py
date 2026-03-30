@@ -1944,6 +1944,28 @@ class Slice(Expression):
         return f"Slice({', '.join(parts)})"
 
 
+class Lambda(Expression):
+    """
+    A lambda expression e.g. `lambda x: x + 1`
+    """
+
+    def __init__(self, args: Sequence[str | FunctionArg], body: Expression) -> None:
+        self.args = _normalize_args(args)
+        self.body = body
+        # A Lambda is a small Scope, with fixed arguments.
+        scope = Scope()
+        for arg in self.args:
+            scope.reserve_name(arg.name)
+        self.enames = Enames(scope=scope)
+
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
+        return py_ast.Lambda(
+            args=_function_arg_list_to_ast_arguments(self.args),
+            body=self.body.as_ast(),
+            **DEFAULT_AST_ARGS,
+        )
+
+
 class Comprehension:
     def __init__(self, target: Target, iter: Expression):
         self.target = target
@@ -2129,6 +2151,32 @@ def dict_comprehension(
         E_to_Expression(value),
         [comprehension],
         ifs=[E_to_Expression(condition)] if condition is not None else [],
+    )
+
+
+def create_lambda(
+    args: Sequence[str | FunctionArg], body: ExpressionLike | Callable[[Lambda], ExpressionLike]
+) -> Lambda:
+    """
+    Create a lambda expression.
+
+    The body can be supplied by either an expression, or a callable that
+    will be called with a `Lambda` object as its only argument. This makes it
+    possible to access the `enames` object on the `Lambda`::
+
+        create_lambda('x', lambda self: self.enames.x + 1)
+
+    Produces: ``lambda x: x + 1``
+    """
+    if callable(body):
+        temp_lambda = Lambda(args, body=constants.None_)
+        body_expr = E_to_Expression(body(temp_lambda))
+    else:
+        body_expr = E_to_Expression(body)
+
+    return Lambda(
+        args=args,
+        body=body_expr,
     )
 
 
