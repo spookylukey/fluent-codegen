@@ -14,7 +14,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from functools import cached_property
-from typing import ClassVar, assert_never, overload
+from typing import ClassVar, Literal, assert_never, overload
 
 if sys.version_info >= (3, 13):
     from typing import TypeIs  # pragma: no cover
@@ -336,6 +336,74 @@ class Annotation(Statement):
         )
 
 
+type AugOp = Literal[
+    "+=",
+    "-=",
+    "*=",
+    "/=",
+    "//=",
+    "%=",
+    "**=",
+    "@=",
+    "<<=",
+    ">>=",
+    "|=",
+    "&=",
+    "^=",
+]
+"""Operator strings accepted by :class:`AugAssignment` and :meth:`Block.aug_assign`."""
+
+_AUG_OP_MAP: dict[str, type[py_ast.operator]] = {
+    "+=": py_ast.Add,
+    "-=": py_ast.Sub,
+    "*=": py_ast.Mult,
+    "/=": py_ast.Div,
+    "//=": py_ast.FloorDiv,
+    "%=": py_ast.Mod,
+    "**=": py_ast.Pow,
+    "@=": py_ast.MatMult,
+    "<<=": py_ast.LShift,
+    ">>=": py_ast.RShift,
+    "|=": py_ast.BitOr,
+    "^=": py_ast.BitXor,
+    "&=": py_ast.BitAnd,
+}
+
+type AugAssignTarget = Name | Attr | Subscript
+"""Valid targets for augmented assignment (no tuples)."""
+
+
+def _is_aug_assign_target(value: object) -> TypeIs[AugAssignTarget]:
+    return isinstance(value, (Name, Attr, Subscript))
+
+
+class AugAssignment(Statement):
+    """An augmented assignment statement, e.g. ``x += 1``."""
+
+    def __init__(self, target: AugAssignTarget, op: AugOp, value: Expression, /):
+        if not _is_aug_assign_target(target):
+            raise AssertionError(
+                f"Invalid augmented assignment target: {type(target).__name__}. "
+                "Only Name, Attr, and Subscript are allowed (not tuples)."
+            )
+        if op not in _AUG_OP_MAP:
+            raise AssertionError(
+                f"Invalid augmented assignment operator: {op!r}. Must be one of: {', '.join(sorted(_AUG_OP_MAP))}"
+            )
+        self.target = target
+        self.op: AugOp = op
+        self.value = value
+
+    def as_ast(self, *, include_comments: bool = False):
+        target_ast = _target_as_store_ast(self.target)
+        return py_ast.AugAssign(
+            target=target_ast,
+            op=_AUG_OP_MAP[self.op](**DEFAULT_AST_ARGS_ADD),
+            value=self.value.as_ast(),
+            **DEFAULT_AST_ARGS,
+        )
+
+
 class Assignment(Statement):
     """A variable assignment statement, optionally with a type annotation."""
 
@@ -582,6 +650,22 @@ class Block(CodeGenAstList):
             name_objs = tuple(self.scope.create_name(t) for t in target)
             self.create_assignment(name_objs, value)
             return name_objs
+
+    def aug_assign(self, target: AugAssignTarget, op: AugOp, value: ExpressionLike, /) -> None:
+        """Add an augmented assignment statement to this block.
+
+        Usage::
+
+            x = block.assign("x", auto(0))
+            block.aug_assign(x, "+=", auto(1))   # x += 1
+
+        *target* must be a :class:`Name`, :class:`Attr`, or :class:`Subscript`
+        (tuples are not valid Python augmented-assignment targets).
+
+        *op* is one of the Python augmented-assignment operator strings:
+        ``"+=" "-=" "*=" "/=" "//=" "%=" "**=" "@=" "<<=" ">>=" "|=" "&=" "^="``.
+        """
+        self.add_statement(AugAssignment(target, op, E_to_Expression(value)))
 
     def create_annotation(self, name: str, annotation: ExpressionLike) -> Name:
         """
