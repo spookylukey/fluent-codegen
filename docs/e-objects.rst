@@ -248,6 +248,9 @@ Some operators cannot be overridden by implementing dunder methods:
 
 - ``in`` and ``not in`` membership operators can’t be supported.
 
+- star-unpacking, like ``foo(*x)`` or ``foo(**x)``, is not supported (and will
+  produce an infinite loop if you attempt it…)
+
 For these, you need to fall back to converting to ``Expression`` with
 ``Expression.from_e``, and using method chaining.
 
