@@ -3,6 +3,18 @@ Changelog
 
 Main additions and breaking changes listed here.
 
+0.6.0 - 2026-04-01
+------------------
+
+Additions:
+
+- Added comprehension support: ``list_comprehension``, ``set_comprehension``, ``dict_comprehension``, and ``generator_expression`` factory functions, with support for conditions and multiple generators
+- Added ``Lambda`` AST node for lambda expressions
+- Added ``NamedExpr`` (walrus operator ``:=``) with ``named()`` standalone function
+- Added augmented assignment (``+=``, ``-=``, etc.) with ``AugAssignment`` statement and ``Block.aug_assign()`` convenience method
+- Better support for passing ``Name`` objects as target to ``create_for`` etc.
+- Added SVG-to-Turtle compiler example
+
 0.5.0 - 2026-03-11
 ------------------
 
