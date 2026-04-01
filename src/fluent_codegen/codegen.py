@@ -2201,6 +2201,22 @@ def create_lambda(
     )
 
 
+def named(name: Name, value: ExpressionLike) -> NamedExpr:
+    """
+    Create a NamedExpr from an Expression or E-object::
+
+
+      x = mod.scope.create_name("x")
+      value = codegen.auto(1).e + 1
+      named = codegen.named(x, value)
+
+    Produces::
+
+       (x := 1 + 1)
+    """
+    return NamedExpr(name=name, value=E_to_Expression(value))
+
+
 #: Type alias for valid assignment target expressions.
 #: A :class:`Name`, :class:`Attr`, or :class:`Subscript` expression,
 #: or a tuple of targets (for unpacking assignments).

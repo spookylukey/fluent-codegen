@@ -4376,11 +4376,20 @@ def test_lambda_with_callable_bad_args():
         create_lambda("x", lambda self: self.enames.y + 1)
 
 
-def test_named():
+def test_named_method():
     mod = codegen.Module()
     x = mod.scope.create_name("x")
     named = codegen.Number(1).named(x)
     assert named.as_python_source() == "(x := 1)"
+
+
+def test_named_func():
+    # This is useful as a standalone that accepts an E-object
+    mod = codegen.Module()
+    x = mod.scope.create_name("x")
+    value = codegen.auto(1).e + 1
+    named = codegen.named(x, value)
+    assert named.as_python_source() == "(x := (1 + 1))"
 
 
 # -- E-objects
