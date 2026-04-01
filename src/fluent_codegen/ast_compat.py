@@ -19,6 +19,7 @@ Break = ast.Break
 Continue = ast.Continue
 Assign = ast.Assign
 AnnAssign = ast.AnnAssign
+AugAssign = ast.AugAssign
 BoolOp = ast.BoolOp
 BinOp = ast.BinOp
 Compare = ast.Compare
