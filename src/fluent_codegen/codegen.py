@@ -1563,6 +1563,14 @@ class Expression(CodeGenAst):
         """Return a :class:`Starred` (``*self``) unpacking expression."""
         return Starred(self)
 
+    # Walrus / NamedExpr
+
+    def named(self, name: Name) -> NamedExpr:
+        """
+        Return the expression as a named expression (walrus operator)
+        """
+        return NamedExpr(name=name, value=self)
+
     # E-object:
     @cached_property
     def e(self) -> E:
@@ -1766,7 +1774,7 @@ class Name(Expression):
             raise AssertionError(f"Cannot refer to undefined name '{name}'")
         self.name = name
 
-    def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.Name:
         if not allowable_name(self.name, allow_builtin=True):
             raise AssertionError(f"Expected {self.name} to be a valid Python identifier")
         return py_ast.Name(id=self.name, ctx=py_ast.Load(), **DEFAULT_AST_ARGS)
@@ -1802,6 +1810,19 @@ class Starred(Expression):
 
     def __repr__(self):
         return f"Starred({self.value!r})"
+
+
+class NamedExpr(Expression):
+    """
+    A named expression (walrus operator) e.g. `x := 1`
+    """
+
+    def __init__(self, name: Name, value: Expression) -> None:
+        self.name = name
+        self.value = value
+
+    def as_ast(self, *, include_comments: bool = False) -> py_ast.expr:
+        return py_ast.NamedExpr(target=self.name.as_ast(), value=self.value.as_ast(), **DEFAULT_AST_ARGS)
 
 
 def function_call(

@@ -97,6 +97,7 @@ DictComp = ast.DictComp
 GeneratorExp = ast.GeneratorExp
 comprehension = ast.comprehension
 Lambda = ast.Lambda
+NamedExpr = ast.NamedExpr
 
 # `compile` builtin needs these attributes on AST nodes.
 # It's hard to get something sensible we can put for line/col numbers so we put arbitrary values.

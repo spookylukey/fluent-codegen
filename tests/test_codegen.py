@@ -4376,6 +4376,13 @@ def test_lambda_with_callable_bad_args():
         create_lambda("x", lambda self: self.enames.y + 1)
 
 
+def test_named():
+    mod = codegen.Module()
+    x = mod.scope.create_name("x")
+    named = codegen.Number(1).named(x)
+    assert named.as_python_source() == "(x := 1)"
+
+
 # -- E-objects
 
 
