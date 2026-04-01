@@ -71,6 +71,10 @@ property which is available on ``Scope`` and ``Module``:
    #    def inc(val):
    #        return val + 1
 
+In the above code, ``func.enames.val`` is equivalent to ``func.name('val').e``.
+Like the ``Scope.name()`` method, it will raise an error of you attempt to get a
+name that has not been reserved.
+
 This is also a convenient way to get hold of builtins that are already
 registered as names in the ``Module`` scope (and inherited by other scopes that
 are added to ``Module`` objects):
@@ -78,6 +82,14 @@ are added to ``Module`` objects):
 .. code-block:: python
 
    mod.enames.str(1)   #  Outputs `str(1)`
+
+   # Equivalent to:
+   #
+   #  mod.scope.name('str').e(1)
+   #
+   # or the long method chaining version:
+   #
+   #  mod.scope.name('str').call([codegen.Number(10)]).e
 
 Mixing types
 ============
