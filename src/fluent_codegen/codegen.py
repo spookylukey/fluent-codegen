@@ -395,7 +395,7 @@ class AugAssignment(Statement):
         self.value = value
 
     def as_ast(self, *, include_comments: bool = False):
-        target_ast = _target_as_store_ast(self.target)
+        target_ast = _aug_target_as_store_ast(self.target)
         return py_ast.AugAssign(
             target=target_ast,
             op=_AUG_OP_MAP[self.op](**DEFAULT_AST_ARGS_ADD),
@@ -2324,6 +2324,14 @@ def _target_as_store_ast(target: Target) -> py_ast.expr:
             ctx=py_ast.Store(),
             **DEFAULT_AST_ARGS,
         )
+    node = target.as_ast()
+    if isinstance(node, (py_ast.Name, py_ast.Attribute, py_ast.Subscript)):
+        node.ctx = py_ast.Store()
+        return node
+    raise AssertionError(f"Unexpected AST node type for target: {type(node)}")  # pragma: no cover
+
+
+def _aug_target_as_store_ast(target: AugAssignTarget) -> py_ast.Name | py_ast.Attribute | py_ast.Subscript:
     node = target.as_ast()
     if isinstance(node, (py_ast.Name, py_ast.Attribute, py_ast.Subscript)):
         node.ctx = py_ast.Store()
