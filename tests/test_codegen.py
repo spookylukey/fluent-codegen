@@ -1660,6 +1660,26 @@ def test_block_create_for_tuple_unpack():
     )
 
 
+def test_block_create_for_tuple_unpack_with_names():
+    module = codegen.Module()
+    func, _ = module.create_function("myfunc", args=["mapping"])
+    mapping = func.name("mapping")
+    k = module.scope.create_name("k")
+    v = module.scope.create_name("v")
+    for_stmt, (k_, v_) = func.body.create_for((k, v), mapping.method_call("items"))
+    assert k_ is k
+    assert v_ is v
+    for_stmt.body.add_statement(module.scope.name("print").call([k, v]))
+    assert_code_equal(
+        module,
+        """
+        def myfunc(mapping):
+            for k, v in mapping.items():
+                print(k, v)
+        """,
+    )
+
+
 def test_block_create_for_bad_tuple():
     module = codegen.Module()
     with pytest.raises(AssertionError):

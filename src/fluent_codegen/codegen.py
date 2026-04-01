@@ -815,6 +815,9 @@ class Block(CodeGenAstList):
     def create_for(self, target: tuple[str, ...], iterable: ExpressionLike) -> tuple[For, tuple[Name, ...]]: ...
 
     @overload
+    def create_for(self, target: tuple[Name, ...], iterable: ExpressionLike) -> tuple[For, tuple[Name, ...]]: ...
+
+    @overload
     def create_for(self, target: Target, iterable: ExpressionLike) -> tuple[For, Target]: ...
 
     def create_for(self, target: str | tuple[str, ...] | Target, iterable: ExpressionLike) -> tuple[For, Target]:
@@ -857,17 +860,14 @@ class Block(CodeGenAstList):
         return try_statement
 
 
-def _normalize_targets(scope: Scope, target: str | tuple[str, ...] | Target) -> Name | tuple[Name] | Target:
+def _normalize_targets(scope: Scope, target: str | tuple[str, ...] | Target) -> Target:
     if isinstance(target, str):
         name_obj = scope.create_name(target)
         target = name_obj
     elif isinstance(target, tuple):
-        name_objs: list[Name] = []
-        for t in target:
-            if not isinstance(t, str):
-                raise AssertionError(f"Expected str objects, got {t}")
-            name_objs.append(scope.create_name(t))
-        target = tuple(name_objs)
+        target = tuple([_normalize_targets(scope, t) for t in target])
+    else:
+        assert is_target(target), f"Expected str, tuple or Target, got {type(target)}"
     return target
 
 
