@@ -4539,3 +4539,139 @@ def test_enames():
 
     assert_code_equal(mod.enames.x + 1, "x + 1")
     assert_code_equal(mod.enames.str(1), "str(1)")
+
+
+# --- AugAssign tests ---
+
+
+def test_aug_assign_iadd():
+    mod = codegen.Module()
+    x = mod.assign("x", auto(0))
+    mod.aug_assign(x, "+=", auto(1))
+    assert_code_equal(
+        mod,
+        """\
+        x = 0
+        x += 1
+        """,
+    )
+
+
+def test_aug_assign_subscript_target():
+    mod = codegen.Module()
+    x = mod.assign("x", auto([0, 0, 0]))
+    mod.aug_assign(x.subscript(auto(0)), "+=", auto(5))
+    assert_code_equal(
+        mod,
+        """\
+        x = [0, 0, 0]
+        x[0] += 5
+        """,
+    )
+
+
+def test_aug_assign_attr_target():
+    mod = codegen.Module()
+    x = mod.assign("x", auto(0))
+    mod.aug_assign(x.attr("count"), "+=", auto(1))
+    assert_code_equal(
+        mod,
+        """\
+        x = 0
+        x.count += 1
+        """,
+    )
+
+
+def test_aug_assign_iadd_list():
+    mod = codegen.Module()
+    x = mod.assign("x", auto([1]))
+    mod.aug_assign(x, "+=", auto([2, 3, 4]))
+    assert_code_equal(
+        mod,
+        """\
+        x = [1]
+        x += [2, 3, 4]
+        """,
+    )
+
+
+def test_aug_assign_e_expression_as_value():
+    mod = codegen.Module()
+    x = mod.assign("x", auto(0))
+    y = mod.assign("y", auto(5))
+    mod.aug_assign(x, "+=", y.e * 2)
+    assert_code_equal(
+        mod,
+        """\
+        x = 0
+        y = 5
+        x += y * 2
+        """,
+    )
+
+
+def test_aug_assignment_statement_directly():
+    mod = codegen.Module()
+    x = mod.assign("x", auto(0))
+    stmt = codegen.AugAssignment(x, "+=", auto(1))
+    mod.add_statement(stmt)
+    assert_code_equal(
+        mod,
+        """\
+        x = 0
+        x += 1
+        """,
+    )
+
+
+def test_aug_assign_invalid_operator():
+    mod = codegen.Module()
+    x = mod.assign("x", auto(0))
+    with pytest.raises(AssertionError, match="Invalid augmented assignment operator"):
+        mod.aug_assign(x, "!=", auto(1))  # type: ignore[arg-type]
+
+
+def test_aug_assign_tuple_target_rejected():
+    mod = codegen.Module()
+    x = mod.assign("x", auto(0))
+    y = mod.assign("y", auto(0))
+    with pytest.raises(AssertionError, match="Invalid augmented assignment target"):
+        mod.aug_assign((x, y), "+=", auto(1))  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    "op",
+    ["+=", "-=", "*=", "/=", "//=", "%=", "**=", "@=", "<<=", ">>=", "|=", "&=", "^="],
+)
+def test_aug_assign_all_operators(op):
+    mod = codegen.Module()
+    x = mod.assign("x", auto(0))
+    mod.aug_assign(x, op, auto(1))
+    assert_code_equal(
+        mod,
+        f"""\
+        x = 0
+        x {op} 1
+        """,
+    )
+
+
+def test_aug_assign_accumulator_loop():
+    mod = codegen.Module()
+    func, _ = mod.create_function("accumulate", args=["items"])
+    items = func.name("items")
+    total = func.body.assign("total", auto(0))
+    loop, item = func.body.create_for("item", items)
+    loop.body.aug_assign(total, "+=", item)
+    func.body.add_statement(codegen.Return(total))
+    assert_code_equal(
+        mod,
+        """\
+        def accumulate(items):
+            total = 0
+            for item in items:
+                total += item
+            return total
+        """,
+    )
