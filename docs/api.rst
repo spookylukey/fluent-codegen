@@ -336,6 +336,8 @@ Utility functions
 
 .. autofunction:: method_call
 
+.. autofunction:: named
+
 .. autofunction:: cleanup_name
 
 .. autofunction:: traverse

@@ -2208,7 +2208,7 @@ def named(name: Name, value: ExpressionLike) -> NamedExpr:
 
       x = mod.scope.create_name("x")
       value = codegen.auto(1).e + 1
-      named = codegen.named(x, value)
+      named_val = codegen.named(x, value)
 
     Produces::
 
