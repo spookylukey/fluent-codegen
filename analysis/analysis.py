@@ -1,70 +1,75 @@
 #!/usr/bin/env python3
-"""Analyze coverage of Python AST nodes by fluent-codegen."""
+"""Analyze coverage of Python AST nodes by fluent-codegen.
 
-# AST node counts from 1975 files (3.3M total nodes)
+Updated analysis based on 47,341 Python files (84M total nodes).
+"""
+
+# AST node counts from 47,341 files (84M total nodes)
 # Only including nodes that represent user-visible syntax
-# (excluding Load, Store, Del which are internal context nodes)
+# (excluding Load, Store, Del which are internal context nodes,
+#  and structural nodes like arg, keyword, arguments, alias, etc.)
 
 nodes = {
     # Expressions
-    "Name": 601345,
-    "Constant": 590377,
-    "Attribute": 208669,
-    "Call": 175320,
-    "Tuple": 71141,
-    "List": 40369,
-    "Subscript": 33677,
-    "BinOp": 29100,
-    "Compare": 27114,
-    "UnaryOp": 19585,
-    "BoolOp": 6288,
-    "FormattedValue": 7785,
-    "JoinedStr": 5278,
-    "Dict": 4936,
-    "Starred": 1445,
-    "IfExp": 1669,
-    "Set": 729,
-    "Lambda": 699,
-    "ListComp": 1472,
-    "GeneratorExp": 945,
-    "Yield": 1353,
-    "DictComp": 256,
-    "YieldFrom": 216,
-    "NamedExpr": 187,
-    "Await": 146,
-    "SetComp": 82,
-    "Slice": 5235,
+    "Name": 16424441,
+    "Constant": 12008911,
+    "Attribute": 5422959,
+    "Call": 4533640,
+    "Tuple": 1487982,
+    "Subscript": 934211,
+    "List": 875399,
+    "BinOp": 858747,
+    "Compare": 741530,
+    "UnaryOp": 461327,
+    "FormattedValue": 196242,
+    "BoolOp": 164820,
+    "Slice": 149122,
+    "Dict": 139477,
+    "JoinedStr": 133051,
+    "AugAssign": 94096,
+    "IfExp": 45986,
+    "ListComp": 43289,
+    "Starred": 39534,
+    "Yield": 32950,
+    "GeneratorExp": 26347,
+    "Lambda": 22185,
+    "Set": 21174,
+    "DictComp": 6599,
+    "YieldFrom": 5504,
+    "NamedExpr": 3575,
+    "SetComp": 2400,
+    "Await": 2338,
     # Statements
-    "Assign": 88821,
-    "Expr": 72863,  # expression-as-statement
-    "If": 33251,
-    "FunctionDef": 25775,
-    "Return": 21398,
-    "ImportFrom": 9763,
-    "For": 6672,
-    "Raise": 5191,
-    "ClassDef": 4193,
-    "Import": 4271,
-    "Assert": 3833,
-    "AnnAssign": 3707,
-    "AugAssign": 3022,
-    "Try": 2935,
-    "With": 1762,
-    "Pass": 1490,
-    "Continue": 985,
-    "While": 752,
-    "Break": 642,
-    "Delete": 494,
-    "AsyncFunctionDef": 59,
-    "Global": 116,
-    "Nonlocal": 14,
-    "AsyncFor": 10,
-    "AsyncWith": 2,
-    "Match": 24,
-    "TypeAlias": 22,
+    "Assign": 2508267,
+    "Expr": 1646915,  # expression-as-statement
+    "If": 824659,
+    "FunctionDef": 733484,
+    "Return": 550664,
+    "ImportFrom": 232794,
+    "For": 175484,
+    "Assert": 132863,
+    "Raise": 131948,
+    "ClassDef": 115384,
+    "Import": 105591,
+    "AnnAssign": 94027,
+    "Try": 70201,
+    "With": 60190,
+    "Pass": 35714,
+    "Continue": 24008,
+    "While": 17209,
+    "Break": 15590,
+    "Delete": 12272,
+    "Global": 2404,
+    "AsyncFunctionDef": 2317,
+    "Match": 675,
+    "Nonlocal": 445,
+    "TypeAlias": 395,
+    "AsyncWith": 168,
+    "AsyncFor": 127,
+    "TryStar": 47,
 }
 
-# What fluent-codegen covers
+# What fluent-codegen covers (current as of post-0.5.0 development)
 covered = {
     # Expressions
     "Name",  # Name class
@@ -74,7 +79,7 @@ covered = {
     "Tuple",  # Tuple class
     "List",  # List class
     "Subscript",  # Subscript class
-    "BinOp",  # ArithOp subclasses (Add, Sub, Mul, etc.)
+    "BinOp",  # BinaryOperator (Add, Sub, Mul, etc.)
     "Compare",  # CompareOp subclasses (Equals, Lt, etc.)
     "UnaryOp",  # Not, UAdd, USub, Invert
     "BoolOp",  # And, Or
@@ -83,6 +88,12 @@ covered = {
     "Dict",  # Dict class
     "Starred",  # Starred class
     "Set",  # Set class
+    "Slice",  # Slice class (added in 0.5.0)
+    "ListComp",  # ListComp class
+    "SetComp",  # SetComp class
+    "DictComp",  # DictComp class
+    "GeneratorExp",  # GeneratorExpr class
+    "Lambda",  # Lambda class
     # Statements
     "Assign",  # Assignment class
     "Expr",  # Expressions used as statements in Block
@@ -90,13 +101,17 @@ covered = {
     "FunctionDef",  # Function class
     "Return",  # Return class
     "ImportFrom",  # ImportFrom class
+    "For",  # For class
     "ClassDef",  # Class class
     "Import",  # Import class
     "Assert",  # Assert class
     "AnnAssign",  # Annotation / Assignment with type_hint
+    "Raise",  # Raise class
     "Try",  # Try class
     "With",  # With class
     "Pass",  # used as empty block filler
+    "Break",  # Break class
+    "Continue",  # Continue class
 }
 
 not_covered = {k: v for k, v in nodes.items() if k not in covered}
@@ -114,71 +129,78 @@ print("=" * 70)
 print("MISSING AST NODES — ranked by frequency in real Python code")
 print("=" * 70)
 print()
-print(f"{'Rank':>4}  {'AST Node':<22} {'Count':>8}  {'% of total':>10}  Notes")
-print(f"{'----':>4}  {'--------':<22} {'-----':>8}  {'----------':>10}  -----")
+print(f"{'Rank':>4}  {'AST Node':<22} {'Count':>10}  {'% of total':>10}  Notes")
+print(f"{'----':>4}  {'--------':<22} {'-----':>10}  {'----------':>10}  -----")
 
 notes = {
-    "For": "for loops — very common control flow",
-    "Raise": "raise statements — essential for error handling",
-    "Slice": "slice notation a[1:3] — used in Subscript",
     "AugAssign": "x += 1, x -= 1, etc.",
     "IfExp": "ternary: x if cond else y",
-    "ListComp": "[x for x in items]",
     "Yield": "generator yield",
-    "Continue": "loop continue",
     "While": "while loops",
-    "GeneratorExp": "(x for x in items)",
-    "Lambda": "lambda expressions",
-    "Break": "loop break",
     "Delete": "del statement",
-    "DictComp": "{k: v for k, v in items}",
     "YieldFrom": "yield from expr",
     "NamedExpr": "walrus operator :=",
     "Await": "await expression",
     "Global": "global statement",
-    "SetComp": "{x for x in items}",
     "AsyncFunctionDef": "async def",
     "Match": "match/case (3.10+)",
-    "TypeAlias": "type X = ... (3.12+)",
     "Nonlocal": "nonlocal statement",
-    "AsyncFor": "async for",
+    "TypeAlias": "type X = ... (3.12+)",
     "AsyncWith": "async with",
+    "AsyncFor": "async for",
+    "TryStar": "try/except* (ExceptionGroup, 3.11+)",
 }
 
 ranked = sorted(not_covered.items(), key=lambda x: -x[1])
 for i, (name, count) in enumerate(ranked, 1):
     pct = count / total * 100
     note = notes.get(name, "")
-    print(f"{i:>4}  {name:<22} {count:>8,}  {pct:>9.2f}%  {note}")
+    print(f"{i:>4}  {name:<22} {count:>10,}  {pct:>9.2f}%  {note}")
+
+print()
+print("=" * 70)
+print("COVERAGE CHANGE SINCE LAST ANALYSIS")
+print("=" * 70)
+print()
+newly_covered = {
+    "For": "For class — for loops",
+    "Raise": "Raise class — raise statements",
+    "Slice": "Slice class — slice notation",
+    "Break": "Break class — loop break",
+    "Continue": "Continue class — loop continue",
+    "ListComp": "ListComp class — list comprehensions",
+    "SetComp": "SetComp class — set comprehensions",
+    "DictComp": "DictComp class — dict comprehensions",
+    "GeneratorExp": "GeneratorExpr class — generator expressions",
+    "Lambda": "Lambda class — lambda expressions",
+}
+for name, desc in newly_covered.items():
+    count = nodes.get(name, 0)
+    print(f"  ✅  {name:<18} {count:>10,} occurrences — {desc}")
 
 print()
 print("=" * 70)
 print("TOP SUGGESTIONS FOR ADDING TO FLUENT-CODEGEN")
 print("=" * 70)
 print()
-print("High priority (very common syntax):")
-print("  1. For       — for loops are the 7th most common statement")
-print("  2. Raise     — essential for any error-handling code generation")
-print("  3. Slice     — needed for proper a[start:stop:step] support")
-print("  4. AugAssign — augmented assignment (+=, -=, etc.)")
-print("  5. IfExp     — inline ternary expressions")
+print("High priority (very common syntax, broadly useful):")
+print("  1. AugAssign  (94,096) — augmented assignment (+=, -=, *=, etc.)")
+print("  2. IfExp      (45,986) — inline ternary expressions")
+print("  3. Yield      (32,950) — generator yield / yield from")
+print("  4. While      (17,209) — while loops")
 print()
-print("Medium priority (commonly used):")
-print("  6. ListComp  — list comprehensions")
-print("  7. Yield     — generator functions")
-print("  8. Continue  — loop control")
-print("  9. While     — while loops")
-print(" 10. GeneratorExp — generator expressions")
-print(" 11. Lambda    — lambda expressions")
-print(" 12. Break     — loop control")
+print("Medium priority (useful but more niche):")
+print("  5. Delete     (12,272) — del statement")
+print("  6. YieldFrom   (5,504) — yield from")
+print("  7. NamedExpr   (3,575) — walrus operator :=")
+print("  8. Await       (2,338) — await expression (+ async ecosystem)")
 print()
-print("Lower priority (less common):")
-print(" 13. Delete    — del statement")
-print(" 14. DictComp  — dict comprehensions")
-print(" 15. YieldFrom — yield from")
-print(" 16. NamedExpr — walrus operator")
-print(" 17. Await / AsyncFunctionDef / AsyncFor / AsyncWith — async support")
-print(" 18. Global / Nonlocal")
-print(" 19. Match     — structural pattern matching")
-print(" 20. SetComp   — set comprehensions")
-print(" 21. TypeAlias — type alias statement")
+print("Lower priority (rare or very specialized):")
+print("  9. Global      (2,404) — global statement")
+print(" 10. AsyncFunctionDef (2,317) — async function definitions")
+print(" 11. Match         (675) — structural pattern matching")
+print(" 12. Nonlocal      (445) — nonlocal statement")
+print(" 13. TypeAlias     (395) — type alias statement")
+print(" 14. AsyncWith     (168) — async with")
+print(" 15. AsyncFor      (127) — async for")
+print(" 16. TryStar        (47) — try/except* for ExceptionGroups")
