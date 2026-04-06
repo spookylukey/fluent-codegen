@@ -576,7 +576,7 @@ comprehension with a single expression:
    # List comprehension
    lc = codegen.list_comprehension(
         iterable=x,
-        target=(loop_var := module.scope.create_name("item")),
+        target=(loop_var := module.scope.create_name("y")),
         element=loop_var.e + 1,
    )
    # -> [y + 1 for y in x]
@@ -603,7 +603,8 @@ All these functions accept an optional ``condition`` keyword argument:
         target=loop_var,
         element=loop_var.e + 1,
         condition=loop_var.e > 0
-    )   # -> [y + 1 for y in x if y > 0]
+    )
+    # -> [y + 1 for y in x if y > 0]
 
 
 Function arguments — positional, keyword, defaults

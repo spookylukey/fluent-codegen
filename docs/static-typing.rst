@@ -29,6 +29,6 @@ Or:
 
 So you will need other ways to ensure and test that your output is correct.
 
-In addition to unit tests, a useful technique is to run a static type checker on
-the output. `ty <https://docs.astral.sh/ty/>`_ is a fast type checker that can
-be useful for this purpose.
+In addition to unit tests for your code, a useful technique is to run a static
+type checker on the output. `ty <https://docs.astral.sh/ty/>`_ is a fast type
+checker that can be useful for this purpose.
