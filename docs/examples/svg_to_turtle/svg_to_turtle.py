@@ -61,10 +61,14 @@ def _emit_line(
     y2: float,
 ) -> None:
     """Emit turtle commands to draw a single line from (x1,y1) to (x2,y2)."""
-    block.add_statement(turtle_e.penup())
-    block.add_statement(turtle_e.goto(start_e[0] + x1, start_e[1] + y1))
-    block.add_statement(turtle_e.pendown())
-    block.add_statement(turtle_e.goto(start_e[0] + x2, start_e[1] + y2))
+    block.add_statements(
+        [
+            turtle_e.penup(),
+            turtle_e.goto(start_e[0] + x1, start_e[1] + y1),
+            turtle_e.pendown(),
+            turtle_e.goto(start_e[0] + x2, start_e[1] + y2),
+        ]
+    )
 
 
 def compile_svg(svg_path: str | Path) -> str:
@@ -159,17 +163,20 @@ def compile_svg(svg_path: str | Path) -> str:
             draw_func.body.add_statement(def_func_names[ref_id].e(turtle_e, (tx, ty)))
 
             # Restore
-            draw_func.body.add_statement(turtle_e.penup())
-            draw_func.body.add_statement(turtle_e.goto(pos.e))
-            draw_func.body.add_statement(turtle_e.setheading(heading.e))
+            draw_func.body.add_statements(
+                [
+                    turtle_e.penup(),
+                    turtle_e.goto(pos.e),
+                    turtle_e.setheading(heading.e),
+                ]
+            )
 
     # if __name__ == "__main__" block
     dunder_name = module.scope.name("__name__")
     if_main = module.create_if()
     main_block = if_main.create_if_branch(dunder_name.e == "__main__")
     t_var = main_block.assign("t", turtle_mod.e.Turtle())
-    main_block.add_statement(draw_name.e(t_var.e))
-    main_block.add_statement(turtle_mod.e.done())
+    main_block.add_statements([draw_name.e(t_var.e), turtle_mod.e.done()])
 
     return module.as_python_source()
 
