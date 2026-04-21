@@ -11,7 +11,7 @@ module that reproduces the drawing with the standard-library
 
 * Building a :class:`~fluent_codegen.codegen.Module` with multiple
   functions.
-* Using the **E-object** system (``enames``, ``.e``) for natural-looking
+* Using the :doc:`E-objects system <./e-objects>` (``enames``, ``.e``) for natural-looking
   math and method calls.
 * Automatic **name deduplication** — the same local name (``pos``,
   ``heading``) is used for each ``<use>`` element, and the scope
@@ -28,9 +28,19 @@ Supported SVG elements:
 The compiler script
 -------------------
 
+Points to note:
+
+- Variables of type ``E`` from the :doc:`E-objects system <./e-objects>`
+  have a suffix ``_e`` as a convention.
+- Note the use of E-objects in ``_emit_line``, so that the code written mirrors
+  the output code almost exactly, but without it being a string or subject to
+  the problems of string-based generation.
+
+
 .. literalinclude:: examples/svg_to_turtle/svg_to_turtle.py
    :language: python
    :caption: ``docs/examples/svg_to_turtle/svg_to_turtle.py``
+
 
 Sample input
 ------------

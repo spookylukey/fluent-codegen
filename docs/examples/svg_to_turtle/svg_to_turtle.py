@@ -53,18 +53,18 @@ def _parse_x_y(element: ET.Element) -> tuple[float, float]:
 
 def _emit_line(
     block: codegen.Block,
-    t: codegen.E,
-    start: codegen.E,
+    turtle_e: codegen.E,
+    start_e: codegen.E,
     x1: float,
     y1: float,
     x2: float,
     y2: float,
 ) -> None:
     """Emit turtle commands to draw a single line from (x1,y1) to (x2,y2)."""
-    block.add_statement(t.penup())
-    block.add_statement(t.goto(start[0] + x1, start[1] + y1))
-    block.add_statement(t.pendown())
-    block.add_statement(t.goto(start[0] + x2, start[1] + y2))
+    block.add_statement(turtle_e.penup())
+    block.add_statement(turtle_e.goto(start_e[0] + x1, start_e[1] + y1))
+    block.add_statement(turtle_e.pendown())
+    block.add_statement(turtle_e.goto(start_e[0] + x2, start_e[1] + y2))
 
 
 def compile_svg(svg_path: str | Path) -> str:
@@ -123,7 +123,7 @@ def compile_svg(svg_path: str | Path) -> str:
         args=[codegen.FunctionArg.standard("t", annotation=turtle_type)],
         return_type=none_type,
     )
-    t_e = draw_func.enames.t
+    turtle_e = draw_func.enames.t
     start = draw_func.body.assign("start", codegen.auto((0, 0)))
 
     for child in root:
@@ -135,7 +135,7 @@ def compile_svg(svg_path: str | Path) -> str:
         if tag == "line":
             _emit_line(
                 draw_func.body,
-                t_e,
+                turtle_e,
                 start.e,
                 _float(child, "x1"),
                 _float(child, "y1"),
@@ -152,16 +152,16 @@ def compile_svg(svg_path: str | Path) -> str:
             tx, ty = _parse_x_y(child)
 
             # Save turtle state
-            pos = draw_func.body.assign("pos", t_e.position())
-            heading = draw_func.body.assign("heading", t_e.heading())
+            pos = draw_func.body.assign("pos", turtle_e.position())
+            heading = draw_func.body.assign("heading", turtle_e.heading())
 
             # Call the helper
-            draw_func.body.add_statement(def_func_names[ref_id].e(t_e, (tx, ty)))
+            draw_func.body.add_statement(def_func_names[ref_id].e(turtle_e, (tx, ty)))
 
             # Restore
-            draw_func.body.add_statement(t_e.penup())
-            draw_func.body.add_statement(t_e.goto(pos.e))
-            draw_func.body.add_statement(t_e.setheading(heading.e))
+            draw_func.body.add_statement(turtle_e.penup())
+            draw_func.body.add_statement(turtle_e.goto(pos.e))
+            draw_func.body.add_statement(turtle_e.setheading(heading.e))
 
     # if __name__ == "__main__" block
     dunder_name = module.scope.name("__name__")
