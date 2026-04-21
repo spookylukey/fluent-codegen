@@ -2150,6 +2150,23 @@ def test_block_add_statement_reassign_parent():
         module2.add_statement(block)
 
 
+def test_block_add_statements():
+    """Test that add_statements adds multiple statements in order."""
+    module = codegen.Module()
+    module.scope.create_name("a_function")
+    module.scope.create_name("b_function")
+    func_call_a = codegen.function_call("a_function", [], {}, module.scope)
+    func_call_b = codegen.function_call("b_function", [], {}, module.scope)
+    module.add_statements([func_call_a, func_call_b])
+    assert_code_equal(
+        module,
+        """
+        a_function()
+        b_function()
+        """,
+    )
+
+
 def test_return_repr():
     ret = codegen.Return(codegen.String("hello"))
     assert "Return" in repr(ret)

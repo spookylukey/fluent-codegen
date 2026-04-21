@@ -507,6 +507,21 @@ class Block(CodeGenAstList):
                         f"Block {statement} is already child of {statement.parent_block}, can't reassign to {self}"
                     )
 
+    def add_statements(self, statements: Sequence[Statement | Block | ExpressionLike]) -> None:
+        """Append multiple statements to this block.
+
+        This is a convenience wrapper around :meth:`add_statement`::
+
+            block.add_statements([stmt_a, stmt_b, stmt_c])
+
+            # equivalent to:
+            block.add_statement(stmt_a)
+            block.add_statement(stmt_b)
+            block.add_statement(stmt_c)
+        """
+        for statement in statements:
+            self.add_statement(statement)
+
     def create_import(self, module: str, as_: str | None = None) -> tuple[Import, Name]:
         """Create an ``import`` statement, reserve the resulting name, and add it to this block."""
         return_name_object: Name
