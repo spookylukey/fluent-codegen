@@ -678,7 +678,21 @@ class Block(CodeGenAstList):
         (tuples are not valid Python augmented-assignment targets).
 
         *op* is one of the Python augmented-assignment operator strings:
-        ``"+=" "-=" "*=" "/=" "//=" "%=" "**=" "@=" "<<=" ">>=" "|=" "&=" "^="``.
+
+        - ``"+="``
+        - ``"-="``
+        - ``"*="``
+        - ``"/="``
+        - ``"//="``
+        - ``"%="``
+        - ``"**="``
+        - ``"@="``
+        - ``"<<="``
+        - ``">>="``
+        - ``"|="``
+        - ``"&="``
+        - ``"^="``
+
         """
         self.add_statement(AugAssignment(target, op, E_to_Expression(value)))
 
@@ -842,7 +856,7 @@ class Block(CodeGenAstList):
         or tuple[str] then these names will reserved and Name objects
         created, similar to `assign`.
 
-        The second parameters is an expression that will be iterated over.
+        The second parameter is an expression that will be iterated over.
 
         Usage::
 
