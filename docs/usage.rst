@@ -264,7 +264,8 @@ Because every method returns a new Expression, you can chain them fluently:
 
 
 In addition to ``Expression``, there is also the :doc:`E-objects system
-<./e-objects>` that provides a more convenient syntax in many cases.
+<./e-objects>` that provides a more convenient syntax in many cases. For brevity,
+some of the examples below will use E-objects and Enames.
 
 Literal values
 ~~~~~~~~~~~~~~
@@ -565,8 +566,8 @@ Comprehensions and generator expressions
 
 Use :meth:`~fluent_codegen.codegen.list_comprehension` and friends as convenient
 ways to create :class:`ListComp` etc. objects. It can be useful to use the
-“walrus” operator to define ``Name`` objects, to allow you to create a list
-comprehension with a single expression:
+“walrus” operator to define the ``Name`` object for the loop variable, to allow
+you to create a list comprehension with a single expression:
 
 .. code-block:: python
 
@@ -580,6 +581,17 @@ comprehension with a single expression:
         element=loop_var.e + 1,
    )
    # -> [y + 1 for y in x]
+
+   # List comprehension with a target as a tuple
+   lc2 = codegen.list_comprehension(
+       iterable=mod.enames.enumerate(x),
+       target=(
+           idx_var := mod.scope.create_name("idx"),
+           item_var := mod.scope.create_name("item"),
+       ),
+       element=item_var.e * idx_var.e,
+   )
+   # -> [item * idx for idx, item in enumerate(x)]
 
    # Dict comprehension (with tuple unpacking)
    items = module.assign("items", codegen.auto([("a", 1), ("b", 2)]))

@@ -4320,6 +4320,21 @@ def test_list_comprehension():
     assert list_comp_2.as_python_source() == "[item + 1 for item in data if item > 0]"
 
 
+def test_list_comprehension_tuple_target():
+    mod = codegen.Module()
+    data = mod.assign("data", auto([1, 2, 3]))
+    list_comp = codegen.list_comprehension(
+        iterable=mod.enames.enumerate(data),
+        target=(
+            idx_var := mod.scope.create_name("idx"),
+            item_var := mod.scope.create_name("item"),
+        ),
+        element=item_var.e * idx_var.e,
+        condition=idx_var.e % 2 == 0,
+    )
+    assert list_comp.as_python_source() == "[item * idx for idx, item in enumerate(data) if idx % 2 == 0]"
+
+
 def test_set_comprehension():
     mod = codegen.Module()
     data = mod.assign("data", auto([1, 2, 3]))
