@@ -29,46 +29,12 @@ from pathlib import Path
 
 from fluent_codegen import codegen
 
-# ---------------------------------------------------------------------------
-# SVG parsing helpers
-# ---------------------------------------------------------------------------
-
 SVG_NS = "http://www.w3.org/2000/svg"
 XLINK_NS = "http://www.w3.org/1999/xlink"
-
-
-def _float(element: ET.Element, attr: str) -> float:
-    """Extract a float attribute from an SVG element."""
-    return float(element.attrib[attr])
-
-
-def _parse_x_y(element: ET.Element) -> tuple[float, float]:
-    return (int(element.attrib.get("x", "0")), int(element.attrib.get("y", "0")))
-
 
 # ---------------------------------------------------------------------------
 # Code generation
 # ---------------------------------------------------------------------------
-
-
-def _emit_line(
-    block: codegen.Block,
-    turtle_e: codegen.E,
-    start_e: codegen.E,
-    x1: float,
-    y1: float,
-    x2: float,
-    y2: float,
-) -> None:
-    """Emit turtle commands to draw a single line from (x1,y1) to (x2,y2)."""
-    block.add_statements(
-        [
-            turtle_e.penup(),
-            turtle_e.goto(start_e[0] + x1, start_e[1] + y1),
-            turtle_e.pendown(),
-            turtle_e.goto(start_e[0] + x2, start_e[1] + y2),
-        ]
-    )
 
 
 def compile_svg(svg_path: str | Path) -> str:
@@ -179,6 +145,40 @@ def compile_svg(svg_path: str | Path) -> str:
     main_block.add_statements([draw_name.e(t_var.e), turtle_mod.e.done()])
 
     return module.as_python_source()
+
+
+def _emit_line(
+    block: codegen.Block,
+    turtle_e: codegen.E,
+    start_e: codegen.E,
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float,
+) -> None:
+    """Emit turtle commands to draw a single line from (x1,y1) to (x2,y2)."""
+    block.add_statements(
+        [
+            turtle_e.penup(),
+            turtle_e.goto(start_e[0] + x1, start_e[1] + y1),
+            turtle_e.pendown(),
+            turtle_e.goto(start_e[0] + x2, start_e[1] + y2),
+        ]
+    )
+
+
+# ---------------------------------------------------------------------------
+# SVG parsing helpers
+# ---------------------------------------------------------------------------
+
+
+def _float(element: ET.Element, attr: str) -> float:
+    """Extract a float attribute from an SVG element."""
+    return float(element.attrib[attr])
+
+
+def _parse_x_y(element: ET.Element) -> tuple[float, float]:
+    return (int(element.attrib.get("x", "0")), int(element.attrib.get("y", "0")))
 
 
 # ---------------------------------------------------------------------------
