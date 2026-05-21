@@ -2629,14 +2629,6 @@ class Invert(UnaryOperator):
     op = py_ast.Invert
 
 
-def traverse(ast_node: py_ast.AST, func: Callable[[py_ast.AST], None]):
-    """
-    Apply 'func' to ast_node (which is `ast.*` object)
-    """
-    for node in py_ast.walk(ast_node):
-        func(node)
-
-
 def simplify(codegen_ast: CodeGenAstType, simplifier: Callable[[CodeGenAstType], CodeGenAst | None]):
     """
     Repeatedly apply *simplifier* to *codegen_ast* until no more changes are made.

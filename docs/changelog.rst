@@ -9,6 +9,7 @@ Main additions and breaking changes listed here.
 Breaking changes:
 
 - Improved the API for :func:`~fluent_codegen.codegen.simplify` support.
+- Removed the unnecessary ``traverse()`` utility.
 
 0.6.0 - 2026-04-01
 ------------------

@@ -2248,17 +2248,6 @@ def test_if_unfinalized_as_ast_raises():
         if_statement.as_ast()
 
 
-def test_traverse():
-    """Test traverse function on Python AST nodes."""
-    import ast
-
-    module = ast.parse("x = 1")
-    nodes = []
-    codegen.traverse(module, lambda n: nodes.append(type(n).__name__))
-    assert "Module" in nodes
-    assert "Assign" in nodes
-
-
 def test_simplify():
     """Test simplify replaces nodes using a simplifier function."""
     scope = codegen.Scope()
