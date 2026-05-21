@@ -2266,19 +2266,20 @@ def test_simplify():
     var = scope.name("x")
     join = codegen.ConcatJoin([codegen.String("a"), codegen.String("b"), var])
 
-    def simplifier(node, changes):
+    def simplifier(node: codegen.CodeGenAstType):
         # Replace ConcatJoin with a simplified version collapsing strings
         if isinstance(node, codegen.ConcatJoin):
+            changed = False
             new_parts = []
             for part in node.parts:
                 if new_parts and isinstance(new_parts[-1], codegen.String) and isinstance(part, codegen.String):
                     new_parts[-1] = codegen.String(new_parts[-1].string_value + part.string_value)
-                    changes.append(True)
+                    changed = True
                 else:
                     new_parts.append(part)
-            if changes:
+            if changed:
                 return codegen.ConcatJoin(new_parts)
-        return node
+        return None
 
     result = codegen.simplify(join, simplifier)
     assert_code_equal(result, "'ab' + x")

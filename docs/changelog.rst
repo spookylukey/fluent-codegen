@@ -3,6 +3,13 @@ Changelog
 
 Main additions and breaking changes listed here.
 
+0.7.0 (unreleased)
+------------------
+
+Breaking changes:
+
+- Improved the API for :func:`~fluent_codegen.codegen.simplify` support.
+
 0.6.0 - 2026-04-01
 ------------------
 

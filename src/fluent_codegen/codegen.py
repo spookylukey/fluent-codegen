@@ -2637,14 +2637,21 @@ def traverse(ast_node: py_ast.AST, func: Callable[[py_ast.AST], None]):
         func(node)
 
 
-def simplify(codegen_ast: CodeGenAstType, simplifier: Callable[[CodeGenAstType, list[bool]], CodeGenAst]):
-    """Repeatedly apply *simplifier* to *codegen_ast* until no more changes are made."""
+def simplify(codegen_ast: CodeGenAstType, simplifier: Callable[[CodeGenAstType], CodeGenAst | None]):
+    """
+    Repeatedly apply *simplifier* to *codegen_ast* until no more changes are made.
+
+    The simplifier function should return None if no changes are to be made,
+    or the new CodeGenAst object otherwise.
+    """
     changes = [True]
 
-    # Wrap `simplifier` (which takes additional `changes` arg)
-    # into function that take just `node`, as required by rewriting_traverse
     def rewriter(node: CodeGenAstType) -> CodeGenAstType:
-        return simplifier(node, changes)
+        simplified = simplifier(node)
+        if simplified is not None:
+            changes.append(True)
+            return simplified
+        return node
 
     while any(changes):
         changes[:] = []
