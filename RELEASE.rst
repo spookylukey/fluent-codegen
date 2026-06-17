@@ -6,6 +6,10 @@ To do a release::
 
   uv version <newversion>
 
-Then commit with -, “version bump…”
+Update ``docs/changelog.rst``.
+
+Add changes to git and commit with::
+
+  git commit -m "Version bump $(uv version)"
 
 Then do ``./release.sh``
