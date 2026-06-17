@@ -176,3 +176,27 @@ License
 -------
 
 Apache License 2.0
+
+AI/LLM usage
+------------
+
+This project has been lovingly created by a human! The original API design came
+from fluent-compiler and was all written by hand.
+
+Since then, it has been turned into a separate project with considerable help
+from a coding agent. The agent was used for a variety of tasks, including:
+
+- extracting the code from fluent-compiler and project “scaffolding” work
+- adding documentation
+- continuing the existing patterns to cover more Python syntax
+- researching which common Python syntax the project did not yet cover
+- improving test coverage
+
+At the same time, the code created was checked carefully and a lot of work was
+done without the agent to ensure the API worked exactly the way I wanted.
+Commits created mainly by the agent are obvious in the git history.
+
+For external contributions, I prefer either code written by a human, or a
+request written by a human, since it is easier for me to prompt the coding agent
+according to my own standards than to review the results of someone else
+prompting an AI.
