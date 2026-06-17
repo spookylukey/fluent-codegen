@@ -340,8 +340,6 @@ Utility functions
 
 .. autofunction:: cleanup_name
 
-.. autofunction:: traverse
-
 .. autofunction:: simplify
 
 .. autofunction:: rewriting_traverse
