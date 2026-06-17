@@ -61,7 +61,8 @@ and contains a :class:`~fluent_codegen.codegen.Scope` (a namespace for names).
 
 By default the module's scope pre-reserves all Python builtins, so you can never
 accidentally shadow ``str``, ``len``, etc. You can also access these builtins as
-``Name`` objects using ``Module.scope.name()``.
+``Name`` objects using ``module.scope.name()`` (and ``module.enames`` using
+the :doc:`E-objects system <./e-objects>`).
 
 When you're done building, call:
 
@@ -101,11 +102,12 @@ The two key methods are:
    b = scope.create_name("x")       # Name("x_2") — auto-deduplicated
    c = scope.name("x")              # Name("x") — refers to existing
 
-Since :class:`~fluent_codegen.codegen.Module`,
-:class:`~fluent_codegen.codegen.Function`, and
-:class:`~fluent_codegen.codegen.Class` all inherit from
+Since :class:`~fluent_codegen.codegen.Function` and
+:class:`~fluent_codegen.codegen.Class` inherit from
 :class:`~fluent_codegen.codegen.Scope`, you typically call ``create_name`` on
-those directly rather than on a bare ``Scope``.
+those directly rather than on a bare ``Scope``. For
+:class:`~fluent_codegen.codegen.Module` you access the scope via the ``.scope``
+attribute.
 
 
 Block — a sequence of statements
@@ -160,11 +162,23 @@ names in the scope:
      - ``assert test, msg``
    * - ``add_comment(text)``
      - A ``# text`` comment line
-   * - ``add_statement(stmt)``
-     - Any :class:`~fluent_codegen.codegen.Statement` or :class:`~fluent_codegen.codegen.Expression`
+
 
 These factory methods are the **recommended way** to build code.  They handle
 scope registration and validation for you.
+
+There are also methods that add existing statements or expressions to the block:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 35 65
+
+   * - Method
+     - Takes
+   * - ``add_statement(stmt)``
+     - Any :class:`~fluent_codegen.codegen.Statement`
+   * - ``add_statements(stmts)``
+     - A sequence of :class:`~fluent_codegen.codegen.Statement`
 
 
 Name — the bridge between Scope and Expression
@@ -253,6 +267,9 @@ new Expressions:
    * - ``.starred()``
      - :class:`~fluent_codegen.codegen.Starred`
      - ``*expr``
+   * - ``.named(name)``
+     - :class:`~fluent_codegen.codegen.NamedExpr`
+     - ``(name := expr)``
 
 Because every method returns a new Expression, you can chain them fluently:
 
@@ -311,11 +328,11 @@ Pre-made constants are available as ``codegen.constants.None_``,
 ``codegen.constants.True_``, and ``codegen.constants.False_``.
 
 
-Worked Examples
----------------
+Common tasks
+------------
 
-Hello World — a simple function
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+A simple function
+~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
@@ -340,8 +357,8 @@ Output::
        return f'Hello, {name}!'
 
 
-Creating names and calling them
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Creating names and using them
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A common pattern is to create a name (for a function, variable, or import) and
 then call or reference it later:
@@ -373,7 +390,7 @@ The same pattern works with ``create_function``, ``create_class``, and
 
 
 Assignments and variables
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The easiest way to create a local variable is
 :meth:`~fluent_codegen.codegen.Block.assign`, which reserves the name **and**
@@ -432,8 +449,18 @@ steps directly:
    func.body.create_return(result_name.add(codegen.Number(1)))
 
 
-Classes and decorators
-~~~~~~~~~~~~~~~~~~~~~~~
+As well as ``=`` assignments, there are several other statements in Python that
+also bind names, such as “with” and “for”. For convenience, the corresponding
+codegen methods :meth:`Block.create_with` and :meth:`Block.create_for` follow
+similar patterns to the ``assign`` method and allow you to pass either a
+pre-created ``Name`` object or a string for the target. If you pass a string,
+the method will pass it to :meth:`Scope.create_name` to create a :class:`Name`
+object. For ``create_for`` you can also pass tuples of ``str`` or ``Name`` and
+will get back a corresponding tuple of ``Name`` objects.
+
+
+Dataclasses
+~~~~~~~~~~~
 
 .. code-block:: python
 
@@ -463,7 +490,7 @@ Output::
 
 
 Control flow — if / elif / else
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 :class:`~fluent_codegen.codegen.If` is built incrementally with
 ``create_if_branch``:
@@ -501,7 +528,7 @@ Output::
 
 
 With statements
-~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
@@ -509,10 +536,9 @@ With statements
    func, _ = module.create_function("read_file", args=["path"])
    path = func.name("path")
 
-   f_name = func.create_name("f")
-   with_stmt = func.body.create_with(
+   with_stmt, f_name = func.body.create_with(
        module.scope.name("open").call([path]),
-       target=f_name,
+       target="f",
    )
    with_stmt.body.create_return(f_name.method_call("read"))
 
@@ -620,7 +646,7 @@ All these functions accept an optional ``condition`` keyword argument:
 
 
 Function arguments — positional, keyword, defaults
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 For simple cases, pass argument names as strings.  For finer control use
 :class:`~fluent_codegen.codegen.FunctionArg`:
@@ -632,7 +658,7 @@ For simple cases, pass argument names as strings.  For finer control use
    module = codegen.Module()
    func, _ = module.create_function("connect", args=[
        FunctionArg.positional("host"),
-       FunctionArg.positional("port", default=codegen.Number(5432)),
+       FunctionArg.positional("port", default=codegen.Number(5432), annotation=module.scope.name('int')),
        FunctionArg.keyword("timeout", default=codegen.Number(30)),
        FunctionArg.keyword("ssl", default=codegen.constants.False_),
    ])
@@ -641,7 +667,7 @@ For simple cases, pass argument names as strings.  For finer control use
 
 Output::
 
-   def connect(host, port=5432, /, *, timeout=30, ssl=False):
+   def connect(host, port: int=5432, /, *, timeout=30, ssl=False):
        pass
 
 

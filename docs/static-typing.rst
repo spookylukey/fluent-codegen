@@ -2,11 +2,11 @@
 Static typing
 =============
 
-fluent-codegen has been designed to work well static type checks to ensure that
-you are passing appropriate objects to different methods. In general, static
-type errors will indicate a misuse of the API, and it is assumed that you will
-be using a static type checker. If you pass the wrong kind of object, such as
-passing a string where an Expression is expected, often you will only get a
+fluent-codegen has been designed to work well with static type checks to ensure
+that you are passing appropriate objects to different methods. In general,
+static type errors will indicate a misuse of the API, and it is assumed that you
+will be using a static type checker. If you pass the wrong kind of object, such
+as passing a string where an Expression is expected, often you will only get a
 runtime error later in the process – at the point where you are trying to
 convert to AST or Python source.
 

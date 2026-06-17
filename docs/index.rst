@@ -21,7 +21,7 @@ that produce correct Python source or compilable AST.
    #     return 'Hello, ' + name + '!'
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :caption: Contents
 
    installation

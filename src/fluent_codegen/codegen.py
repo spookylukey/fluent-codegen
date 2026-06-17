@@ -852,9 +852,9 @@ class Block(CodeGenAstList):
     def create_for(self, target: str | tuple[str, ...] | Target, iterable: ExpressionLike) -> tuple[For, Target]:
         """
         Create a ``for`` loop, add it to this block, and return it.
-        The first parameter is the loop variable. If this is a str
-        or tuple[str] then these names will reserved and Name objects
-        created, similar to `assign`.
+        The first parameter is the loop variable. If this is a ``str``
+        or ``tuple[str]`` then these names will reserved and Name objects
+        created, similar to ``assign``.
 
         The second parameter is an expression that will be iterated over.
 
