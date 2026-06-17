@@ -3,7 +3,7 @@ Changelog
 
 Main additions and breaking changes listed here.
 
-0.7.0 (unreleased)
+0.7.0 - 2026-06-17
 ------------------
 
 Breaking changes:
