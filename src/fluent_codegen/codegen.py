@@ -302,7 +302,7 @@ _IDENTIFIER_START_RE = re.compile("^[a-zA-Z_]")
 
 def cleanup_name(name: str) -> str:
     """
-    Convert name to a allowable identifier
+    Convert name to an allowable identifier
     """
     # See https://docs.python.org/2/reference/lexical_analysis.html#grammar-token-identifier
     name = _IDENTIFIER_SANITIZER_RE.sub("", name)
@@ -593,11 +593,11 @@ class Block(CodeGenAstList):
         allow_multiple: bool = False,
     ):
         """
-        Adds an assigment of the form:
+        Adds an assigment of the form::
 
            x = value
 
-        or more complex like:
+        or more complex like::
 
            x[0] = value
            x, y = value
@@ -1311,7 +1311,11 @@ class With(Statement):
 
 
 class For(Statement):
-    """A ``for`` loop, with optional ``else`` clause."""
+    """
+    A ``for`` loop, with optional ``else`` clause.
+
+    Use the ``.body`` attribute to add to the main body, and ``.else_block`` for the else clause.
+    """
 
     def __init__(
         self,
@@ -1327,8 +1331,8 @@ class For(Statement):
         self.iterable = iterable
         self._parent_scope = parent_scope
         self._parent_block = parent_block
-        self.body = Block(parent_scope, parent_block=parent_block)
-        self.else_block = Block(parent_scope, parent_block=parent_block)
+        self.body: Block = Block(parent_scope, parent_block=parent_block)
+        self.else_block: Block = Block(parent_scope, parent_block=parent_block)
 
     def as_ast(self, *, include_comments: bool = False) -> py_ast.For:
         return py_ast.For(
@@ -1355,12 +1359,12 @@ class Try(Statement):
     ):
         self._parent_scope = parent_scope
         self._parent_block = parent_block
-        self.try_block = Block(parent_scope, parent_block=parent_block)
+        self.try_block: Block = Block(parent_scope, parent_block=parent_block)
         self.except_blocks: list[Block] = []
         self.except_types: list[list[Expression]] = []
         self.except_names: list[str | None] = []
-        self.else_block = Block(parent_scope, parent_block=parent_block)
-        self.finally_block = Block(parent_scope, parent_block=parent_block)
+        self.else_block: Block = Block(parent_scope, parent_block=parent_block)
+        self.finally_block: Block = Block(parent_scope, parent_block=parent_block)
 
     @overload
     def create_except(
@@ -1439,12 +1443,13 @@ class Try(Statement):
 class Import(Statement):
     """
     Simple import statements, supporting:
-    - import foo
-    - import foo as bar
-    - import foo.bar
-    - import foo.bar as baz
 
-    Use via `Block.create_import`
+    - ``import foo``
+    - ``import foo as bar``
+    - ``import foo.bar``
+    - ``import foo.bar as baz``
+
+    Use via ``Block.create_import``
 
     We deliberately don't support multiple imports - these should
     be cleaned up later using a linter on the generated code, if desired.
@@ -1469,7 +1474,7 @@ class ImportFrom(Statement):
     - ``from foo import bar``
     - ``from foo import bar as baz``
 
-    Use via `Block.create_import_from`
+    Use via ``Block.create_import_from``
 
     We deliberately don't support multiple imports - these should
     be cleaned up later using a linter on the generated code, if desired.
@@ -2295,12 +2300,16 @@ def create_lambda(
     Create a lambda expression.
 
     The body can be supplied by either an expression, or a callable that
-    will be called with a `Lambda` object as its only argument. This makes it
-    possible to access the `enames` object on the `Lambda`::
+    will be called with a ``Lambda`` object as its only argument. This ``Lambda``
+    object will be a temporary one created so that you can access the
+    ``enames`` object on the ``Lambda``, and from that get the lambda argument
+    easily. For example::
 
         create_lambda('x', lambda self: self.enames.x + 1)
+        # produces: ``lambda x: x + 1``
 
-    Produces: ``lambda x: x + 1``
+        create_lambda(('x', 'y'), lambda self: self.enames.x + self.enames.y)
+        # produces: ``lambda x, y: x + y``
     """
     if callable(body):
         temp_lambda = Lambda(args, body=constants.None_)
@@ -2316,7 +2325,7 @@ def create_lambda(
 
 def named(name: Name, value: ExpressionLike) -> NamedExpr:
     """
-    Create a NamedExpr from an Expression or E-object::
+    Create a ``NamedExpr`` from an ``Expression`` or E-object::
 
 
       x = mod.scope.create_name("x")
@@ -2631,10 +2640,10 @@ class Invert(UnaryOperator):
 
 def simplify(codegen_ast: CodeGenAstType, simplifier: Callable[[CodeGenAstType], CodeGenAst | None]):
     """
-    Repeatedly apply *simplifier* to *codegen_ast* until no more changes are made.
+    Repeatedly apply ``simplifier`` to ``codegen_ast`` until no more changes are made.
 
     The simplifier function should return None if no changes are to be made,
-    or the new CodeGenAst object otherwise.
+    or the new ``CodeGenAst`` object otherwise.
     """
     changes = [True]
 
@@ -2657,7 +2666,7 @@ def rewriting_traverse(
     _visited: set[int] | None = None,
 ):
     """
-    Apply 'func' to node and all sub CodeGenAst nodes.
+    Apply ``func`` to node and all sub CodeGenAst nodes.
 
     Discovers child nodes by introspecting instance attributes rather than
     relying on a manually-maintained list.  A *visited* set (keyed by
@@ -2685,14 +2694,14 @@ def rewriting_traverse(
 
 
 def morph_into(item: object, new_item: object) -> None:
-    """Mutate *item* in-place to behave identically to *new_item* while preserving identity."""
+    """Mutate ``item`` in-place to behave identically to ``new_item`` while preserving identity."""
     item.__class__ = new_item.__class__
     item.__dict__ = new_item.__dict__
 
 
 def empty_If() -> py_ast.If:
     """
-    Create an empty If ast node. The `test` attribute
+    Create an empty If ast node. The ``test`` attribute
     must be added later.
     """
     return py_ast.If(test=None, orelse=[], **DEFAULT_AST_ARGS)  # type: ignore[reportArgumentType]
@@ -2933,6 +2942,23 @@ def ELike_to_Expression(val: ELike) -> Expression:
 
 
 class Enames:
+    """
+    Collection that provides easy access to E-objects for all the ``Name``
+    objects defined in a ``Scope``.
+
+    Example::
+
+
+        module = Module()
+        module.enames.str
+
+        # The above is equivalent to:
+        module.scope.name('str').e
+
+    ``enames`` attributes are available on ``Module`` and all ``Scope`` objects
+    (like ``Function`` and ``Class``).
+    """
+
     def __init__(self, scope: Scope) -> None:
         self.__scope = scope
 

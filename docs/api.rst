@@ -28,6 +28,9 @@ Scope and name management
    :members:
    :show-inheritance:
 
+.. autoclass:: Enames
+
+.. autotype:: Target
 
 Functions and classes
 ---------------------
@@ -350,6 +353,7 @@ Utility functions
 
 
 .. module:: fluent_codegen.remove_unused_assignments
+
 
 Dead-code elimination
 ---------------------
