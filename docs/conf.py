@@ -7,12 +7,12 @@ import sys
 sys.path.insert(0, os.path.abspath("../src"))
 
 project = "fluent-codegen"
-copyright = "2024, Luke Plant"
+copyright = "2024-2026, Luke Plant"
 author = "Luke Plant"
 
 # The full version, including alpha/beta/rc tags.
-release = "0.3.0"
-version = "0.3"
+release = "0.7.0"
+version = "0.7"
 
 # -- General configuration ---------------------------------------------------
 
