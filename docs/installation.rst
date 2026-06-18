@@ -7,4 +7,11 @@ Install from PyPI:
 
    pip install fluent-codegen
 
-Requires **Python 3.12** or later.  There are no runtime dependencies.
+Or:
+
+.. code-block:: bash
+
+   uv add fluent-codegen
+
+
+Requires **Python 3.12** or later.
