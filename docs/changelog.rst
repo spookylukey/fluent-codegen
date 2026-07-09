@@ -3,6 +3,12 @@ Changelog
 
 Main additions and breaking changes listed here.
 
+0.8.1 - 2026-07-09
+------------------
+
+- Added ``key`` parameter to :meth:`fluent_codegen.codegen.Function.sort_keyword_args`
+
+
 0.8.0 - 2026-07-09
 ------------------
 
