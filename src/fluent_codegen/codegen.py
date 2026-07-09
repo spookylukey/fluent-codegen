@@ -14,7 +14,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from functools import cached_property
-from typing import ClassVar, Literal, assert_never, overload
+from typing import TYPE_CHECKING, ClassVar, Literal, assert_never, overload
 
 if sys.version_info >= (3, 13):
     from typing import TypeIs  # pragma: no cover
@@ -31,6 +31,10 @@ from .ast_compat import (
     unparse_with_comments,
 )
 from .utils import allowable_keyword_arg_name, allowable_name
+
+if TYPE_CHECKING:
+    from _typeshed import SupportsRichComparison
+
 
 #: Type alias for comment strings stored in :attr:`Block.statements`.
 Comment = str
@@ -1061,9 +1065,11 @@ class Function(Scope, Statement):
             self.reserve_name(arg.name, function_arg=True)
         self._args = combined
 
-    def sort_keyword_args(self) -> None:
+    def sort_keyword_args(self, *, key: Callable[[FunctionArg], SupportsRichComparison] = lambda arg: arg.name) -> None:
         """
         Sorts keyword-only arguments so that they appear alphabetically in output.
+        Optionally accepts a key function that takes the FunctionArg object as input,
+        to use for the sorting.
         """
         # Build up map from old to new positions
 
@@ -1074,7 +1080,7 @@ class Function(Scope, Statement):
         kw_args = [
             (original_pos, arg) for original_pos, arg in enumerate(self._args) if arg.kind == ArgKind.KEYWORD_ONLY
         ]
-        kw_args.sort(key=lambda arg_pos: arg_pos[1].name)
+        kw_args.sort(key=lambda arg_pos: key(arg_pos[1]))
         for new_pos, (original_pos, _) in enumerate(kw_args):
             arg_positions[original_pos] = new_pos
 

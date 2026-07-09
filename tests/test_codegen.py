@@ -280,6 +280,14 @@ def test_function_sort_keyword_args():
             pass
         """,
     )
+    func.sort_keyword_args(key=lambda arg: (-int(arg.name == "z"), arg.name))
+    assert_code_equal(
+        func,
+        """
+        def my_func(b, a, *, z, x, y):
+            pass
+        """,
+    )
 
 
 def test_function_add_args_reserves_name():
