@@ -266,6 +266,22 @@ def test_function_add_args_order_check():
         func.add_args([codegen.FunctionArg.positional("y")])
 
 
+def test_function_sort_keyword_args():
+    module = codegen.Module()
+    func, _ = module.create_function(
+        "my_func", args=["b", "a", codegen.FunctionArg.keyword("z"), codegen.FunctionArg.keyword("x")]
+    )
+    func.add_args([codegen.FunctionArg.keyword("y")])
+    func.sort_keyword_args()
+    assert_code_equal(
+        func,
+        """
+        def my_func(b, a, *, x, y, z):
+            pass
+        """,
+    )
+
+
 def test_function_add_args_reserves_name():
     """Added args should be usable as Name references within the function."""
     module = codegen.Module()

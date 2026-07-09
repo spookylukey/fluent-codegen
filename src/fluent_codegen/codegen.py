@@ -1061,6 +1061,29 @@ class Function(Scope, Statement):
             self.reserve_name(arg.name, function_arg=True)
         self._args = combined
 
+    def sort_keyword_args(self) -> None:
+        """
+        Sorts keyword-only arguments so that they appear alphabetically in output.
+        """
+        # Build up map from old to new positions
+
+        # original positions:
+        arg_positions = {idx: idx for idx in range(0, len(self._args))}
+
+        # new positions for kwonly args:
+        kw_args = [
+            (original_pos, arg) for original_pos, arg in enumerate(self._args) if arg.kind == ArgKind.KEYWORD_ONLY
+        ]
+        kw_args.sort(key=lambda arg_pos: arg_pos[1].name)
+        for new_pos, (original_pos, _) in enumerate(kw_args):
+            arg_positions[original_pos] = new_pos
+
+        # Create new list based on new order.
+        new_args: list[FunctionArg] = [
+            self._args[old_pos] for old_pos, _ in sorted(arg_positions.items(), key=lambda item: item[1])
+        ]
+        self._args = new_args
+
     def as_ast(self, *, include_comments: bool = False) -> py_ast.stmt:
         if not allowable_name(self.func_name):
             raise AssertionError(f"Expected '{self.func_name}' to be a valid Python identifier")
