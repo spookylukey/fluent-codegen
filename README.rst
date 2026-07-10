@@ -8,11 +8,11 @@ A Python library for generating Python code via AST construction.
 Overview
 --------
 
-``fluent-codegen`` provides a set of classes that represent simplified
-Python constructs (functions, assignments, expressions, control flow,
-etc.) and can generate real Python ``ast`` nodes. This lets you build
-correct Python code programmatically without manipulating raw AST or
-worrying about string interpolation pitfalls.
+``fluent-codegen`` provides a set of classes that represent simplified Python
+constructs (functions, assignments, expressions, control flow, etc.) and can
+generate real Python `ast <https://docs.python.org/3/library/ast.html>`_ nodes.
+This lets you build correct Python code programmatically without manipulating
+raw AST or worrying about string interpolation pitfalls.
 
 Originally extracted from
 `fluent-compiler <https://github.com/django-ftl/fluent-compiler>`__,

@@ -15,8 +15,9 @@ approaches have drawbacks:
 
 * **String concatenation / templates** — easy to produce syntactically broken
   code, hard to avoid injection bugs, and painful to maintain indentation.
-* **Raw ``ast`` module** — correct by construction but extremely verbose; every
-  node requires a half-dozen keyword arguments.
+* **Raw ast module** (see `ast docs
+  <https://docs.python.org/3/library/ast.html>`_) — correct by construction but
+  extremely verbose; every node requires a half-dozen keyword arguments.
 
 ``fluent-codegen`` sits in between: it gives you a *simplified* AST that maps
 closely to Python constructs, with a **fluent chaining API** for building
