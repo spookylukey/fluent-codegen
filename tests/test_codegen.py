@@ -781,6 +781,97 @@ def test_create_annotation_bad_name():
         as_source_code(stmt)
 
 
+# --- Type alias tests ---
+
+
+def test_type_alias():
+    module = codegen.Module()
+    name = module.create_type_alias("MyAlias", module.scope.name("int"))
+    assert_code_equal(
+        module,
+        """
+        type MyAlias = int
+        """,
+    )
+    assert_code_equal(name, "MyAlias")
+
+
+def test_type_alias_complex_value():
+    module = codegen.Module()
+    module.create_type_alias(
+        "NumberList",
+        codegen.Subscript(module.scope.name("list"), module.scope.name("int")),
+    )
+    assert_code_equal(
+        module,
+        """
+        type NumberList = list[int]
+        """,
+    )
+
+
+def test_type_alias_reserves_name():
+    module = codegen.Module()
+    module.create_type_alias("MyAlias", module.scope.name("int"))
+    assert module.scope.is_name_in_use("MyAlias")
+
+
+def test_type_alias_duplicate_name_gets_renamed():
+    module = codegen.Module()
+    module.create_type_alias("MyAlias", module.scope.name("int"))
+    name2 = module.create_type_alias("MyAlias", module.scope.name("str"))
+    assert_code_equal(name2, "MyAlias_2")
+
+
+def test_type_alias_bad_name():
+    module = codegen.Module()
+    from fluent_codegen.codegen import TypeAliasStmt
+
+    stmt = TypeAliasStmt("bad name", module.scope.name("int"))
+    with pytest.raises(AssertionError):
+        as_source_code(stmt)
+
+
+def test_create_type_alias_module_level_utility():
+    from fluent_codegen.codegen import create_type_alias
+
+    module = codegen.Module()
+    name = create_type_alias(module, "MyAlias", module.scope.name("int"))
+    assert_code_equal(
+        module,
+        """
+        type MyAlias = int
+        """,
+    )
+    assert_code_equal(name, "MyAlias")
+
+
+def test_type_alias_with_e_object():
+    module = codegen.Module()
+    module.create_type_alias("MyAlias", module.enames.int)
+    assert_code_equal(
+        module,
+        """
+        type MyAlias = int
+        """,
+    )
+
+
+def test_type_alias_union():
+    """Type alias with a union value expression."""
+    module = codegen.Module()
+    module.create_type_alias(
+        "IntOrStr",
+        module.enames.int | module.enames.str,
+    )
+    assert_code_equal(
+        module,
+        """
+        type IntOrStr = int | str
+        """,
+    )
+
+
 # --- Field tests ---
 
 

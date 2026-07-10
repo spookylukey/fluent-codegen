@@ -340,6 +340,27 @@ class Annotation(Statement):
         )
 
 
+class TypeAliasStmt(Statement):
+    """A ``type`` alias statement, e.g. ``type MyAlias = int``.
+
+    Generates a :pep:`695` ``type`` statement.
+    """
+
+    def __init__(self, name: str, value: Expression):
+        self.name = name
+        self.value = value
+
+    def as_ast(self, *, include_comments: bool = False):
+        if not allowable_name(self.name):
+            raise AssertionError(f"Expected {self.name} to be a valid Python identifier")
+        return py_ast.TypeAlias(
+            name=py_ast.Name(id=self.name, ctx=py_ast.Store(), **DEFAULT_AST_ARGS),
+            type_params=[],
+            value=self.value.as_ast(),
+            **DEFAULT_AST_ARGS,
+        )
+
+
 type AugOp = Literal[
     "+=",
     "-=",
@@ -711,6 +732,18 @@ class Block(CodeGenAstList):
         name_obj = self.scope.create_name(name)
         self.scope.register_assignment(name_obj.name)
         self.add_statement(Annotation(name_obj.name, E_to_Expression(annotation)))
+        return name_obj
+
+    def create_type_alias(self, name: str, value: ExpressionLike) -> Name:
+        """
+        Adds a type alias statement of the form::
+
+            type MyAlias = int
+
+        Reserves the name and adds the ``type`` statement to the block.
+        """
+        name_obj = self.scope.create_name(name)
+        self.add_statement(TypeAliasStmt(name_obj.name, E_to_Expression(value)))
         return name_obj
 
     def create_field(self, name: str, annotation: ExpressionLike, *, default: ExpressionLike | None = None) -> Name:
@@ -2366,6 +2399,18 @@ def named(name: Name, value: ExpressionLike) -> NamedExpr:
        (x := 1 + 1)
     """
     return NamedExpr(name=name, value=E_to_Expression(value))
+
+
+def create_type_alias(block: Block, name: str, value: ExpressionLike) -> Name:
+    """
+    Create a :pep:`695` ``type`` alias statement and add it to *block*.
+
+    This is a convenience wrapper around :meth:`Block.create_type_alias`::
+
+        create_type_alias(module, "MyAlias", module.scope.name("int"))
+        # produces: ``type MyAlias = int``
+    """
+    return block.create_type_alias(name, value)
 
 
 #: Type alias for valid assignment target expressions.
